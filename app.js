@@ -55,6 +55,8 @@ const authRoutes = require('./routes/auth.routes');
 const authApiRoutes = require('./routes/api/auth.api.routes');
 const comicRoutes = require('./routes/comic.routes');
 const comicApiRoutes = require('./routes/api/comic.api.routes');
+const userRoutes = require('./routes/user.routes');
+const userApiRoutes = require('./routes/api/user.api.routes');
 
 console.log('[APP] Route modules loaded');
 
@@ -165,12 +167,20 @@ const initializeApp = async () => {
     app.use('/comics', comicRoutes);
     console.log('[ROUTES] ✓ Comic routes registered at /comics');
     
+    // User web routes (bookmarks, history, resume)
+    app.use('/', userRoutes);
+    console.log('[ROUTES] ✓ User routes registered at / (bookmarks, history, resume)');
+    
     // API routes
     app.use('/api/auth', authApiRoutes);
     console.log('[ROUTES] ✓ Auth API routes registered at /api/auth');
     
     app.use('/api/comics', comicApiRoutes);
     console.log('[ROUTES] ✓ Comic API routes registered at /api/comics');
+    
+    // User API routes (bookmarks, history, resume)
+    app.use('/api', userApiRoutes);
+    console.log('[ROUTES] ✓ User API routes registered at /api (bookmarks, history, resume)');
 
     // ===========================================
     // 404 Handler

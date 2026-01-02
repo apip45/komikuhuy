@@ -1,0 +1,228 @@
+<!-- 
+  ===========================================
+  AF-Komik V2 - Bookmarks Page
+  ===========================================
+  
+  Displays user's bookmarked comics.
+  Features:
+  - Grid layout matching comics list
+  - Remove bookmark button
+  - Resume reading button
+  - Pagination
+  - Empty state
+  
+  Data passed from controller:
+  - bookmarks: Array of bookmark objects
+  - pagination: Pagination metadata
+  - user: Current user
+-->
+
+<section class="py-8 md:py-12">
+  <div class="container mx-auto px-4">
+    
+    <!-- Page Header -->
+    <div class="mb-8 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+      <div>
+        <h1 class="text-3xl md:text-4xl font-bold text-white mb-2">
+          <span class="text-neon-400">📚</span> Bookmark Saya
+        </h1>
+        <p class="text-gray-400">
+          <% if (pagination.totalItems > 0) { %>
+            Kamu memiliki <span class="text-neon-400 font-semibold"><%= pagination.totalItems %></span> komik di bookmark
+          <% } else { %>
+            Belum ada komik yang di-bookmark
+          <% } %>
+        </p>
+      </div>
+      
+      <!-- Action buttons -->
+      <div class="flex gap-3">
+        <a href="/comics" class="px-4 py-2 bg-dark-300 text-gray-300 rounded-lg hover:bg-dark-200 transition-colors flex items-center gap-2">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"></path>
+          </svg>
+          Jelajahi Komik
+        </a>
+      </div>
+    </div>
+    
+    <!-- Success/Error Messages -->
+    <% if (typeof success !== 'undefined' || typeof error !== 'undefined' || typeof info !== 'undefined') { %>
+    <% const msg = success || error || info; %>
+    <% const type = success ? 'success' : (error ? 'error' : 'info'); %>
+    <div class="mb-6 p-4 rounded-lg <%= type === 'success' ? 'bg-green-900/30 border border-green-700 text-green-400' : (type === 'error' ? 'bg-red-900/30 border border-red-700 text-red-400' : 'bg-blue-900/30 border border-blue-700 text-blue-400') %>">
+      <%= msg %>
+    </div>
+    <% } %>
+    
+    <!-- Bookmarks Grid -->
+    <% if (bookmarks.length === 0) { %>
+    <!-- Empty State -->
+    <div class="flex flex-col items-center justify-center py-20">
+      <svg class="w-24 h-24 text-gray-600 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z"></path>
+      </svg>
+      <h3 class="text-xl font-semibold text-gray-400 mb-2">Belum Ada Bookmark</h3>
+      <p class="text-gray-500 mb-6 text-center">Jelajahi koleksi komik dan tambahkan ke bookmark untuk akses cepat.</p>
+      <a href="/comics" class="px-6 py-3 bg-neon-600 text-white font-semibold rounded-lg hover:bg-neon-500 transition-colors">
+        Jelajahi Komik
+      </a>
+    </div>
+    <% } else { %>
+    
+    <!-- Bookmark Cards Grid -->
+    <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4 md:gap-6">
+      <% bookmarks.forEach(function(bookmark) { %>
+      <div class="group relative">
+        <a href="/comics/<%= bookmark.comicParam %>" class="block">
+          <div class="bg-dark-400 rounded-lg overflow-hidden border border-dark-100 hover:border-neon-600/50 transition-all duration-300 hover:shadow-lg hover:shadow-neon-600/10">
+            <!-- Thumbnail -->
+            <div class="aspect-[3/4] relative overflow-hidden">
+              <% if (bookmark.cachedComic && bookmark.cachedComic.thumbnail) { %>
+              <img 
+                src="<%= bookmark.cachedComic.thumbnail %>" 
+                alt="<%= bookmark.cachedComic.title %>"
+                class="w-full h-full object-cover transform group-hover:scale-105 transition-transform duration-300"
+                loading="lazy"
+                onerror="this.onerror=null; this.src='/images/no-cover.png';"
+              >
+              <% } else { %>
+              <div class="w-full h-full bg-dark-300 flex items-center justify-center">
+                <svg class="w-12 h-12 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
+                </svg>
+              </div>
+              <% } %>
+              
+              <!-- Latest Chapter Badge -->
+              <% if (bookmark.cachedComic && bookmark.cachedComic.latestChapter) { %>
+              <div class="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 to-transparent p-2">
+                <span class="text-xs text-neon-400 font-medium">
+                  <%= bookmark.cachedComic.latestChapter %>
+                </span>
+              </div>
+              <% } %>
+              
+              <!-- Bookmark indicator -->
+              <div class="absolute top-2 right-2">
+                <span class="bg-neon-600 text-white p-1.5 rounded-full">
+                  <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
+                    <path d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z"></path>
+                  </svg>
+                </span>
+              </div>
+            </div>
+            
+            <!-- Comic Info -->
+            <div class="p-3">
+              <h3 class="text-sm font-semibold text-white line-clamp-2 group-hover:text-neon-400 transition-colors">
+                <%= bookmark.cachedComic ? bookmark.cachedComic.title : bookmark.comicParam %>
+              </h3>
+              
+              <!-- Genres -->
+              <% if (bookmark.cachedComic && bookmark.cachedComic.genres && bookmark.cachedComic.genres.length > 0) { %>
+              <div class="mt-2 flex flex-wrap gap-1">
+                <% bookmark.cachedComic.genres.slice(0, 2).forEach(function(genre) { %>
+                <span class="text-xs px-2 py-0.5 rounded bg-dark-300 text-gray-400">
+                  <%= genre %>
+                </span>
+                <% }); %>
+              </div>
+              <% } %>
+              
+              <!-- Added date -->
+              <p class="text-xs text-gray-500 mt-2">
+                Ditambahkan: <%= new Date(bookmark.createdAt).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' }) %>
+              </p>
+            </div>
+          </div>
+        </a>
+        
+        <!-- Action Buttons (on hover) -->
+        <div class="absolute bottom-16 left-0 right-0 p-2 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+          <div class="flex gap-2">
+            <!-- Resume Reading -->
+            <a 
+              href="/resume/<%= bookmark.comicParam %>" 
+              class="flex-1 py-2 bg-neon-600 text-white text-xs font-medium text-center rounded hover:bg-neon-500 transition-colors"
+              title="Lanjutkan Baca"
+            >
+              Lanjutkan
+            </a>
+            <!-- Remove Bookmark -->
+            <form action="/bookmarks/<%= bookmark.comicParam %>/remove" method="POST" class="inline" onsubmit="return confirm('Hapus dari bookmark?')">
+              <button 
+                type="submit" 
+                class="p-2 bg-red-600/80 text-white rounded hover:bg-red-500 transition-colors"
+                title="Hapus Bookmark"
+              >
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
+                </svg>
+              </button>
+            </form>
+          </div>
+        </div>
+      </div>
+      <% }); %>
+    </div>
+    
+    <!-- Pagination -->
+    <% if (pagination.total > 1) { %>
+    <div class="mt-12 flex justify-center">
+      <nav class="flex items-center gap-2">
+        <!-- Previous Button -->
+        <% if (pagination.hasPrev) { %>
+        <a href="/my/bookmarks?page=<%= pagination.current - 1 %>" class="px-4 py-2 bg-dark-300 text-gray-300 rounded-lg hover:bg-dark-200 transition-colors">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path>
+          </svg>
+        </a>
+        <% } else { %>
+        <span class="px-4 py-2 bg-dark-400 text-gray-600 rounded-lg cursor-not-allowed">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path>
+          </svg>
+        </span>
+        <% } %>
+        
+        <!-- Page Numbers -->
+        <% 
+        const maxPages = 5;
+        let startPage = Math.max(1, pagination.current - Math.floor(maxPages / 2));
+        let endPage = Math.min(pagination.total, startPage + maxPages - 1);
+        if (endPage - startPage + 1 < maxPages) {
+          startPage = Math.max(1, endPage - maxPages + 1);
+        }
+        %>
+        
+        <% for (let i = startPage; i <= endPage; i++) { %>
+        <a 
+          href="/my/bookmarks?page=<%= i %>" 
+          class="px-4 py-2 rounded-lg transition-colors <%= i === pagination.current ? 'bg-neon-600 text-white' : 'bg-dark-300 text-gray-300 hover:bg-dark-200' %>"
+        >
+          <%= i %>
+        </a>
+        <% } %>
+        
+        <!-- Next Button -->
+        <% if (pagination.hasNext) { %>
+        <a href="/my/bookmarks?page=<%= pagination.current + 1 %>" class="px-4 py-2 bg-dark-300 text-gray-300 rounded-lg hover:bg-dark-200 transition-colors">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path>
+          </svg>
+        </a>
+        <% } else { %>
+        <span class="px-4 py-2 bg-dark-400 text-gray-600 rounded-lg cursor-not-allowed">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path>
+          </svg>
+        </span>
+        <% } %>
+      </nav>
+    </div>
+    <% } %>
+    
+    <% } %>
+  </div>
+</section>

@@ -12,7 +12,8 @@
  * 3. Fetch chapter with comic info from MySQL
  * 4. Fetch all page images for the chapter
  * 5. Get prev/next chapter navigation
- * 6. Render reader or return JSON
+ * 6. Save reading history (if user is logged in)
+ * 7. Render reader or return JSON
  * 
  * Error Handling:
  * - Invalid params: 400 Bad Request
@@ -24,6 +25,7 @@ const logger = require('../config/logger');
 const ComicModel = require('../models/mysql/comic.model');
 const ChapterModel = require('../models/mysql/chapter.model');
 const ImageModel = require('../models/mysql/image.model');
+const HistoryController = require('./historyController');
 const { successResponse, errorResponse, badRequest, serverError } = require('../utils/apiResponse');
 
 /**
@@ -98,11 +100,31 @@ const ChapterController = {
       // Get user from request (if logged in)
       const user = req.user ? req.user.getPublicProfile() : null;
       
-      // Log for future reading history feature
-      if (user) {
-        console.log(`[CHAPTER_CTRL] User "${user.username}" reading ${param}/${chapterParam}`);
-        logger.info(`User "${user.username}" reading: ${param}/${chapterParam}`);
-        // TODO: Record reading history in Phase 4
+      // Save reading history for logged-in users
+      // This runs asynchronously - we don't wait for it to complete
+      // to avoid slowing down page load
+      if (req.user) {
+        console.log(`[CHAPTER_CTRL] User "${req.user.username}" reading ${param}/${chapterParam}`);
+        logger.info(`User "${req.user.username}" reading: ${param}/${chapterParam}`);
+        
+        // Save reading progress in background (don't await)
+        HistoryController.saveProgress(
+          req.user._id,
+          { 
+            param: chapter.comic_param, 
+            title: chapter.comic_title, 
+            thumbnail: chapter.comic_thumbnail 
+          },
+          { 
+            param: chapter.param, 
+            label: chapter.chapter_label 
+          },
+          images.length
+        ).catch(err => {
+          // Log error but don't fail the request
+          console.error(`[CHAPTER_CTRL] Failed to save reading history: ${err.message}`);
+          logger.error(`Failed to save reading history: ${err.message}`);
+        });
       }
       
       // Render EJS template

@@ -11,17 +11,18 @@ Platform baca komik online yang dibangun dengan arsitektur modern, scalable, dan
 3. [Arsitektur Sistem](#-arsitektur-sistem)
 4. [Sistem Autentikasi & User](#-sistem-autentikasi--user)
 5. [Sistem Konten Komik & Reader](#-sistem-konten-komik--reader)
-6. [Teknologi yang Digunakan](#-teknologi-yang-digunakan)
-7. [Struktur Folder](#-struktur-folder)
-8. [Desain Database](#-desain-database)
-9. [Sistem Scraper](#-sistem-scraper)
-10. [Logging System](#-logging-system)
-11. [Environment Variables](#-environment-variables)
-12. [Cara Install](#-cara-install)
-13. [Cara Menjalankan](#-cara-menjalankan)
-14. [Output Program](#-output-program)
-15. [Catatan Production](#-catatan-production)
-16. [Rencana Pengembangan Mobile App](#-rencana-pengembangan-mobile-app)
+6. [Bookmark & Riwayat Bacaan](#-bookmark--riwayat-bacaan)
+7. [Teknologi yang Digunakan](#-teknologi-yang-digunakan)
+8. [Struktur Folder](#-struktur-folder)
+9. [Desain Database](#-desain-database)
+10. [Sistem Scraper](#-sistem-scraper)
+11. [Logging System](#-logging-system)
+12. [Environment Variables](#-environment-variables)
+13. [Cara Install](#-cara-install)
+14. [Cara Menjalankan](#-cara-menjalankan)
+15. [Output Program](#-output-program)
+16. [Catatan Production](#-catatan-production)
+17. [Rencana Pengembangan Mobile App](#-rencana-pengembangan-mobile-app)
 
 ---
 
@@ -37,8 +38,8 @@ Platform baca komik online yang dibangun dengan arsitektur modern, scalable, dan
 | 🔍 Pencarian | Filter berdasarkan judul, genre, status | Planned |
 | 📖 Comic Reader | Reader responsif dengan lazy loading | ✅ Done |
 | 👤 Akun Pengguna | Registrasi, login, profil | ✅ Done |
-| ⭐ Bookmark | Simpan komik favorit | Planned |
-| 📜 Riwayat Baca | Lacak progress membaca | Planned |
+| ⭐ Bookmark | Simpan komik favorit | ✅ Done |
+| 📜 Riwayat Baca | Lacak progress membaca | ✅ Done |
 | 🔔 Notifikasi | Pemberitahuan chapter baru | Planned |
 | 📱 Mobile App | Aplikasi Android/iOS | Planned |
 
@@ -744,6 +745,282 @@ Semua API endpoint mengembalikan format JSON standar.
 | Parameter tidak valid | 400 | JSON error |
 | Server error | 500 | errors/500.ejs / JSON error |
 | Tidak ada gambar | 200 | Pesan "Tidak ada gambar" |
+
+---
+
+## � Bookmark & Riwayat Bacaan
+
+AF-Komik V2 menyediakan fitur bookmark dan riwayat bacaan untuk pengguna yang sudah login. Data disimpan di MongoDB dan terintegrasi dengan data komik dari MySQL.
+
+### Gambaran Umum Fitur
+
+| Fitur | Deskripsi | Akses |
+|-------|-----------|-------|
+| ⭐ Bookmark Komik | Simpan komik favorit untuk akses cepat | Login Required |
+| 📖 Riwayat Bacaan | Otomatis tersimpan saat membaca | Login Required |
+| 🔄 Resume Reading | Lanjutkan dari chapter terakhir | Login Required |
+| 👁️ Guest Mode | Baca tanpa fitur bookmark/riwayat | Public |
+
+### Cara Kerja Bookmark
+
+```
+┌────────────────────────────────────────────────────────────────────────┐
+│                        ALUR BOOKMARK                                   │
+├────────────────────────────────────────────────────────────────────────┤
+│                                                                        │
+│  [User Login]                                                          │
+│       │                                                                │
+│       ▼                                                                │
+│  [Buka Halaman Komik] ─────► Tampilkan tombol "Bookmark"               │
+│       │                                                                │
+│       ▼                                                                │
+│  [Klik Bookmark] ─────► POST /bookmarks/:comicParam                    │
+│       │                                                                │
+│       ├── Validasi komik ada di MySQL                                  │
+│       │                                                                │
+│       ├── Cek apakah sudah di-bookmark (MongoDB)                       │
+│       │                                                                │
+│       └── Simpan ke MongoDB dengan cached data:                        │
+│           - comicParam (URL slug)                                      │
+│           - cachedComic (title, thumbnail, genres)                     │
+│           - createdAt (timestamp)                                      │
+│                                                                        │
+│  [Lihat Bookmark] ─────► GET /my/bookmarks                             │
+│       │                                                                │
+│       └── Tampilkan grid komik yang di-bookmark                        │
+│                                                                        │
+└────────────────────────────────────────────────────────────────────────┘
+```
+
+### Cara Kerja Riwayat Bacaan
+
+```
+┌────────────────────────────────────────────────────────────────────────┐
+│                    ALUR RIWAYAT BACAAN                                 │
+├────────────────────────────────────────────────────────────────────────┤
+│                                                                        │
+│  [User Login]                                                          │
+│       │                                                                │
+│       ▼                                                                │
+│  [Baca Chapter] ─────► GET /comics/:param/:chapterParam                │
+│       │                                                                │
+│       ▼                                                                │
+│  [Controller Deteksi User Login]                                       │
+│       │                                                                │
+│       └── Background Save ke MongoDB:                                  │
+│           - userId                                                     │
+│           - comicParam                                                 │
+│           - chapterParam (chapter terakhir)                            │
+│           - cachedData (judul, thumbnail, label chapter)               │
+│           - lastReadAt (timestamp)                                     │
+│                                                                        │
+│  [Riwayat Disimpan Otomatis - User Tidak Perlu Aksi Apapun]            │
+│                                                                        │
+│  [Lihat Riwayat] ─────► GET /my/history                                │
+│       │                                                                │
+│       └── Tampilkan list komik yang pernah dibaca                      │
+│                                                                        │
+└────────────────────────────────────────────────────────────────────────┘
+```
+
+### Mekanisme Resume Reading
+
+Fitur "Resume Reading" memungkinkan user melanjutkan membaca dari chapter terakhir:
+
+```
+┌────────────────────────────────────────────────────────────────────────┐
+│                    ALUR RESUME READING                                 │
+├────────────────────────────────────────────────────────────────────────┤
+│                                                                        │
+│  [User Klik "Lanjutkan"] ─────► GET /resume/:comicParam                │
+│       │                                                                │
+│       ▼                                                                │
+│  [Cek Riwayat di MongoDB]                                              │
+│       │                                                                │
+│       ├── Ada riwayat? ─────► Redirect ke /comics/:param/:chapterParam │
+│       │                                                                │
+│       └── Tidak ada? ─────► Cari chapter pertama di MySQL              │
+│             │                                                          │
+│             ├── Ada chapter? ─────► Redirect ke chapter pertama        │
+│             │                                                          │
+│             └── Tidak ada? ─────► Redirect ke halaman detail komik     │
+│                                                                        │
+└────────────────────────────────────────────────────────────────────────┘
+```
+
+### Perbedaan Guest vs User Login
+
+| Fitur | Guest (Tidak Login) | User Login |
+|-------|---------------------|------------|
+| Baca Komik | ✅ Bisa | ✅ Bisa |
+| Lihat Daftar Komik | ✅ Bisa | ✅ Bisa |
+| Bookmark Komik | ❌ Tidak Bisa | ✅ Bisa |
+| Riwayat Otomatis | ❌ Tidak Ada | ✅ Tersimpan |
+| Resume Reading | ❌ Tidak Bisa | ✅ Bisa |
+| Halaman /my/bookmarks | ❌ Redirect Login | ✅ Bisa Akses |
+| Halaman /my/history | ❌ Redirect Login | ✅ Bisa Akses |
+
+### Web Routes
+
+| Method | URL | Deskripsi | Auth |
+|--------|-----|-----------|------|
+| POST | `/bookmarks/:comicParam` | Tambah bookmark | ✅ |
+| POST | `/bookmarks/:comicParam/remove` | Hapus bookmark | ✅ |
+| GET | `/my/bookmarks` | Halaman daftar bookmark | ✅ |
+| GET | `/my/history` | Halaman riwayat bacaan | ✅ |
+| POST | `/my/history/clear` | Hapus semua riwayat | ✅ |
+| POST | `/my/history/:comicParam/remove` | Hapus riwayat tertentu | ✅ |
+| GET | `/resume/:comicParam` | Lanjutkan baca | ✅ |
+
+### API Endpoints
+
+#### Base URLs
+- Bookmark: `/api/bookmarks`
+- History: `/api/history`
+- Resume: `/api/resume`
+
+| Method | Endpoint | Deskripsi |
+|--------|----------|-----------|
+| GET | `/api/bookmarks` | List bookmark user |
+| POST | `/api/bookmarks/:comicParam` | Tambah bookmark |
+| DELETE | `/api/bookmarks/:comicParam` | Hapus bookmark |
+| GET | `/api/bookmarks/:comicParam/status` | Cek status bookmark |
+| POST | `/api/bookmarks/:comicParam/toggle` | Toggle bookmark |
+| GET | `/api/history` | List riwayat bacaan |
+| DELETE | `/api/history` | Hapus semua riwayat |
+| DELETE | `/api/history/:comicParam` | Hapus riwayat tertentu |
+| GET | `/api/resume/:comicParam` | Data resume untuk komik |
+
+### Contoh Response API
+
+#### GET /api/bookmarks
+
+```json
+{
+  "status": "success",
+  "message": "Bookmarks retrieved successfully",
+  "data": {
+    "bookmarks": [
+      {
+        "id": "65a1b2c3d4e5f6g7h8i9j0k1",
+        "comicParam": "one-piece",
+        "comic": {
+          "title": "One Piece",
+          "thumbnail": "https://example.com/one-piece.jpg",
+          "latestChapter": "Chapter 1100",
+          "genres": ["Action", "Adventure"]
+        },
+        "createdAt": "2026-01-02T10:00:00.000Z"
+      }
+    ],
+    "pagination": {
+      "current": 1,
+      "total": 1,
+      "limit": 20,
+      "totalItems": 1,
+      "hasNext": false,
+      "hasPrev": false
+    }
+  }
+}
+```
+
+#### POST /api/bookmarks/:comicParam (201 Created)
+
+```json
+{
+  "status": "success",
+  "message": "Bookmark added successfully",
+  "data": {
+    "bookmark": {
+      "id": "65a1b2c3d4e5f6g7h8i9j0k1",
+      "comicParam": "one-piece",
+      "comic": {
+        "title": "One Piece",
+        "thumbnail": "https://example.com/one-piece.jpg"
+      },
+      "createdAt": "2026-01-02T10:00:00.000Z"
+    }
+  }
+}
+```
+
+#### GET /api/history
+
+```json
+{
+  "status": "success",
+  "message": "Reading history retrieved successfully",
+  "data": {
+    "history": [
+      {
+        "id": "65a1b2c3d4e5f6g7h8i9j0k2",
+        "comicParam": "one-piece",
+        "chapterParam": "chapter-1100",
+        "comic": {
+          "title": "One Piece",
+          "thumbnail": "https://example.com/one-piece.jpg"
+        },
+        "chapter": {
+          "param": "chapter-1100",
+          "label": "Chapter 1100",
+          "totalPages": 18
+        },
+        "lastReadAt": "2026-01-02T12:30:00.000Z"
+      }
+    ],
+    "pagination": {
+      "current": 1,
+      "total": 1,
+      "limit": 20,
+      "totalItems": 1,
+      "hasNext": false,
+      "hasPrev": false
+    }
+  }
+}
+```
+
+#### GET /api/resume/one-piece
+
+```json
+{
+  "status": "success",
+  "message": "Resume data retrieved",
+  "data": {
+    "hasProgress": true,
+    "comicParam": "one-piece",
+    "chapterParam": "chapter-1100",
+    "chapter": {
+      "param": "chapter-1100",
+      "label": "Chapter 1100",
+      "totalPages": 18
+    },
+    "lastReadAt": "2026-01-02T12:30:00.000Z",
+    "resumeUrl": "/comics/one-piece/chapter-1100"
+  }
+}
+```
+
+### Error Handling
+
+| Kondisi | HTTP Status | Response |
+|---------|-------------|----------|
+| Tidak login | 401 | Redirect ke /login (Web) / JSON error (API) |
+| Komik tidak ditemukan | 404 | JSON error "Comic not found" |
+| Sudah di-bookmark | 409 | JSON error "Already bookmarked" |
+| Bookmark tidak ditemukan | 404 | JSON error "Bookmark not found" |
+| Server error | 500 | JSON error "Internal server error" |
+
+### Catatan Implementasi
+
+1. **Background Save**: Riwayat bacaan disimpan secara background (tidak blocking) sehingga tidak memperlambat loading halaman reader.
+
+2. **Cached Data**: Data komik (judul, thumbnail) di-cache di MongoDB untuk mengurangi query ke MySQL saat menampilkan daftar bookmark/riwayat.
+
+3. **Unique Index**: MongoDB menggunakan compound unique index `{userId, comicParam}` untuk mencegah duplikasi.
+
+4. **comicParam vs comicId**: Menggunakan URL slug (`comicParam`) bukan numeric ID karena lebih stabil dan langsung dapat digunakan di URL.
 
 ---
 
@@ -1538,4 +1815,4 @@ Distributed under the MIT License. See `LICENSE` for more information.
 ---
 
 *Dokumentasi ini dibuat pada: 2 Januari 2026*
-*Versi: 2.2.0 - Phase 3 Comic Reader System*
+*Versi: 2.3.0 - Phase 4 Bookmark & History System*
