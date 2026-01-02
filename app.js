@@ -37,6 +37,7 @@ console.log(`[ENV] PORT: ${process.env.PORT || 3000}`);
 // ===========================================
 const express = require('express');
 const path = require('path');
+const expressLayouts = require('express-ejs-layouts');
 
 console.log('[APP] Express module loaded');
 
@@ -68,7 +69,13 @@ console.log('[APP] Express application created');
 app.set('view engine', 'ejs');
 app.set('views', path.join(__dirname, 'views'));
 
-console.log('[APP] View engine configured: EJS');
+// Use express-ejs-layouts for layout support
+app.use(expressLayouts);
+app.set('layout', 'layouts/main');
+app.set('layout extractScripts', true);
+app.set('layout extractStyles', true);
+
+console.log('[APP] View engine configured: EJS with express-ejs-layouts');
 console.log(`[APP] Views directory: ${path.join(__dirname, 'views')}`);
 
 // ===========================================
