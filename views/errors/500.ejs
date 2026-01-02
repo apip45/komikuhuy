@@ -1,0 +1,59 @@
+<!-- 
+  ===========================================
+  AF-Komik V2 - 500 Error Page
+  ===========================================
+  
+  Server error display
+-->
+
+<%- include('../layouts/main', { body: ` %>
+
+<section class="py-20">
+  <div class="max-w-lg mx-auto text-center">
+    <!-- Error Code -->
+    <div class="text-9xl font-bold text-red-500 mb-4">500</div>
+    
+    <!-- Error Message -->
+    <h1 class="text-3xl font-bold text-white mb-4">Server Error</h1>
+    <p class="text-gray-400 mb-8">
+      Maaf, terjadi kesalahan pada server. Tim kami sedang bekerja untuk memperbaikinya.
+    </p>
+    
+    <% if (typeof error !== 'undefined' && error) { %>
+    <!-- Error Details (Development Only) -->
+    <div class="bg-dark-400 rounded-lg p-4 mb-8 text-left border border-red-500/30">
+      <h3 class="text-red-400 font-semibold mb-2">Error Details:</h3>
+      <pre class="text-gray-400 text-sm overflow-x-auto"><%= typeof message !== 'undefined' ? message : 'Unknown error' %></pre>
+      <% if (error.stack) { %>
+      <details class="mt-4">
+        <summary class="text-gray-500 cursor-pointer hover:text-gray-400">Stack Trace</summary>
+        <pre class="text-gray-500 text-xs mt-2 overflow-x-auto"><%= error.stack %></pre>
+      </details>
+      <% } %>
+    </div>
+    <% } %>
+    
+    <!-- Action Buttons -->
+    <div class="flex flex-col sm:flex-row gap-4 justify-center">
+      <a href="/" 
+         class="px-8 py-3 bg-neon-600 text-white rounded-lg font-semibold hover:bg-neon-700 transition-default neon-glow">
+        Kembali ke Home
+      </a>
+      <button 
+        onclick="location.reload()" 
+        class="px-8 py-3 bg-dark-400 text-gray-300 rounded-lg font-semibold hover:bg-dark-300 hover:text-white transition-default border border-dark-100">
+        Coba Lagi
+      </button>
+    </div>
+    
+    <!-- Decorative Element -->
+    <div class="mt-12">
+      <svg class="w-48 h-48 mx-auto text-dark-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="0.5" 
+              d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path>
+      </svg>
+    </div>
+  </div>
+</section>
+
+<% ` }) %>

@@ -1,0 +1,94 @@
+<!-- 
+  ===========================================
+  AF-Komik V2 - Login Page
+  ===========================================
+  
+  User login form with:
+  - Email/username input
+  - Password input
+  - Remember me option
+  - Register link
+-->
+
+<%- include('../layouts/main', { body: ` %>
+
+<section class="py-12 md:py-20">
+  <div class="max-w-md mx-auto">
+    <!-- Header -->
+    <div class="text-center mb-8">
+      <h1 class="text-3xl font-bold text-white mb-2">Welcome Back</h1>
+      <p class="text-gray-400">Login untuk melanjutkan membaca komik favoritmu</p>
+    </div>
+    
+    <!-- Login Form -->
+    <div class="bg-dark-400 rounded-xl p-8 border border-dark-100">
+      <form action="/auth/login" method="POST" class="space-y-6">
+        
+        <!-- Email/Username Field -->
+        <div>
+          <label for="email" class="block text-sm font-medium text-gray-300 mb-2">
+            Email atau Username
+          </label>
+          <input 
+            type="text" 
+            id="email" 
+            name="email" 
+            required
+            placeholder="Masukkan email atau username"
+            class="w-full px-4 py-3 bg-dark-300 border border-dark-100 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:border-neon-600 focus:ring-1 focus:ring-neon-600 transition-default"
+          >
+        </div>
+        
+        <!-- Password Field -->
+        <div>
+          <label for="password" class="block text-sm font-medium text-gray-300 mb-2">
+            Password
+          </label>
+          <input 
+            type="password" 
+            id="password" 
+            name="password" 
+            required
+            placeholder="Masukkan password"
+            class="w-full px-4 py-3 bg-dark-300 border border-dark-100 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:border-neon-600 focus:ring-1 focus:ring-neon-600 transition-default"
+          >
+        </div>
+        
+        <!-- Remember Me & Forgot Password -->
+        <div class="flex items-center justify-between">
+          <label class="flex items-center cursor-pointer">
+            <input type="checkbox" name="remember" class="w-4 h-4 rounded border-dark-100 text-neon-600 focus:ring-neon-600 focus:ring-offset-0 bg-dark-300">
+            <span class="ml-2 text-sm text-gray-400">Ingat saya</span>
+          </label>
+          <a href="/forgot-password" class="text-sm text-neon-400 hover:text-neon-300 transition-default">
+            Lupa password?
+          </a>
+        </div>
+        
+        <!-- Submit Button -->
+        <button 
+          type="submit" 
+          class="w-full py-3 bg-neon-600 text-white rounded-lg font-semibold hover:bg-neon-700 transition-default neon-glow">
+          Login
+        </button>
+      </form>
+      
+      <!-- Divider -->
+      <div class="my-6 flex items-center">
+        <div class="flex-grow border-t border-dark-100"></div>
+        <span class="px-4 text-sm text-gray-500">atau</span>
+        <div class="flex-grow border-t border-dark-100"></div>
+      </div>
+      
+      <!-- Register Link -->
+      <p class="text-center text-gray-400">
+        Belum punya akun? 
+        <a href="/register" class="text-neon-400 hover:text-neon-300 font-medium transition-default">
+          Daftar sekarang
+        </a>
+      </p>
+    </div>
+  </div>
+</section>
+
+<% ` }) %>

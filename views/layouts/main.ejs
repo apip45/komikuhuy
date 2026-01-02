@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="id" class="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="AF-Komik - Platform baca komik online terlengkap">
+  <meta name="theme-color" content="#0f172a">
+  
+  <title><%= typeof title !== 'undefined' ? title : 'AF-Komik' %></title>
+  
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  
+  <!-- Tailwind Configuration -->
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            // Custom neon blue color palette
+            'neon': {
+              50: '#eef9ff',
+              100: '#d8f1ff',
+              200: '#b9e8ff',
+              300: '#89dbff',
+              400: '#52c5ff',
+              500: '#29a6ff',
+              600: '#0d87ff',
+              700: '#0070f3',
+              800: '#085ac5',
+              900: '#0d4d9b',
+              950: '#0e305d',
+            },
+            // Dark theme background colors
+            'dark': {
+              100: '#1e293b',
+              200: '#1a2234',
+              300: '#151c2c',
+              400: '#111827',
+              500: '#0f172a',
+              600: '#0c1322',
+              700: '#090f1a',
+              800: '#060a12',
+              900: '#03050a',
+            }
+          },
+          fontFamily: {
+            sans: ['Inter', 'system-ui', 'sans-serif'],
+          }
+        }
+      }
+    }
+  </script>
+  
+  <!-- Custom Styles -->
+  <style>
+    /* Smooth scrolling */
+    html {
+      scroll-behavior: smooth;
+    }
+    
+    /* Custom scrollbar for dark theme */
+    ::-webkit-scrollbar {
+      width: 8px;
+      height: 8px;
+    }
+    
+    ::-webkit-scrollbar-track {
+      background: #1e293b;
+    }
+    
+    ::-webkit-scrollbar-thumb {
+      background: #3b82f6;
+      border-radius: 4px;
+    }
+    
+    ::-webkit-scrollbar-thumb:hover {
+      background: #60a5fa;
+    }
+    
+    /* Neon glow effect */
+    .neon-glow {
+      box-shadow: 0 0 20px rgba(13, 135, 255, 0.3),
+                  0 0 40px rgba(13, 135, 255, 0.2),
+                  0 0 60px rgba(13, 135, 255, 0.1);
+    }
+    
+    .neon-text {
+      text-shadow: 0 0 10px rgba(13, 135, 255, 0.5),
+                   0 0 20px rgba(13, 135, 255, 0.3);
+    }
+    
+    /* Transition defaults */
+    .transition-default {
+      transition: all 0.3s ease;
+    }
+  </style>
+</head>
+<body class="bg-dark-500 text-gray-100 min-h-screen flex flex-col antialiased">
+  
+  <!-- Navigation Bar -->
+  <%- include('../partials/navbar') %>
+  
+  <!-- Main Content Container -->
+  <main class="flex-grow container mx-auto px-4 py-8">
+    <%- body %>
+  </main>
+  
+  <!-- Footer -->
+  <%- include('../partials/footer') %>
+  
+  <!-- Mobile Menu Script -->
+  <script>
+    // Mobile menu toggle functionality
+    document.addEventListener('DOMContentLoaded', function() {
+      const mobileMenuButton = document.getElementById('mobile-menu-button');
+      const mobileMenu = document.getElementById('mobile-menu');
+      
+      if (mobileMenuButton && mobileMenu) {
+        mobileMenuButton.addEventListener('click', function() {
+          mobileMenu.classList.toggle('hidden');
+        });
+      }
+    });
+  </script>
+</body>
+</html>

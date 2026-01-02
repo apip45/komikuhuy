@@ -1,0 +1,131 @@
+<!-- 
+  ===========================================
+  AF-Komik V2 - Registration Page
+  ===========================================
+  
+  User registration form with:
+  - Username input
+  - Email input
+  - Password input
+  - Confirm password input
+  - Terms acceptance
+-->
+
+<%- include('../layouts/main', { body: ` %>
+
+<section class="py-12 md:py-20">
+  <div class="max-w-md mx-auto">
+    <!-- Header -->
+    <div class="text-center mb-8">
+      <h1 class="text-3xl font-bold text-white mb-2">Buat Akun Baru</h1>
+      <p class="text-gray-400">Daftar gratis untuk mulai membaca komik favoritmu</p>
+    </div>
+    
+    <!-- Registration Form -->
+    <div class="bg-dark-400 rounded-xl p-8 border border-dark-100">
+      <form action="/auth/register" method="POST" class="space-y-6">
+        
+        <!-- Username Field -->
+        <div>
+          <label for="username" class="block text-sm font-medium text-gray-300 mb-2">
+            Username
+          </label>
+          <input 
+            type="text" 
+            id="username" 
+            name="username" 
+            required
+            minlength="3"
+            maxlength="20"
+            pattern="^[a-zA-Z0-9_]+$"
+            placeholder="Pilih username (huruf, angka, underscore)"
+            class="w-full px-4 py-3 bg-dark-300 border border-dark-100 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:border-neon-600 focus:ring-1 focus:ring-neon-600 transition-default"
+          >
+        </div>
+        
+        <!-- Email Field -->
+        <div>
+          <label for="email" class="block text-sm font-medium text-gray-300 mb-2">
+            Email
+          </label>
+          <input 
+            type="email" 
+            id="email" 
+            name="email" 
+            required
+            placeholder="Masukkan alamat email"
+            class="w-full px-4 py-3 bg-dark-300 border border-dark-100 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:border-neon-600 focus:ring-1 focus:ring-neon-600 transition-default"
+          >
+        </div>
+        
+        <!-- Password Field -->
+        <div>
+          <label for="password" class="block text-sm font-medium text-gray-300 mb-2">
+            Password
+          </label>
+          <input 
+            type="password" 
+            id="password" 
+            name="password" 
+            required
+            minlength="8"
+            placeholder="Minimal 8 karakter"
+            class="w-full px-4 py-3 bg-dark-300 border border-dark-100 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:border-neon-600 focus:ring-1 focus:ring-neon-600 transition-default"
+          >
+        </div>
+        
+        <!-- Confirm Password Field -->
+        <div>
+          <label for="confirmPassword" class="block text-sm font-medium text-gray-300 mb-2">
+            Konfirmasi Password
+          </label>
+          <input 
+            type="password" 
+            id="confirmPassword" 
+            name="confirmPassword" 
+            required
+            placeholder="Ulangi password"
+            class="w-full px-4 py-3 bg-dark-300 border border-dark-100 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:border-neon-600 focus:ring-1 focus:ring-neon-600 transition-default"
+          >
+        </div>
+        
+        <!-- Terms Agreement -->
+        <div>
+          <label class="flex items-start cursor-pointer">
+            <input type="checkbox" name="terms" required class="w-4 h-4 mt-1 rounded border-dark-100 text-neon-600 focus:ring-neon-600 focus:ring-offset-0 bg-dark-300">
+            <span class="ml-2 text-sm text-gray-400">
+              Saya setuju dengan 
+              <a href="/terms" class="text-neon-400 hover:text-neon-300">Syarat & Ketentuan</a> 
+              dan 
+              <a href="/privacy" class="text-neon-400 hover:text-neon-300">Kebijakan Privasi</a>
+            </span>
+          </label>
+        </div>
+        
+        <!-- Submit Button -->
+        <button 
+          type="submit" 
+          class="w-full py-3 bg-neon-600 text-white rounded-lg font-semibold hover:bg-neon-700 transition-default neon-glow">
+          Daftar Sekarang
+        </button>
+      </form>
+      
+      <!-- Divider -->
+      <div class="my-6 flex items-center">
+        <div class="flex-grow border-t border-dark-100"></div>
+        <span class="px-4 text-sm text-gray-500">atau</span>
+        <div class="flex-grow border-t border-dark-100"></div>
+      </div>
+      
+      <!-- Login Link -->
+      <p class="text-center text-gray-400">
+        Sudah punya akun? 
+        <a href="/login" class="text-neon-400 hover:text-neon-300 font-medium transition-default">
+          Login di sini
+        </a>
+      </p>
+    </div>
+  </div>
+</section>
+
+<% ` }) %>
