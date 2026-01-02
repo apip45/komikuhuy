@@ -6,10 +6,7 @@
  * Main application routes for the web platform.
  * Handles homepage and basic navigation routes.
  * 
- * Route naming convention:
- * - GET routes for displaying pages
- * - POST routes for form submissions (auth)
- * - All routes log their registration in console
+ * Note: Login/Register routes are in auth.routes.js
  */
 
 const express = require('express');
@@ -17,6 +14,9 @@ const router = express.Router();
 
 // Import controllers
 const indexController = require('../controllers/indexController');
+
+// Import middleware
+const { attachUser } = require('../middlewares');
 
 console.log('[ROUTES] Registering index routes...');
 
@@ -27,23 +27,10 @@ console.log('[ROUTES] Registering index routes...');
 /**
  * GET /
  * Homepage - Display main landing page with featured comics
+ * Uses attachUser to optionally get user data for display
  */
-router.get('/', indexController.getHomePage);
+router.get('/', attachUser, indexController.getHomePage);
 console.log('[ROUTES] Registered: GET /');
-
-/**
- * GET /login
- * Login page - Display user login form
- */
-router.get('/login', indexController.getLoginPage);
-console.log('[ROUTES] Registered: GET /login');
-
-/**
- * GET /register
- * Register page - Display user registration form
- */
-router.get('/register', indexController.getRegisterPage);
-console.log('[ROUTES] Registered: GET /register');
 
 console.log('[ROUTES] Index routes registration complete');
 

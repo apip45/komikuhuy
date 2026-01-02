@@ -9,17 +9,18 @@ Platform baca komik online yang dibangun dengan arsitektur modern, scalable, dan
 1. [Gambaran Umum Aplikasi](#-gambaran-umum-aplikasi)
 2. [Tujuan Proyek](#-tujuan-proyek)
 3. [Arsitektur Sistem](#-arsitektur-sistem)
-4. [Teknologi yang Digunakan](#-teknologi-yang-digunakan)
-5. [Struktur Folder](#-struktur-folder)
-6. [Desain Database](#-desain-database)
-7. [Sistem Scraper](#-sistem-scraper)
-8. [Logging System](#-logging-system)
-9. [Environment Variables](#-environment-variables)
-10. [Cara Install](#-cara-install)
-11. [Cara Menjalankan](#-cara-menjalankan)
-12. [Output Program](#-output-program)
-13. [Catatan Production](#-catatan-production)
-14. [Rencana Pengembangan Mobile App](#-rencana-pengembangan-mobile-app)
+4. [Sistem Autentikasi & User](#-sistem-autentikasi--user)
+5. [Teknologi yang Digunakan](#-teknologi-yang-digunakan)
+6. [Struktur Folder](#-struktur-folder)
+7. [Desain Database](#-desain-database)
+8. [Sistem Scraper](#-sistem-scraper)
+9. [Logging System](#-logging-system)
+10. [Environment Variables](#-environment-variables)
+11. [Cara Install](#-cara-install)
+12. [Cara Menjalankan](#-cara-menjalankan)
+13. [Output Program](#-output-program)
+14. [Catatan Production](#-catatan-production)
+15. [Rencana Pengembangan Mobile App](#-rencana-pengembangan-mobile-app)
 
 ---
 
@@ -34,7 +35,7 @@ Platform baca komik online yang dibangun dengan arsitektur modern, scalable, dan
 | 📚 Koleksi Komik | Ribuan judul komik dari berbagai sumber | Planned |
 | 🔍 Pencarian | Filter berdasarkan judul, genre, status | Planned |
 | 📖 Comic Reader | Reader responsif dengan lazy loading | Planned |
-| 👤 Akun Pengguna | Registrasi, login, profil | Planned |
+| 👤 Akun Pengguna | Registrasi, login, profil | ✅ Done |
 | ⭐ Bookmark | Simpan komik favorit | Planned |
 | 📜 Riwayat Baca | Lacak progress membaca | Planned |
 | 🔔 Notifikasi | Pemberitahuan chapter baru | Planned |
@@ -161,7 +162,303 @@ Platform baca komik online yang dibangun dengan arsitektur modern, scalable, dan
 
 ---
 
-## 🛠️ Teknologi yang Digunakan
+## � Sistem Autentikasi & User
+
+AF-Komik V2 mengimplementasikan sistem autentikasi yang lengkap dan aman dengan fitur-fitur berikut:
+
+### Gambaran Umum
+
+| Fitur | Deskripsi | Status |
+|-------|-----------|--------|
+| 📝 Registrasi | Daftar akun baru dengan validasi | ✅ Selesai |
+| 🔑 Login | Login dengan email/username | ✅ Selesai |
+| 🚪 Logout | Akhiri sesi dengan aman | ✅ Selesai |
+| 👤 Profil | Lihat informasi akun | ✅ Selesai |
+| 🛡️ Sistem Role | Pembagian hak akses user/admin | ✅ Selesai |
+| 📱 API Auth | Endpoint REST untuk mobile app | ✅ Selesai |
+
+### Metode Autentikasi
+
+Aplikasi ini menggunakan **session-based authentication** dengan penyimpanan di MongoDB:
+
+```
+┌──────────────────────────────────────────────────────────────────────────┐
+│                    ALUR AUTENTIKASI (SESSION-BASED)                      │
+├──────────────────────────────────────────────────────────────────────────┤
+│                                                                          │
+│   ┌─────────┐    1. POST /login         ┌─────────────────────────────┐  │
+│   │ Browser │ ───────────────────────▶ │  Express Server             │  │
+│   │         │    (email/username +     │                             │  │
+│   │         │     password)            │  ┌─────────────────────────┐│  │
+│   │         │                          │  │ Auth Controller         ││  │
+│   │         │                          │  │                         ││  │
+│   │         │    2. Validate user      │  │ 1. Find user by email/  ││  │
+│   │         │       credentials        │  │    username             ││  │
+│   │         │                          │  │ 2. Compare password     ││  │
+│   │         │                          │  │    dengan bcrypt        ││  │
+│   │         │                          │  │ 3. Buat session         ││  │
+│   │         │                          │  │ 4. Simpan ke MongoDB    ││  │
+│   │         │                          │  └─────────────────────────┘│  │
+│   │         │                          │              │               │  │
+│   │         │                          │              ▼               │  │
+│   │         │    3. Set-Cookie:        │  ┌─────────────────────────┐│  │
+│   │         │ ◀───────────────────────│  │ MongoDB Session Store   ││  │
+│   │         │    connect.sid=xxx       │  │                         ││  │
+│   │         │                          │  │ { _id: "xxx",           ││  │
+│   │         │                          │  │   expires: Date,        ││  │
+│   │         │                          │  │   session: {            ││  │
+│   │         │                          │  │     userId: ObjectId,   ││  │
+│   │         │                          │  │     userRole: "user",   ││  │
+│   │         │                          │  │     username: "john"    ││  │
+│   │         │                          │  │   }                     ││  │
+│   │         │                          │  │ }                       ││  │
+│   └─────────┘                          │  └─────────────────────────┘│  │
+│                                        └─────────────────────────────────┘  │
+│                                                                          │
+│   Setiap request selanjutnya:                                            │
+│   Cookie: connect.sid=xxx  →  Session ditemukan  →  Request terautentikasi│
+│                                                                          │
+└──────────────────────────────────────────────────────────────────────────┘
+```
+
+### Keamanan Password
+
+Password disimpan dengan aman menggunakan **bcrypt**:
+
+| Aspek | Implementasi |
+|-------|--------------|
+| **Hashing Algorithm** | bcrypt |
+| **Salt Rounds** | 12 (konfigurabel via env) |
+| **Pre-save Hook** | Password otomatis di-hash sebelum disimpan |
+| **Comparison** | Menggunakan `bcrypt.compare()` yang aman dari timing attacks |
+
+```javascript
+// Contoh penggunaan di User model
+userSchema.pre('save', async function(next) {
+  if (!this.isModified('password')) return next();
+  this.password = await bcrypt.hash(this.password, BCRYPT_SALT_ROUNDS);
+  next();
+});
+
+// Method untuk membandingkan password
+userSchema.methods.comparePassword = async function(candidatePassword) {
+  return bcrypt.compare(candidatePassword, this.password);
+};
+```
+
+### Sistem Role
+
+Aplikasi mendukung sistem role untuk pembagian hak akses:
+
+| Role | Kode | Hak Akses |
+|------|------|-----------|
+| **User** | `user` | Akses fitur umum (membaca, bookmark, history) |
+| **Admin** | `admin` | Semua fitur user + manajemen konten |
+
+#### Middleware Role
+
+```javascript
+// Contoh penggunaan middleware
+router.get('/profile', isAuthenticated, getProfilePage);
+router.get('/admin', isAuthenticated, isAdmin, getAdminPage);
+router.get('/api/admin/users', isAuthenticatedAPI, isAdminAPI, getUsers);
+```
+
+### Web Routes (Browser)
+
+| Method | Route | Middleware | Deskripsi |
+|--------|-------|------------|-----------|
+| GET | `/login` | redirectIfAuthenticated | Halaman login |
+| POST | `/login` | redirectIfAuthenticated | Proses login |
+| GET | `/register` | redirectIfAuthenticated | Halaman registrasi |
+| POST | `/register` | redirectIfAuthenticated | Proses registrasi |
+| POST | `/logout` | isAuthenticated | Proses logout |
+| GET | `/profile` | isAuthenticated | Halaman profil user |
+
+### API Routes (Mobile/REST)
+
+Untuk kebutuhan aplikasi mobile atau integrasi pihak ketiga:
+
+| Method | Route | Middleware | Deskripsi |
+|--------|-------|------------|-----------|
+| POST | `/api/auth/register` | - | Registrasi user baru |
+| POST | `/api/auth/login` | - | Login dan dapatkan session |
+| POST | `/api/auth/logout` | isAuthenticatedAPI | Logout dan hapus session |
+| GET | `/api/auth/me` | isAuthenticatedAPI | Dapatkan info user saat ini |
+
+### Format Response API
+
+Semua API endpoint menggunakan format response yang konsisten:
+
+#### Success Response
+
+```json
+{
+  "status": "success",
+  "message": "Pesan sukses",
+  "data": {
+    // Data yang diminta
+  }
+}
+```
+
+#### Error Response
+
+```json
+{
+  "status": "error",
+  "message": "Pesan error",
+  "data": null
+}
+```
+
+### Contoh Penggunaan API
+
+#### Registrasi User Baru
+
+```bash
+POST /api/auth/register
+Content-Type: application/json
+
+{
+  "username": "johndoe",
+  "email": "john@example.com",
+  "password": "password123",
+  "confirmPassword": "password123"
+}
+```
+
+Response (201 Created):
+```json
+{
+  "status": "success",
+  "message": "Registrasi berhasil! Silakan login.",
+  "data": {
+    "user": {
+      "_id": "507f1f77bcf86cd799439011",
+      "username": "johndoe",
+      "email": "john@example.com",
+      "role": "user",
+      "createdAt": "2026-01-02T10:00:00.000Z"
+    }
+  }
+}
+```
+
+#### Login
+
+```bash
+POST /api/auth/login
+Content-Type: application/json
+
+{
+  "identifier": "john@example.com",
+  "password": "password123"
+}
+```
+
+Response (200 OK):
+```json
+{
+  "status": "success",
+  "message": "Login berhasil!",
+  "data": {
+    "user": {
+      "_id": "507f1f77bcf86cd799439011",
+      "username": "johndoe",
+      "email": "john@example.com",
+      "role": "user",
+      "lastLogin": "2026-01-02T10:30:00.000Z"
+    }
+  }
+}
+```
+
+#### Get Current User
+
+```bash
+GET /api/auth/me
+Cookie: connect.sid=your_session_id
+```
+
+Response (200 OK):
+```json
+{
+  "status": "success",
+  "message": "User data retrieved successfully",
+  "data": {
+    "user": {
+      "_id": "507f1f77bcf86cd799439011",
+      "username": "johndoe",
+      "email": "john@example.com",
+      "role": "user",
+      "createdAt": "2026-01-02T10:00:00.000Z",
+      "lastLogin": "2026-01-02T10:30:00.000Z"
+    }
+  }
+}
+```
+
+#### Logout
+
+```bash
+POST /api/auth/logout
+Cookie: connect.sid=your_session_id
+```
+
+Response (200 OK):
+```json
+{
+  "status": "success",
+  "message": "Logout berhasil!",
+  "data": null
+}
+```
+
+### HTTP Status Codes
+
+| Code | Nama | Penggunaan |
+|------|------|------------|
+| 200 | OK | Request berhasil |
+| 201 | Created | Resource baru dibuat (registrasi) |
+| 400 | Bad Request | Input tidak valid |
+| 401 | Unauthorized | Belum login atau session expired |
+| 403 | Forbidden | Tidak punya akses ke resource |
+| 409 | Conflict | Data sudah ada (email/username duplikat) |
+| 500 | Internal Server Error | Kesalahan server |
+
+### Session Configuration
+
+Session dikonfigurasi di `config/session.js`:
+
+```javascript
+{
+  secret: process.env.SESSION_SECRET,
+  resave: false,
+  saveUninitialized: false,
+  store: MongoStore.create({
+    mongoUrl: process.env.MONGO_URI,
+    collectionName: 'sessions'
+  }),
+  cookie: {
+    secure: process.env.NODE_ENV === 'production',
+    httpOnly: true,
+    maxAge: 7 * 24 * 60 * 60 * 1000 // 7 hari
+  }
+}
+```
+
+### Tips Keamanan
+
+1. **Gunakan HTTPS di production** - Set `cookie.secure = true`
+2. **SESSION_SECRET harus kuat** - Minimal 32 karakter random
+3. **Jangan expose password** - Gunakan `getPublicProfile()` method
+4. **Rate limiting** - Pertimbangkan untuk menambahkan di production
+5. **Password policy** - Minimal 8 karakter (dapat ditingkatkan)
+
+---
+
+## �🛠️ Teknologi yang Digunakan
 
 ### Backend Stack
 
@@ -186,6 +483,7 @@ Platform baca komik online yang dibangun dengan arsitektur modern, scalable, dan
 |---------|--------|
 | express-session | Session management |
 | connect-mongo | MongoDB session store |
+| bcrypt | Password hashing (12 salt rounds) |
 | dotenv | Environment variables |
 
 ### Logging & Development
@@ -951,4 +1249,4 @@ Distributed under the MIT License. See `LICENSE` for more information.
 ---
 
 *Dokumentasi ini dibuat pada: 2 Januari 2026*
-*Versi: 2.0.0 - Phase 1 Foundation*
+*Versi: 2.1.0 - Phase 2 Authentication System*

@@ -3,144 +3,170 @@
  * AF-Komik V2 - Role Authorization Middleware
  * ===========================================
  * 
- * Middleware to verify user role and permissions.
- * Protects admin-only routes and functionality.
+ * Middleware functions to protect routes based on user roles.
+ * Must be used AFTER authentication middleware.
  * 
- * How it works:
- * 1. Must be used AFTER isAuthenticated middleware
- * 2. Checks user role stored in session
- * 3. If user has required role, allows request to proceed
- * 4. If user lacks required role:
- *    - For web routes: shows 403 Forbidden page
- *    - For API routes: returns 403 JSON response
- * 
- * User Roles:
- * - 'user': Regular user (default)
+ * Role System:
+ * - 'user': Regular user with basic access
  * - 'admin': Administrator with full access
  * 
- * STRUCTURE ONLY - Full role logic will be implemented in Phase 2
+ * Usage Examples:
+ * 
+ * // Web routes (redirects with 403 error)
+ * router.get('/admin', isAuthenticated, isAdmin, adminController.dashboard);
+ * 
+ * // API routes (returns 403 JSON)
+ * router.delete('/api/comics/:id', isAuthenticatedAPI, isAdminAPI, comicController.delete);
+ * 
+ * // Custom role check
+ * router.get('/mod', isAuthenticated, hasRole(['admin', 'moderator']), modController.panel);
  */
 
 const logger = require('../config/logger');
+const { forbidden } = require('../utils/apiResponse');
 
 /**
- * Check if user has admin role (for web routes)
- * Must be used AFTER isAuthenticated middleware
+ * Check if user is an admin (for Web routes)
  * 
- * Usage:
- * router.get('/admin/dashboard', isAuthenticated, isAdmin, adminController.getDashboard);
+ * Prerequisites:
+ * - Must be used AFTER isAuthenticated middleware
+ * - req.user must be set by isAuthenticated
+ * 
+ * Behavior:
+ * - If admin: calls next() to continue
+ * - If not admin: renders 403 error page
  * 
  * @param {Object} req - Express request object
  * @param {Object} res - Express response object
  * @param {Function} next - Express next middleware function
  */
 const isAdmin = (req, res, next) => {
-  console.log('[ROLE] Checking admin privileges...');
+  console.log('[ROLE] Checking admin status...');
   
-  // TODO: Implement actual role check in Phase 2
-  // This will verify:
-  // 1. User is already authenticated (session.userId exists)
-  // 2. User has admin role in MongoDB database
-  // 3. Admin privileges are still valid (not revoked)
-  
-  // Get user ID from session for logging
-  const userId = req.session?.userId || 'unknown';
-  
-  // Check if user has admin role in session
-  if (req.session && req.session.userRole === 'admin') {
-    console.log(`[ROLE] ✓ Admin access granted for user: ${userId}`);
-    logger.info(`Admin access granted for user ${userId}`);
-    
-    // User is admin, proceed to next middleware/route handler
-    return next();
+  // Check if user exists on request (should be set by isAuthenticated)
+  if (!req.user) {
+    console.log('[ROLE] ✗ No user on request - auth middleware may not have run');
+    logger.error('isAdmin called without user on request');
+    return res.redirect('/login?error=' + encodeURIComponent('Please log in'));
   }
-
-  // User is not admin
-  console.log(`[ROLE] ✗ Admin access denied for user: ${userId}`);
-  logger.warn(`Unauthorized admin access attempt by user ${userId} to: ${req.path}`);
   
-  // Return 403 Forbidden error page
-  return res.status(403).render('errors/403', {
-    title: 'Access Denied',
-    message: 'You do not have permission to access this resource. Admin privileges required.'
-  });
+  // Check user role
+  if (req.user.role !== 'admin') {
+    console.log(`[ROLE] ✗ User ${req.user.username} is not an admin (role: ${req.user.role})`);
+    logger.warn(`Unauthorized admin access attempt by: ${req.user.username} to ${req.path}`);
+    
+    // Render 403 forbidden page
+    return res.status(403).render('errors/403', {
+      title: '403 - Access Denied',
+      message: 'You do not have permission to access this page.'
+    });
+  }
+  
+  console.log(`[ROLE] ✓ Admin access granted: ${req.user.username}`);
+  logger.info(`Admin access: ${req.user.username} accessed ${req.path}`);
+  next();
 };
 
 /**
- * Check if user has admin role (for API routes)
- * Returns JSON error instead of rendering error page
- * Must be used AFTER isAuthenticatedAPI middleware
+ * Check if user is an admin (for API routes)
  * 
- * Usage:
- * router.get('/api/admin/users', isAuthenticatedAPI, isAdminAPI, adminController.getUsers);
+ * Prerequisites:
+ * - Must be used AFTER isAuthenticatedAPI middleware
+ * - req.user must be set by isAuthenticatedAPI
+ * 
+ * Behavior:
+ * - If admin: calls next() to continue
+ * - If not admin: returns 403 JSON response
  * 
  * @param {Object} req - Express request object
  * @param {Object} res - Express response object
  * @param {Function} next - Express next middleware function
  */
 const isAdminAPI = (req, res, next) => {
-  console.log('[ROLE-API] Checking admin privileges...');
+  console.log('[ROLE-API] Checking admin status...');
   
-  // Get user ID from session for logging
-  const userId = req.session?.userId || 'unknown';
-  
-  // Check if user has admin role in session
-  if (req.session && req.session.userRole === 'admin') {
-    console.log(`[ROLE-API] ✓ Admin access granted for user: ${userId}`);
-    return next();
+  // Check if user exists on request
+  if (!req.user) {
+    console.log('[ROLE-API] ✗ No user on request');
+    return forbidden(res, 'Authentication required');
   }
-
-  // Return 403 Forbidden error for API requests
-  console.log(`[ROLE-API] ✗ Admin access denied for user: ${userId}`);
-  logger.warn(`Unauthorized admin API access attempt by user ${userId} to: ${req.path}`);
   
-  return res.status(403).json({
-    success: false,
-    error: 'Admin privileges required',
-    code: 'FORBIDDEN',
-    message: 'You do not have permission to access this resource'
-  });
+  // Check user role
+  if (req.user.role !== 'admin') {
+    console.log(`[ROLE-API] ✗ User ${req.user.username} is not an admin`);
+    logger.warn(`API: Unauthorized admin access attempt by: ${req.user.username} to ${req.path}`);
+    return forbidden(res, 'Admin access required');
+  }
+  
+  console.log(`[ROLE-API] ✓ Admin access granted: ${req.user.username}`);
+  logger.info(`API: Admin access: ${req.user.username} accessed ${req.path}`);
+  next();
 };
 
 /**
- * Factory function to create role-checking middleware
- * Allows checking for any role, not just admin
+ * Check if user has one of the specified roles (for Web routes)
  * 
- * Usage:
- * router.get('/moderator/panel', isAuthenticated, hasRole('moderator'), modController.getPanel);
+ * Use this for more flexible role-based access control.
  * 
- * @param {string|string[]} allowedRoles - Role(s) that can access the route
+ * @param {string[]} roles - Array of allowed roles
  * @returns {Function} Express middleware function
+ * 
+ * Example:
+ * router.get('/moderate', isAuthenticated, hasRole(['admin', 'moderator']), controller);
  */
-const hasRole = (allowedRoles) => {
-  // Convert single role to array for consistent handling
-  const roles = Array.isArray(allowedRoles) ? allowedRoles : [allowedRoles];
-  
+const hasRole = (roles) => {
   return (req, res, next) => {
-    console.log(`[ROLE] Checking for roles: ${roles.join(', ')}`);
+    console.log(`[ROLE] Checking if user has role: [${roles.join(', ')}]`);
     
-    const userId = req.session?.userId || 'unknown';
-    const userRole = req.session?.userRole;
-    
-    // Check if user's role is in the allowed roles list
-    if (userRole && roles.includes(userRole)) {
-      console.log(`[ROLE] ✓ Role '${userRole}' allowed for user: ${userId}`);
-      return next();
+    if (!req.user) {
+      console.log('[ROLE] ✗ No user on request');
+      return res.redirect('/login?error=' + encodeURIComponent('Please log in'));
     }
     
-    // User doesn't have required role
-    console.log(`[ROLE] ✗ Role '${userRole}' not in allowed roles [${roles.join(', ')}]`);
-    logger.warn(`Role check failed for user ${userId}. Required: ${roles.join(', ')}, Has: ${userRole}`);
+    if (!roles.includes(req.user.role)) {
+      console.log(`[ROLE] ✗ User ${req.user.username} role ${req.user.role} not in [${roles.join(', ')}]`);
+      logger.warn(`Unauthorized access: ${req.user.username} (${req.user.role}) to ${req.path}`);
+      
+      return res.status(403).render('errors/403', {
+        title: '403 - Access Denied',
+        message: 'You do not have permission to access this page.'
+      });
+    }
     
-    return res.status(403).render('errors/403', {
-      title: 'Access Denied',
-      message: 'You do not have permission to access this resource.'
-    });
+    console.log(`[ROLE] ✓ Role check passed: ${req.user.username} (${req.user.role})`);
+    next();
+  };
+};
+
+/**
+ * Check if user has one of the specified roles (for API routes)
+ * 
+ * @param {string[]} roles - Array of allowed roles
+ * @returns {Function} Express middleware function
+ */
+const hasRoleAPI = (roles) => {
+  return (req, res, next) => {
+    console.log(`[ROLE-API] Checking if user has role: [${roles.join(', ')}]`);
+    
+    if (!req.user) {
+      console.log('[ROLE-API] ✗ No user on request');
+      return forbidden(res, 'Authentication required');
+    }
+    
+    if (!roles.includes(req.user.role)) {
+      console.log(`[ROLE-API] ✗ User ${req.user.username} role ${req.user.role} not in [${roles.join(', ')}]`);
+      logger.warn(`API: Unauthorized access: ${req.user.username} (${req.user.role}) to ${req.path}`);
+      return forbidden(res, `Required role: ${roles.join(' or ')}`);
+    }
+    
+    console.log(`[ROLE-API] ✓ Role check passed: ${req.user.username}`);
+    next();
   };
 };
 
 module.exports = {
   isAdmin,
   isAdminAPI,
-  hasRole
+  hasRole,
+  hasRoleAPI
 };

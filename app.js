@@ -51,6 +51,8 @@ console.log('[APP] Configuration modules loaded');
 
 // Import routes
 const indexRoutes = require('./routes/index');
+const authRoutes = require('./routes/auth.routes');
+const authApiRoutes = require('./routes/api/auth.api.routes');
 
 console.log('[APP] Route modules loaded');
 
@@ -149,8 +151,17 @@ const initializeApp = async () => {
     // Routes Configuration
     // ===========================================
     console.log('\n[INIT] Step 4: Registering routes...');
+    
+    // Web routes
     app.use('/', indexRoutes);
     console.log('[ROUTES] ✓ Index routes registered at /');
+    
+    app.use('/', authRoutes);
+    console.log('[ROUTES] ✓ Auth routes registered at /');
+    
+    // API routes
+    app.use('/api/auth', authApiRoutes);
+    console.log('[ROUTES] ✓ Auth API routes registered at /api/auth');
 
     // ===========================================
     // 404 Handler

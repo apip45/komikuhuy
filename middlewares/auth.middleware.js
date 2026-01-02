@@ -3,105 +3,206 @@
  * AF-Komik V2 - Authentication Middleware
  * ===========================================
  * 
- * Middleware to verify user authentication status.
- * Protects routes that require a logged-in user.
+ * Middleware functions to protect routes that require authentication.
+ * Provides both web (redirect) and API (JSON response) variants.
  * 
- * How it works:
- * 1. Checks if session exists and contains user data
- * 2. If authenticated, allows request to proceed (next())
- * 3. If not authenticated:
- *    - For web routes: redirects to login page
- *    - For API routes: returns 401 JSON response
+ * How Authentication Works:
+ * 1. User logs in → session created with userId and userRole
+ * 2. User makes request → session cookie sent automatically
+ * 3. Middleware checks session → allows or denies access
+ * 4. Session expires → user must log in again
  * 
- * Session Flow:
- * - User logs in → session.userId is set
- * - User makes request → this middleware checks session.userId
- * - Session expires → user must log in again
+ * Session Structure:
+ * req.session = {
+ *   userId: ObjectId,      // User's MongoDB ID
+ *   userRole: 'user'|'admin',  // User's role
+ *   username: string,      // User's username
+ *   returnTo: string       // URL to redirect after login (optional)
+ * }
  * 
- * STRUCTURE ONLY - Full authentication logic will be implemented in Phase 2
+ * Usage Examples:
+ * 
+ * // Web routes (redirects to login)
+ * router.get('/profile', isAuthenticated, profileController.getProfile);
+ * 
+ * // API routes (returns 401 JSON)
+ * router.get('/api/user', isAuthenticatedAPI, userController.getUser);
+ * 
+ * // Attach user to request (doesn't block if not logged in)
+ * router.get('/', attachUser, homeController.getHome);
  */
 
 const logger = require('../config/logger');
+const User = require('../models/mongo/User');
+const { unauthorized } = require('../utils/apiResponse');
 
 /**
- * Check if user is authenticated (for web routes)
+ * Check if user is authenticated (for Web routes)
  * 
- * Usage:
- * router.get('/profile', isAuthenticated, profileController.getProfile);
+ * Behavior:
+ * - If authenticated: calls next() to continue
+ * - If not authenticated: redirects to /login
+ * 
+ * Also stores the original URL so user can be redirected back
+ * after successful login (better UX).
  * 
  * @param {Object} req - Express request object
  * @param {Object} res - Express response object
  * @param {Function} next - Express next middleware function
  */
-const isAuthenticated = (req, res, next) => {
+const isAuthenticated = async (req, res, next) => {
   console.log('[AUTH] Checking authentication status...');
+  console.log(`[AUTH] Session ID: ${req.session?.id || 'none'}`);
+  console.log(`[AUTH] User ID in session: ${req.session?.userId || 'none'}`);
   
-  // TODO: Implement actual authentication check in Phase 2
-  // This will verify:
-  // 1. Session exists and is valid
-  // 2. User ID is stored in session
-  // 3. User exists in MongoDB database
-  // 4. User account is active (not banned/deactivated)
-  
-  // Check if user ID exists in session
-  if (req.session && req.session.userId) {
-    console.log(`[AUTH] ✓ User authenticated: ${req.session.userId}`);
-    logger.info(`User ${req.session.userId} authenticated successfully`);
+  try {
+    // Check if session exists and has user ID
+    if (!req.session || !req.session.userId) {
+      console.log('[AUTH] ✗ No session or user ID found');
+      logger.warn(`Unauthenticated access attempt to: ${req.path}`);
+      
+      // Store original URL for redirect after login
+      req.session.returnTo = req.originalUrl;
+      
+      return res.redirect('/login?error=' + encodeURIComponent('Please log in to continue'));
+    }
     
-    // User is authenticated, proceed to next middleware/route handler
-    return next();
+    // Verify user still exists and is active
+    const user = await User.findById(req.session.userId);
+    
+    if (!user) {
+      console.log('[AUTH] ✗ User not found in database');
+      logger.warn(`Session has invalid user ID: ${req.session.userId}`);
+      
+      // Clear invalid session
+      req.session.destroy();
+      return res.redirect('/login?error=' + encodeURIComponent('Session expired. Please log in again'));
+    }
+    
+    if (!user.isActive) {
+      console.log('[AUTH] ✗ User account is deactivated');
+      logger.warn(`Deactivated user attempted access: ${user.username}`);
+      
+      req.session.destroy();
+      return res.redirect('/login?error=' + encodeURIComponent('Your account has been deactivated'));
+    }
+    
+    // Attach user to request for use in route handlers
+    req.user = user;
+    
+    console.log(`[AUTH] ✓ User authenticated: ${user.username} (${user.role})`);
+    next();
+    
+  } catch (error) {
+    console.error('[AUTH] ✗ Authentication check error:', error.message);
+    logger.error('Authentication middleware error:', error);
+    return res.redirect('/login?error=' + encodeURIComponent('Authentication error'));
   }
-
-  // User is not authenticated
-  console.log('[AUTH] ✗ User not authenticated - redirecting to login');
-  logger.warn(`Unauthenticated access attempt to: ${req.path}`);
-  
-  // Store the original URL so we can redirect back after login
-  // This provides better UX - user ends up where they wanted to go
-  req.session.returnTo = req.originalUrl;
-  
-  // Redirect to login page
-  return res.redirect('/login');
 };
 
 /**
  * Check if user is authenticated (for API routes)
- * Returns JSON error instead of redirecting
  * 
- * Usage:
- * router.get('/api/user/profile', isAuthenticatedAPI, userController.getProfile);
+ * Behavior:
+ * - If authenticated: calls next() to continue
+ * - If not authenticated: returns 401 JSON response
  * 
  * @param {Object} req - Express request object
  * @param {Object} res - Express response object
  * @param {Function} next - Express next middleware function
  */
-const isAuthenticatedAPI = (req, res, next) => {
+const isAuthenticatedAPI = async (req, res, next) => {
   console.log('[AUTH-API] Checking authentication status...');
   
-  // TODO: Implement actual authentication check for API in Phase 2
-  // This will also support:
-  // - JWT token authentication for mobile apps
-  // - API key authentication for integrations
-  
-  // Check if user ID exists in session
-  if (req.session && req.session.userId) {
-    console.log(`[AUTH-API] ✓ User authenticated: ${req.session.userId}`);
-    return next();
+  try {
+    // Check if session exists and has user ID
+    if (!req.session || !req.session.userId) {
+      console.log('[AUTH-API] ✗ No session or user ID found');
+      logger.warn(`API: Unauthenticated access attempt to: ${req.path}`);
+      return unauthorized(res, 'Authentication required. Please log in.');
+    }
+    
+    // Verify user still exists and is active
+    const user = await User.findById(req.session.userId);
+    
+    if (!user) {
+      console.log('[AUTH-API] ✗ User not found in database');
+      logger.warn(`API: Session has invalid user ID: ${req.session.userId}`);
+      req.session.destroy();
+      return unauthorized(res, 'Session expired. Please log in again.');
+    }
+    
+    if (!user.isActive) {
+      console.log('[AUTH-API] ✗ User account is deactivated');
+      logger.warn(`API: Deactivated user attempted access: ${user.username}`);
+      req.session.destroy();
+      return unauthorized(res, 'Your account has been deactivated.');
+    }
+    
+    // Attach user to request
+    req.user = user;
+    
+    console.log(`[AUTH-API] ✓ User authenticated: ${user.username}`);
+    next();
+    
+  } catch (error) {
+    console.error('[AUTH-API] ✗ Authentication check error:', error.message);
+    logger.error('API Authentication middleware error:', error);
+    return unauthorized(res, 'Authentication error. Please try again.');
   }
+};
 
-  // Return 401 Unauthorized error for API requests
-  console.log('[AUTH-API] ✗ User not authenticated - returning 401');
-  logger.warn(`Unauthenticated API access attempt to: ${req.path}`);
+/**
+ * Attach user to request without blocking
+ * 
+ * Use this middleware on public routes where you want to know
+ * if a user is logged in but don't want to require login.
+ * 
+ * Example: Homepage showing different content for logged in users
+ * 
+ * @param {Object} req - Express request object
+ * @param {Object} res - Express response object
+ * @param {Function} next - Express next middleware function
+ */
+const attachUser = async (req, res, next) => {
+  try {
+    if (req.session && req.session.userId) {
+      const user = await User.findById(req.session.userId);
+      if (user && user.isActive) {
+        req.user = user;
+        console.log(`[AUTH] User attached to request: ${user.username}`);
+      }
+    }
+  } catch (error) {
+    // Don't block on errors, just log
+    console.error('[AUTH] Error attaching user:', error.message);
+  }
   
-  return res.status(401).json({
-    success: false,
-    error: 'Authentication required',
-    code: 'UNAUTHORIZED',
-    message: 'You must be logged in to access this resource'
-  });
+  // Always continue to next middleware
+  next();
+};
+
+/**
+ * Redirect to home if already logged in
+ * 
+ * Use on login/register pages to prevent logged-in users
+ * from accessing these pages.
+ * 
+ * @param {Object} req - Express request object
+ * @param {Object} res - Express response object
+ * @param {Function} next - Express next middleware function
+ */
+const redirectIfAuthenticated = (req, res, next) => {
+  if (req.session && req.session.userId) {
+    console.log('[AUTH] User already authenticated, redirecting to home');
+    return res.redirect('/');
+  }
+  next();
 };
 
 module.exports = {
   isAuthenticated,
-  isAuthenticatedAPI
+  isAuthenticatedAPI,
+  attachUser,
+  redirectIfAuthenticated
 };
