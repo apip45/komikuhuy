@@ -1,0 +1,261 @@
+<!-- 
+  ===========================================
+  AF-Komik V2 - Chapter Reader Page
+  ===========================================
+  
+  Long-scroll chapter reader for reading comics.
+  Features:
+  - All images displayed vertically
+  - Previous/Next chapter navigation
+  - Fixed navigation bar
+  - Page counter
+  - Lazy loading images
+  - Mobile-friendly
+  
+  Data passed from controller:
+  - chapter: Current chapter object
+  - comic: Parent comic object
+  - images: Array of page images
+  - pageCount: Total number of pages
+  - navigation: { prev, next } chapter objects
+  - hasImages: Boolean
+  - user: Current user (if logged in)
+-->
+
+<!-- Fixed Top Navigation -->
+<div class="fixed top-0 left-0 right-0 z-50 bg-dark-500/95 backdrop-blur-sm border-b border-dark-100">
+  <div class="container mx-auto px-4">
+    <div class="flex items-center justify-between h-14">
+      
+      <!-- Left: Back & Comic Info -->
+      <div class="flex items-center gap-3 overflow-hidden">
+        <a 
+          href="/comics/<%= comic.param %>" 
+          class="flex-shrink-0 p-2 rounded-lg hover:bg-dark-400 transition-colors"
+          title="Kembali ke detail komik">
+          <svg class="w-5 h-5 text-gray-400 hover:text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path>
+          </svg>
+        </a>
+        <div class="overflow-hidden">
+          <h1 class="text-sm font-medium text-white truncate">
+            <%= comic.title %>
+          </h1>
+          <p class="text-xs text-neon-400 truncate">
+            <%= chapter.label %>
+          </p>
+        </div>
+      </div>
+      
+      <!-- Right: Chapter Navigation -->
+      <div class="flex items-center gap-2">
+        <% if (navigation.prev) { %>
+        <a 
+          href="/comics/<%= comic.param %>/<%= navigation.prev.param %>" 
+          class="flex items-center gap-1 px-3 py-1.5 bg-dark-400 rounded-lg text-sm text-gray-400 hover:text-white hover:bg-dark-300 transition-colors"
+          title="<%= navigation.prev.label %>">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path>
+          </svg>
+          <span class="hidden sm:inline">Prev</span>
+        </a>
+        <% } else { %>
+        <span class="flex items-center gap-1 px-3 py-1.5 bg-dark-400 rounded-lg text-sm text-gray-600 cursor-not-allowed">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path>
+          </svg>
+          <span class="hidden sm:inline">Prev</span>
+        </span>
+        <% } %>
+        
+        <span class="px-3 py-1.5 bg-neon-600/20 rounded-lg text-sm text-neon-400 font-medium">
+          <%= pageCount %> hal
+        </span>
+        
+        <% if (navigation.next) { %>
+        <a 
+          href="/comics/<%= comic.param %>/<%= navigation.next.param %>" 
+          class="flex items-center gap-1 px-3 py-1.5 bg-dark-400 rounded-lg text-sm text-gray-400 hover:text-white hover:bg-dark-300 transition-colors"
+          title="<%= navigation.next.label %>">
+          <span class="hidden sm:inline">Next</span>
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path>
+          </svg>
+        </a>
+        <% } else { %>
+        <span class="flex items-center gap-1 px-3 py-1.5 bg-dark-400 rounded-lg text-sm text-gray-600 cursor-not-allowed">
+          <span class="hidden sm:inline">Next</span>
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path>
+          </svg>
+        </span>
+        <% } %>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Reader Content -->
+<div class="pt-14 pb-20 min-h-screen bg-black">
+  
+  <% if (!hasImages) { %>
+  <!-- No Images State -->
+  <div class="flex flex-col items-center justify-center min-h-[60vh] px-4">
+    <svg class="w-24 h-24 text-gray-700 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
+    </svg>
+    <h2 class="text-xl font-semibold text-gray-400 mb-2">Tidak Ada Gambar</h2>
+    <p class="text-gray-500 text-center mb-6">
+      Chapter ini belum memiliki halaman gambar.
+    </p>
+    <a 
+      href="/comics/<%= comic.param %>" 
+      class="px-6 py-2 bg-neon-600 text-white rounded-lg hover:bg-neon-700 transition-colors">
+      Kembali ke Komik
+    </a>
+  </div>
+  
+  <% } else { %>
+  <!-- Images Container -->
+  <div id="reader-container" class="max-w-4xl mx-auto">
+    <% images.forEach(function(image, index) { %>
+    <div class="relative" data-page="<%= image.page_number %>">
+      <img 
+        src="<%= image.image_url %>" 
+        alt="Page <%= image.page_number %>"
+        class="w-full h-auto"
+        loading="<%= index < 3 ? 'eager' : 'lazy' %>"
+        onerror="this.onerror=null; this.parentElement.innerHTML='<div class=\'flex items-center justify-center py-20 bg-dark-400\'><p class=\'text-gray-500\'>Gagal memuat gambar</p></div>';"
+      >
+    </div>
+    <% }); %>
+  </div>
+  <% } %>
+  
+</div>
+
+<!-- Fixed Bottom Navigation -->
+<div class="fixed bottom-0 left-0 right-0 z-50 bg-dark-500/95 backdrop-blur-sm border-t border-dark-100">
+  <div class="container mx-auto px-4">
+    <div class="flex items-center justify-between h-16">
+      
+      <!-- Previous Chapter -->
+      <div class="flex-1">
+        <% if (navigation.prev) { %>
+        <a 
+          href="/comics/<%= comic.param %>/<%= navigation.prev.param %>" 
+          class="inline-flex items-center gap-2 px-4 py-2 bg-dark-400 rounded-lg text-sm text-gray-400 hover:text-white hover:bg-dark-300 transition-colors">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path>
+          </svg>
+          <span class="hidden sm:inline"><%= navigation.prev.label %></span>
+          <span class="sm:hidden">Prev</span>
+        </a>
+        <% } %>
+      </div>
+      
+      <!-- Center: Current Chapter -->
+      <div class="flex-shrink-0 text-center">
+        <a 
+          href="/comics/<%= comic.param %>" 
+          class="px-4 py-2 text-neon-400 hover:text-neon-300 text-sm font-medium transition-colors">
+          <%= chapter.label %>
+        </a>
+      </div>
+      
+      <!-- Next Chapter -->
+      <div class="flex-1 text-right">
+        <% if (navigation.next) { %>
+        <a 
+          href="/comics/<%= comic.param %>/<%= navigation.next.param %>" 
+          class="inline-flex items-center gap-2 px-4 py-2 bg-neon-600 rounded-lg text-sm text-white hover:bg-neon-700 transition-colors">
+          <span class="hidden sm:inline"><%= navigation.next.label %></span>
+          <span class="sm:hidden">Next</span>
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path>
+          </svg>
+        </a>
+        <% } else { %>
+        <a 
+          href="/comics/<%= comic.param %>" 
+          class="inline-flex items-center gap-2 px-4 py-2 bg-dark-400 rounded-lg text-sm text-gray-400 hover:text-white hover:bg-dark-300 transition-colors">
+          <span>Selesai</span>
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+          </svg>
+        </a>
+        <% } %>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Scroll to Top Button -->
+<button 
+  id="scroll-top-btn"
+  class="fixed bottom-20 right-4 z-40 p-3 bg-dark-400 rounded-full border border-dark-100 text-gray-400 hover:text-white hover:bg-dark-300 transition-all opacity-0 pointer-events-none"
+  title="Scroll ke atas">
+  <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 10l7-7m0 0l7 7m-7-7v18"></path>
+  </svg>
+</button>
+
+<!-- Reader Scripts -->
+<script>
+  document.addEventListener('DOMContentLoaded', function() {
+    // Scroll to top button visibility
+    const scrollBtn = document.getElementById('scroll-top-btn');
+    
+    if (scrollBtn) {
+      window.addEventListener('scroll', function() {
+        if (window.scrollY > 500) {
+          scrollBtn.classList.remove('opacity-0', 'pointer-events-none');
+          scrollBtn.classList.add('opacity-100', 'pointer-events-auto');
+        } else {
+          scrollBtn.classList.add('opacity-0', 'pointer-events-none');
+          scrollBtn.classList.remove('opacity-100', 'pointer-events-auto');
+        }
+      });
+      
+      scrollBtn.addEventListener('click', function() {
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+      });
+    }
+    
+    // Keyboard navigation
+    document.addEventListener('keydown', function(e) {
+      // Left arrow or A key - Previous chapter
+      if (e.key === 'ArrowLeft' || e.key === 'a' || e.key === 'A') {
+        const prevLink = document.querySelector('a[title^="<%= navigation.prev ? navigation.prev.label : "" %>"]');
+        if (prevLink && '<%= navigation.prev ? "true" : "false" %>' === 'true') {
+          window.location.href = '/comics/<%= comic.param %>/<%= navigation.prev ? navigation.prev.param : "" %>';
+        }
+      }
+      
+      // Right arrow or D key - Next chapter
+      if (e.key === 'ArrowRight' || e.key === 'd' || e.key === 'D') {
+        if ('<%= navigation.next ? "true" : "false" %>' === 'true') {
+          window.location.href = '/comics/<%= comic.param %>/<%= navigation.next ? navigation.next.param : "" %>';
+        }
+      }
+      
+      // Home key - Scroll to top
+      if (e.key === 'Home') {
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+      }
+      
+      // End key - Scroll to bottom
+      if (e.key === 'End') {
+        window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' });
+      }
+    });
+    
+    // Console log for debugging
+    console.log('[READER] Chapter loaded: <%= chapter.label %>');
+    console.log('[READER] Total pages: <%= pageCount %>');
+    console.log('[READER] Navigation:', {
+      prev: '<%= navigation.prev ? navigation.prev.param : "none" %>',
+      next: '<%= navigation.next ? navigation.next.param : "none" %>'
+    });
+  });
+</script>

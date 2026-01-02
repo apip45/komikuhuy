@@ -53,6 +53,8 @@ console.log('[APP] Configuration modules loaded');
 const indexRoutes = require('./routes/index');
 const authRoutes = require('./routes/auth.routes');
 const authApiRoutes = require('./routes/api/auth.api.routes');
+const comicRoutes = require('./routes/comic.routes');
+const comicApiRoutes = require('./routes/api/comic.api.routes');
 
 console.log('[APP] Route modules loaded');
 
@@ -159,9 +161,16 @@ const initializeApp = async () => {
     app.use('/', authRoutes);
     console.log('[ROUTES] ✓ Auth routes registered at /');
     
+    // Comic web routes
+    app.use('/comics', comicRoutes);
+    console.log('[ROUTES] ✓ Comic routes registered at /comics');
+    
     // API routes
     app.use('/api/auth', authApiRoutes);
     console.log('[ROUTES] ✓ Auth API routes registered at /api/auth');
+    
+    app.use('/api/comics', comicApiRoutes);
+    console.log('[ROUTES] ✓ Comic API routes registered at /api/comics');
 
     // ===========================================
     // 404 Handler

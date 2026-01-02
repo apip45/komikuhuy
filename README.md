@@ -10,17 +10,18 @@ Platform baca komik online yang dibangun dengan arsitektur modern, scalable, dan
 2. [Tujuan Proyek](#-tujuan-proyek)
 3. [Arsitektur Sistem](#-arsitektur-sistem)
 4. [Sistem Autentikasi & User](#-sistem-autentikasi--user)
-5. [Teknologi yang Digunakan](#-teknologi-yang-digunakan)
-6. [Struktur Folder](#-struktur-folder)
-7. [Desain Database](#-desain-database)
-8. [Sistem Scraper](#-sistem-scraper)
-9. [Logging System](#-logging-system)
-10. [Environment Variables](#-environment-variables)
-11. [Cara Install](#-cara-install)
-12. [Cara Menjalankan](#-cara-menjalankan)
-13. [Output Program](#-output-program)
-14. [Catatan Production](#-catatan-production)
-15. [Rencana Pengembangan Mobile App](#-rencana-pengembangan-mobile-app)
+5. [Sistem Konten Komik & Reader](#-sistem-konten-komik--reader)
+6. [Teknologi yang Digunakan](#-teknologi-yang-digunakan)
+7. [Struktur Folder](#-struktur-folder)
+8. [Desain Database](#-desain-database)
+9. [Sistem Scraper](#-sistem-scraper)
+10. [Logging System](#-logging-system)
+11. [Environment Variables](#-environment-variables)
+12. [Cara Install](#-cara-install)
+13. [Cara Menjalankan](#-cara-menjalankan)
+14. [Output Program](#-output-program)
+15. [Catatan Production](#-catatan-production)
+16. [Rencana Pengembangan Mobile App](#-rencana-pengembangan-mobile-app)
 
 ---
 
@@ -32,9 +33,9 @@ Platform baca komik online yang dibangun dengan arsitektur modern, scalable, dan
 
 | Fitur | Deskripsi | Status |
 |-------|-----------|--------|
-| 📚 Koleksi Komik | Ribuan judul komik dari berbagai sumber | Planned |
+| 📚 Koleksi Komik | Ribuan judul komik dari berbagai sumber | ✅ Done |
 | 🔍 Pencarian | Filter berdasarkan judul, genre, status | Planned |
-| 📖 Comic Reader | Reader responsif dengan lazy loading | Planned |
+| 📖 Comic Reader | Reader responsif dengan lazy loading | ✅ Done |
 | 👤 Akun Pengguna | Registrasi, login, profil | ✅ Done |
 | ⭐ Bookmark | Simpan komik favorit | Planned |
 | 📜 Riwayat Baca | Lacak progress membaca | Planned |
@@ -455,6 +456,294 @@ Session dikonfigurasi di `config/session.js`:
 3. **Jangan expose password** - Gunakan `getPublicProfile()` method
 4. **Rate limiting** - Pertimbangkan untuk menambahkan di production
 5. **Password policy** - Minimal 8 karakter (dapat ditingkatkan)
+
+---
+
+## � Sistem Konten Komik & Reader
+
+AF-Komik V2 menyediakan sistem lengkap untuk menampilkan dan membaca komik. Semua data konten komik disimpan di MySQL dan diakses melalui model khusus.
+
+### Gambaran Umum
+
+| Fitur | Deskripsi | Status |
+|-------|-----------|--------|
+| 📋 Daftar Komik | Grid thumbnail dengan pagination | ✅ Selesai |
+| 📖 Detail Komik | Info lengkap + daftar chapter | ✅ Selesai |
+| 📕 Reader Chapter | Long-scroll dengan navigasi | ✅ Selesai |
+| ⬅️ Navigasi Chapter | Prev/Next chapter buttons | ✅ Selesai |
+| 🌐 API Endpoints | REST API untuk mobile app | ✅ Selesai |
+| 👁️ Guest Access | Baca tanpa login | ✅ Selesai |
+
+### Alur Data
+
+```
+┌──────────────────────────────────────────────────────────────────────────────┐
+│                           ALUR DATA KONTEN KOMIK                             │
+├──────────────────────────────────────────────────────────────────────────────┤
+│                                                                              │
+│   [MySQL Database]                                                           │
+│        │                                                                     │
+│        ├── komik (id, param, title, thumbnail, synopsis, genres)             │
+│        │     │                                                               │
+│        │     └── chapter (id, komik_id, param, chapter_label)                │
+│        │           │                                                         │
+│        │           └── image (id, chapter_id, page_number, image_url)        │
+│        │                                                                     │
+│        ▼                                                                     │
+│   [MySQL Models] ─────────────────────────────────────────────────────────┐  │
+│        │                                                                  │  │
+│        ├── comic.model.js  → findAll, findByParam, count, search          │  │
+│        ├── chapter.model.js → findByComicId, findByParams, getNavigation  │  │
+│        └── image.model.js  → findByChapterId                              │  │
+│                                                                           │  │
+│        ▼                                                                  │  │
+│   [Controllers] ──────────────────────────────────────────────────────────┤  │
+│        │                                                                  │  │
+│        ├── comicController.js                                             │  │
+│        │     ├── listComicsPage() → GET /comics (EJS)                     │  │
+│        │     ├── getComicDetailPage() → GET /comics/:param (EJS)          │  │
+│        │     ├── listComicsAPI() → GET /api/comics (JSON)                 │  │
+│        │     ├── getComicDetailAPI() → GET /api/comics/:param (JSON)      │  │
+│        │     └── getChaptersAPI() → GET /api/comics/:param/chapters       │  │
+│        │                                                                  │  │
+│        └── chapterController.js                                           │  │
+│              ├── readChapterPage() → GET /comics/:param/:chapterParam     │  │
+│              └── readChapterAPI() → GET /api/comics/.../chapters/...      │  │
+│                                                                           │  │
+│        ▼                                                                  │  │
+│   [Output]                                                                │  │
+│        │                                                                  │  │
+│        ├── EJS Views (Browser) ─────────────────────────────────────────┐ │  │
+│        │     ├── comics.ejs        → Grid daftar komik + pagination     │ │  │
+│        │     ├── comic-detail.ejs  → Info komik + daftar chapter        │ │  │
+│        │     └── chapter-reader.ejs → Long-scroll reader + navigasi     │ │  │
+│        │                                                                │ │  │
+│        └── JSON Response (API) ─────────────────────────────────────────┤ │  │
+│              └── { status, message, data }                              │ │  │
+│                                                                         │ │  │
+└─────────────────────────────────────────────────────────────────────────┴─┴──┘
+```
+
+### Struktur URL Web
+
+| URL | Halaman | Deskripsi |
+|-----|---------|-----------|
+| `/comics` | Daftar Komik | Grid semua komik dengan pagination |
+| `/comics?page=2` | Daftar Komik (halaman 2) | Pagination support |
+| `/comics/one-piece` | Detail Komik | Info One Piece + daftar chapter |
+| `/comics/one-piece/chapter-1100` | Reader | Baca Chapter 1100 One Piece |
+
+### Penjelasan Halaman
+
+#### 1. Halaman Daftar Komik (`/comics`)
+
+Menampilkan semua komik dalam bentuk grid thumbnail.
+
+**Fitur:**
+- Grid responsif (2-6 kolom tergantung layar)
+- Thumbnail cover dengan overlay chapter terbaru
+- Tag genre (max 2 ditampilkan)
+- Pagination dengan navigasi halaman
+- Lazy loading gambar
+
+**Query Parameters:**
+- `page` - Nomor halaman (default: 1)
+- `limit` - Jumlah per halaman (default: 20, max: 50)
+
+#### 2. Halaman Detail Komik (`/comics/:param`)
+
+Menampilkan informasi lengkap tentang sebuah komik.
+
+**Fitur:**
+- Cover image besar
+- Judul dan metadata (jumlah chapter, update terakhir)
+- Tag genre lengkap
+- Sinopsis/deskripsi
+- Tombol "Mulai Baca" (ke chapter pertama)
+- Daftar chapter dengan scroll
+- Tanggal rilis tiap chapter
+
+#### 3. Halaman Reader (`/comics/:param/:chapterParam`)
+
+Reader untuk membaca chapter dengan scroll vertikal.
+
+**Fitur:**
+- Long-scroll (semua gambar ditampilkan vertikal)
+- Fixed navigation bar (atas dan bawah)
+- Tombol Previous/Next chapter
+- Judul komik dan chapter ditampilkan
+- Jumlah halaman
+- Tombol scroll-to-top
+- Keyboard navigation (←/→ untuk chapter, Home/End untuk scroll)
+- Lazy loading gambar (kecuali 3 pertama)
+
+### API Endpoints
+
+Semua API endpoint mengembalikan format JSON standar.
+
+#### Base URL: `/api/comics`
+
+| Method | Endpoint | Deskripsi |
+|--------|----------|-----------|
+| GET | `/api/comics` | List semua komik |
+| GET | `/api/comics/:param` | Detail komik |
+| GET | `/api/comics/:param/chapters` | Daftar chapter |
+| GET | `/api/comics/:param/chapters/:chapterParam` | Konten chapter |
+
+### Contoh Response API
+
+#### GET /api/comics
+
+```json
+{
+  "status": "success",
+  "message": "Comics retrieved successfully",
+  "data": {
+    "comics": [
+      {
+        "id": 1,
+        "param": "one-piece",
+        "title": "One Piece",
+        "thumbnail": "https://example.com/one-piece.jpg",
+        "description": "Kisah Monkey D. Luffy...",
+        "genres": ["Action", "Adventure"],
+        "latest_chapter": "Chapter 1100",
+        "updated_at": "2026-01-02T10:00:00.000Z"
+      }
+    ],
+    "pagination": {
+      "current": 1,
+      "total": 10,
+      "limit": 20,
+      "totalItems": 200,
+      "hasNext": true,
+      "hasPrev": false
+    }
+  }
+}
+```
+
+#### GET /api/comics/one-piece
+
+```json
+{
+  "status": "success",
+  "message": "Comic retrieved successfully",
+  "data": {
+    "comic": {
+      "id": 1,
+      "param": "one-piece",
+      "title": "One Piece",
+      "thumbnail": "https://example.com/one-piece.jpg",
+      "description": "Kisah Monkey D. Luffy...",
+      "synopsis": "Monkey D. Luffy adalah seorang pemuda...",
+      "genres": ["Action", "Adventure", "Comedy"],
+      "latest_chapter": "Chapter 1100",
+      "created_at": "2025-01-01T00:00:00.000Z",
+      "updated_at": "2026-01-02T10:00:00.000Z"
+    },
+    "chapterCount": 1100
+  }
+}
+```
+
+#### GET /api/comics/one-piece/chapters
+
+```json
+{
+  "status": "success",
+  "message": "Chapters retrieved successfully",
+  "data": {
+    "comic": {
+      "param": "one-piece",
+      "title": "One Piece"
+    },
+    "chapters": [
+      {
+        "id": 1100,
+        "komik_id": 1,
+        "param": "chapter-1100",
+        "chapter_label": "Chapter 1100",
+        "release_date": "2026-01-02T00:00:00.000Z",
+        "created_at": "2026-01-02T10:00:00.000Z"
+      },
+      {
+        "id": 1099,
+        "komik_id": 1,
+        "param": "chapter-1099",
+        "chapter_label": "Chapter 1099",
+        "release_date": "2025-12-26T00:00:00.000Z",
+        "created_at": "2025-12-26T10:00:00.000Z"
+      }
+    ],
+    "total": 1100
+  }
+}
+```
+
+#### GET /api/comics/one-piece/chapters/chapter-1100
+
+```json
+{
+  "status": "success",
+  "message": "Chapter retrieved successfully",
+  "data": {
+    "chapter": {
+      "id": 1100,
+      "param": "chapter-1100",
+      "label": "Chapter 1100",
+      "releaseDate": "2026-01-02T00:00:00.000Z"
+    },
+    "comic": {
+      "param": "one-piece",
+      "title": "One Piece",
+      "thumbnail": "https://example.com/one-piece.jpg"
+    },
+    "images": [
+      { "id": 1, "pageNumber": 1, "url": "https://example.com/op/1100/1.jpg" },
+      { "id": 2, "pageNumber": 2, "url": "https://example.com/op/1100/2.jpg" },
+      { "id": 3, "pageNumber": 3, "url": "https://example.com/op/1100/3.jpg" }
+    ],
+    "pageCount": 18,
+    "navigation": {
+      "prev": {
+        "param": "chapter-1099",
+        "label": "Chapter 1099"
+      },
+      "next": null
+    }
+  }
+}
+```
+
+### Catatan Performa
+
+#### Optimasi Saat Ini
+
+1. **Prepared Statements** - Semua query menggunakan prepared statements untuk keamanan dan performa
+2. **Connection Pool** - MySQL connection pool dengan 10 koneksi
+3. **Lazy Loading** - Gambar di reader menggunakan lazy loading (kecuali 3 pertama)
+4. **Parallel Queries** - Beberapa query dijalankan paralel dengan `Promise.all()`
+
+#### Rencana Optimasi Masa Depan
+
+| Optimasi | Deskripsi | Prioritas |
+|----------|-----------|-----------|
+| Redis Cache | Cache hasil query populer | High |
+| CDN Images | Serve gambar via CDN | High |
+| Image Proxy | Proxy dan resize gambar on-the-fly | Medium |
+| Full-text Search | MySQL FULLTEXT untuk pencarian cepat | Medium |
+| Infinite Scroll | Ganti pagination dengan infinite scroll | Low |
+
+### Error Handling
+
+| Kondisi | HTTP Status | Halaman/Response |
+|---------|-------------|------------------|
+| Komik tidak ditemukan | 404 | errors/404.ejs / JSON error |
+| Chapter tidak ditemukan | 404 | errors/404.ejs / JSON error |
+| Parameter tidak valid | 400 | JSON error |
+| Server error | 500 | errors/500.ejs / JSON error |
+| Tidak ada gambar | 200 | Pesan "Tidak ada gambar" |
 
 ---
 
@@ -1249,4 +1538,4 @@ Distributed under the MIT License. See `LICENSE` for more information.
 ---
 
 *Dokumentasi ini dibuat pada: 2 Januari 2026*
-*Versi: 2.1.0 - Phase 2 Authentication System*
+*Versi: 2.2.0 - Phase 3 Comic Reader System*
