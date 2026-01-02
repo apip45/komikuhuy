@@ -1,0 +1,31 @@
+{
+  "name": "af-komik-scraper",
+  "version": "1.0.0",
+  "description": "Standalone scraper for AF-Komik platform",
+  "main": "scrap-all.js",
+  "scripts": {
+    "full": "node scrap-all.js",
+    "latest": "node scrap-latest.js",
+    "full:dry": "node scrap-all.js --dry-run",
+    "latest:dry": "node scrap-latest.js --dry-run",
+    "full:test": "node scrap-all.js --end-page 2 --dry-run",
+    "latest:test": "node scrap-latest.js --pages 2 --limit 5 --dry-run"
+  },
+  "keywords": [
+    "scraper",
+    "komik",
+    "manga",
+    "manhwa"
+  ],
+  "author": "AF-Komik Team",
+  "license": "ISC",
+  "dependencies": {
+    "axios": "^1.6.0",
+    "cheerio": "^1.0.0-rc.12",
+    "dotenv": "^16.3.1",
+    "mysql2": "^3.6.0"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}

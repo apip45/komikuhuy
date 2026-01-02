@@ -18,7 +18,9 @@
   "author": "AF-Komik Team",
   "license": "MIT",
   "dependencies": {
+    "axios": "^1.13.2",
     "bcrypt": "^6.0.0",
+    "cheerio": "^1.1.2",
     "connect-mongo": "^5.1.0",
     "dotenv": "^16.3.1",
     "ejs": "^3.1.9",
