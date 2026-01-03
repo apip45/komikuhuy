@@ -10,7 +10,7 @@
  * - Disable/enable users
  */
 
-const User = require('../../models/User');
+const User = require('../../models/mongo/User');
 const logger = require('../../config/logger');
 const crypto = require('crypto');
 

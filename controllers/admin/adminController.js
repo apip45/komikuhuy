@@ -11,7 +11,7 @@
 
 const { getMySQLPool } = require('../../config/mysql');
 const mongoose = require('mongoose');
-const User = require('../../models/User');
+const User = require('../../models/mongo/User');
 const logger = require('../../config/logger');
 const os = require('os');
 const fs = require('fs');
