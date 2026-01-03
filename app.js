@@ -57,6 +57,8 @@ const comicRoutes = require('./routes/comic.routes');
 const comicApiRoutes = require('./routes/api/comic.api.routes');
 const userRoutes = require('./routes/user.routes');
 const userApiRoutes = require('./routes/api/user.api.routes');
+const adminRoutes = require('./routes/admin.routes');
+const adminApiRoutes = require('./routes/api/admin.api.routes');
 
 console.log('[APP] Route modules loaded');
 
@@ -181,6 +183,13 @@ const initializeApp = async () => {
     // User API routes (bookmarks, history, resume)
     app.use('/api', userApiRoutes);
     console.log('[ROUTES] ✓ User API routes registered at /api (bookmarks, history, resume)');
+
+    // Admin routes (requires authentication + admin role)
+    app.use('/admin', adminRoutes);
+    console.log('[ROUTES] ✓ Admin routes registered at /admin');
+    
+    app.use('/api/admin', adminApiRoutes);
+    console.log('[ROUTES] ✓ Admin API routes registered at /api/admin');
 
     // ===========================================
     // 404 Handler

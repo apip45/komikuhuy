@@ -1,0 +1,289 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="AF-Komik Admin Dashboard">
+  <meta name="theme-color" content="#0f172a">
+  <meta name="robots" content="noindex, nofollow">
+  
+  <title><%= typeof title !== 'undefined' ? title : 'Admin - AF-Komik' %></title>
+  
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  
+  <!-- Tailwind Configuration -->
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            'neon': {
+              50: '#eef9ff',
+              100: '#d8f1ff',
+              200: '#b9e8ff',
+              300: '#89dbff',
+              400: '#52c5ff',
+              500: '#29a6ff',
+              600: '#0d87ff',
+              700: '#0070f3',
+              800: '#085ac5',
+              900: '#0d4d9b',
+              950: '#0e305d',
+            },
+            'dark': {
+              100: '#1e293b',
+              200: '#1a2234',
+              300: '#151c2c',
+              400: '#111827',
+              500: '#0f172a',
+              600: '#0c1322',
+              700: '#090f1a',
+              800: '#060a12',
+              900: '#03050a',
+            }
+          }
+        }
+      }
+    }
+  </script>
+  
+  <!-- Custom Styles -->
+  <style>
+    html { scroll-behavior: smooth; }
+    
+    ::-webkit-scrollbar { width: 6px; height: 6px; }
+    ::-webkit-scrollbar-track { background: #1e293b; }
+    ::-webkit-scrollbar-thumb { background: #0d87ff; border-radius: 3px; }
+    ::-webkit-scrollbar-thumb:hover { background: #29a6ff; }
+    
+    .neon-glow {
+      box-shadow: 0 0 20px rgba(13, 135, 255, 0.3),
+                  0 0 40px rgba(13, 135, 255, 0.2);
+    }
+    
+    .neon-border {
+      border-color: rgba(13, 135, 255, 0.5);
+      box-shadow: 0 0 10px rgba(13, 135, 255, 0.2);
+    }
+    
+    .sidebar-link {
+      transition: all 0.2s ease;
+    }
+    
+    .sidebar-link:hover, .sidebar-link.active {
+      background: linear-gradient(90deg, rgba(13, 135, 255, 0.2), transparent);
+      border-left-color: #0d87ff;
+    }
+    
+    .card {
+      background: linear-gradient(135deg, #1a2234, #151c2c);
+      border: 1px solid rgba(59, 130, 246, 0.1);
+    }
+    
+    .card:hover {
+      border-color: rgba(13, 135, 255, 0.3);
+    }
+    
+    .stat-card {
+      background: linear-gradient(135deg, rgba(13, 135, 255, 0.1), transparent);
+    }
+    
+    .log-line { font-family: 'Fira Code', 'Monaco', 'Consolas', monospace; font-size: 12px; }
+    .log-error { color: #ef4444; }
+    .log-warn { color: #f59e0b; }
+    .log-info { color: #3b82f6; }
+    .log-debug { color: #6b7280; }
+    
+    .pulse-dot {
+      animation: pulse 2s infinite;
+    }
+    
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.5; }
+    }
+    
+    .loading-spinner {
+      border: 2px solid rgba(13, 135, 255, 0.3);
+      border-top-color: #0d87ff;
+      animation: spin 1s linear infinite;
+    }
+    
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+  </style>
+</head>
+<body class="bg-dark-500 text-gray-100 min-h-screen antialiased">
+  
+  <div class="flex min-h-screen">
+    
+    <!-- Sidebar -->
+    <aside class="w-64 bg-dark-400 border-r border-dark-100 flex flex-col fixed h-full z-10">
+      
+      <!-- Logo -->
+      <div class="p-4 border-b border-dark-100">
+        <a href="/admin" class="flex items-center gap-3">
+          <div class="w-10 h-10 bg-neon-600 rounded-lg flex items-center justify-center neon-glow">
+            <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/>
+            </svg>
+          </div>
+          <div>
+            <span class="text-lg font-bold text-white">AF-Komik</span>
+            <span class="block text-xs text-gray-400">Admin Panel</span>
+          </div>
+        </a>
+      </div>
+      
+      <!-- Navigation -->
+      <nav class="flex-1 p-4 space-y-1">
+        
+        <a href="/admin" class="sidebar-link flex items-center gap-3 px-4 py-3 rounded-lg border-l-4 border-transparent text-gray-300 hover:text-white <%= page === 'dashboard' ? 'active border-neon-600 text-white bg-gradient-to-r from-neon-600/20 to-transparent' : '' %>">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/>
+          </svg>
+          <span>Dashboard</span>
+        </a>
+        
+        <a href="/admin/users" class="sidebar-link flex items-center gap-3 px-4 py-3 rounded-lg border-l-4 border-transparent text-gray-300 hover:text-white <%= page === 'users' ? 'active border-neon-600 text-white bg-gradient-to-r from-neon-600/20 to-transparent' : '' %>">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197m13.5-9a2.5 2.5 0 11-5 0 2.5 2.5 0 015 0z"/>
+          </svg>
+          <span>Users</span>
+        </a>
+        
+        <a href="/admin/scraper" class="sidebar-link flex items-center gap-3 px-4 py-3 rounded-lg border-l-4 border-transparent text-gray-300 hover:text-white <%= page === 'scraper' ? 'active border-neon-600 text-white bg-gradient-to-r from-neon-600/20 to-transparent' : '' %>">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4m0 5c0 2.21-3.582 4-8 4s-8-1.79-8-4"/>
+          </svg>
+          <span>Scraper</span>
+        </a>
+        
+        <a href="/admin/logs" class="sidebar-link flex items-center gap-3 px-4 py-3 rounded-lg border-l-4 border-transparent text-gray-300 hover:text-white <%= page === 'logs' ? 'active border-neon-600 text-white bg-gradient-to-r from-neon-600/20 to-transparent' : '' %>">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+          </svg>
+          <span>Logs</span>
+        </a>
+        
+      </nav>
+      
+      <!-- User Info & Actions -->
+      <div class="p-4 border-t border-dark-100">
+        <div class="flex items-center gap-3 mb-3">
+          <div class="w-8 h-8 bg-neon-600/30 rounded-full flex items-center justify-center">
+            <span class="text-sm font-medium text-neon-400"><%= user?.username?.[0]?.toUpperCase() || 'A' %></span>
+          </div>
+          <div class="flex-1 min-w-0">
+            <p class="text-sm font-medium text-white truncate"><%= user?.username || 'Admin' %></p>
+            <p class="text-xs text-gray-400">Administrator</p>
+          </div>
+        </div>
+        
+        <div class="flex gap-2">
+          <a href="/" class="flex-1 px-3 py-2 text-xs text-center text-gray-300 hover:text-white bg-dark-300 hover:bg-dark-200 rounded transition-colors">
+            View Site
+          </a>
+          <a href="/logout" class="flex-1 px-3 py-2 text-xs text-center text-red-400 hover:text-red-300 bg-dark-300 hover:bg-dark-200 rounded transition-colors">
+            Logout
+          </a>
+        </div>
+      </div>
+      
+    </aside>
+    
+    <!-- Main Content -->
+    <main class="flex-1 ml-64">
+      
+      <!-- Top Header -->
+      <header class="bg-dark-400 border-b border-dark-100 px-6 py-4 sticky top-0 z-5">
+        <div class="flex items-center justify-between">
+          <h1 class="text-xl font-semibold text-white">
+            <%= typeof pageTitle !== 'undefined' ? pageTitle : title?.replace(' - AF-Komik', '').replace(' - Admin', '') || 'Dashboard' %>
+          </h1>
+          
+          <div class="flex items-center gap-4">
+            <!-- Time -->
+            <span class="text-sm text-gray-400" id="current-time"></span>
+            
+            <!-- Refresh button -->
+            <button onclick="location.reload()" class="p-2 text-gray-400 hover:text-white transition-colors" title="Refresh">
+              <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
+              </svg>
+            </button>
+          </div>
+        </div>
+      </header>
+      
+      <!-- Page Content -->
+      <div class="p-6">
+        <%- body %>
+      </div>
+      
+    </main>
+    
+  </div>
+  
+  <!-- Toast Container -->
+  <div id="toast-container" class="fixed bottom-4 right-4 z-50 space-y-2"></div>
+  
+  <!-- Scripts -->
+  <script>
+    // Update current time
+    function updateTime() {
+      const now = new Date();
+      const timeStr = now.toLocaleTimeString('en-US', { hour12: false });
+      const dateStr = now.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
+      document.getElementById('current-time').textContent = `${dateStr} ${timeStr}`;
+    }
+    updateTime();
+    setInterval(updateTime, 1000);
+    
+    // Toast notification function
+    function showToast(message, type = 'info') {
+      const container = document.getElementById('toast-container');
+      const toast = document.createElement('div');
+      
+      const colors = {
+        success: 'bg-green-600',
+        error: 'bg-red-600',
+        warning: 'bg-yellow-600',
+        info: 'bg-neon-600'
+      };
+      
+      toast.className = `${colors[type]} text-white px-4 py-3 rounded-lg shadow-lg flex items-center gap-2 transform translate-x-full transition-transform duration-300`;
+      toast.innerHTML = `
+        <span>${message}</span>
+        <button onclick="this.parentElement.remove()" class="ml-2 hover:text-gray-200">×</button>
+      `;
+      
+      container.appendChild(toast);
+      
+      // Animate in
+      setTimeout(() => toast.classList.remove('translate-x-full'), 10);
+      
+      // Auto remove
+      setTimeout(() => {
+        toast.classList.add('translate-x-full');
+        setTimeout(() => toast.remove(), 300);
+      }, 5000);
+    }
+    
+    // Check for URL params for notifications
+    const urlParams = new URLSearchParams(window.location.search);
+    if (urlParams.get('success')) {
+      showToast('Operation completed successfully!', 'success');
+    }
+    if (urlParams.get('error')) {
+      showToast('An error occurred. Please try again.', 'error');
+    }
+  </script>
+  
+  <%- typeof scripts !== 'undefined' ? scripts : '' %>
+  
+</body>
+</html>

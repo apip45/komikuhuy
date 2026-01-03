@@ -200,9 +200,76 @@ const redirectIfAuthenticated = (req, res, next) => {
   next();
 };
 
+/**
+ * Check if user is admin (for Web routes)
+ * 
+ * Must be used AFTER isAuthenticated middleware.
+ * 
+ * Behavior:
+ * - If admin: calls next() to continue
+ * - If not admin: returns 403 Forbidden page
+ * 
+ * @param {Object} req - Express request object
+ * @param {Object} res - Express response object
+ * @param {Function} next - Express next middleware function
+ */
+const isAdmin = (req, res, next) => {
+  console.log('[AUTH] Checking admin status...');
+  console.log(`[AUTH] User role: ${req.session?.userRole || req.user?.role || 'none'}`);
+  
+  const role = req.session?.userRole || req.user?.role;
+  
+  if (role !== 'admin') {
+    console.log('[AUTH] ✗ User is not admin');
+    logger.warn(`Non-admin access attempt to admin area: ${req.user?.username || 'unknown'}`);
+    
+    return res.status(403).render('errors/403', {
+      title: 'Access Denied',
+      message: 'You do not have permission to access this page.'
+    });
+  }
+  
+  console.log('[AUTH] ✓ Admin access granted');
+  next();
+};
+
+/**
+ * Check if user is admin (for API routes)
+ * 
+ * Must be used AFTER isAuthenticatedAPI middleware.
+ * 
+ * Behavior:
+ * - If admin: calls next() to continue
+ * - If not admin: returns 403 JSON response
+ * 
+ * @param {Object} req - Express request object
+ * @param {Object} res - Express response object
+ * @param {Function} next - Express next middleware function
+ */
+const isAdminAPI = (req, res, next) => {
+  console.log('[AUTH-API] Checking admin status...');
+  
+  const role = req.session?.userRole || req.user?.role;
+  
+  if (role !== 'admin') {
+    console.log('[AUTH-API] ✗ User is not admin');
+    logger.warn(`API: Non-admin access attempt: ${req.user?.username || 'unknown'}`);
+    
+    return res.status(403).json({
+      success: false,
+      message: 'Access denied. Admin privileges required.'
+    });
+  }
+  
+  console.log('[AUTH-API] ✓ Admin access granted');
+  next();
+};
+
 module.exports = {
   isAuthenticated,
   isAuthenticatedAPI,
   attachUser,
-  redirectIfAuthenticated
+  redirectIfAuthenticated,
+  isAdmin,
+  isAdminAPI
 };

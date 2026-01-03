@@ -12,17 +12,18 @@ Platform baca komik online yang dibangun dengan arsitektur modern, scalable, dan
 4. [Sistem Autentikasi & User](#-sistem-autentikasi--user)
 5. [Sistem Konten Komik & Reader](#-sistem-konten-komik--reader)
 6. [Bookmark & Riwayat Bacaan](#-bookmark--riwayat-bacaan)
-7. [Teknologi yang Digunakan](#-teknologi-yang-digunakan)
-8. [Struktur Folder](#-struktur-folder)
-9. [Desain Database](#-desain-database)
-10. [Sistem Scraper](#-sistem-scraper)
-11. [Logging System](#-logging-system)
-12. [Environment Variables](#-environment-variables)
-13. [Cara Install](#-cara-install)
-14. [Cara Menjalankan](#-cara-menjalankan)
-15. [Output Program](#-output-program)
-16. [Catatan Production](#-catatan-production)
-17. [Rencana Pengembangan Mobile App](#-rencana-pengembangan-mobile-app)
+7. [Admin Dashboard](#-admin-dashboard)
+8. [Teknologi yang Digunakan](#-teknologi-yang-digunakan)
+9. [Struktur Folder](#-struktur-folder)
+10. [Desain Database](#-desain-database)
+11. [Sistem Scraper](#-sistem-scraper)
+12. [Logging System](#-logging-system)
+13. [Environment Variables](#-environment-variables)
+14. [Cara Install](#-cara-install)
+15. [Cara Menjalankan](#-cara-menjalankan)
+16. [Output Program](#-output-program)
+17. [Catatan Production](#-catatan-production)
+18. [Rencana Pengembangan Mobile App](#-rencana-pengembangan-mobile-app)
 
 ---
 
@@ -1024,7 +1025,196 @@ Fitur "Resume Reading" memungkinkan user melanjutkan membaca dari chapter terakh
 
 ---
 
-## �🛠️ Teknologi yang Digunakan
+## 🔐 Admin Dashboard
+
+Admin Dashboard adalah panel kontrol khusus administrator untuk mengelola sistem AF-Komik V2. Dashboard ini menyediakan berbagai fitur untuk monitoring, manajemen user, dan kontrol scraper.
+
+### Fitur Admin Dashboard
+
+| Fitur | Deskripsi | Status |
+|-------|-----------|--------|
+| 📊 Dashboard | Overview statistik sistem | ✅ Selesai |
+| 👥 User Management | Kelola akun pengguna | ✅ Selesai |
+| 🔧 Scraper Control | Jalankan dan kontrol scraper | ✅ Selesai |
+| 📋 Log Viewer | Lihat log eksekusi scraper | ✅ Selesai |
+| 💾 Database Stats | Monitoring status database | ✅ Selesai |
+
+### Akses Admin Dashboard
+
+Admin Dashboard hanya dapat diakses oleh user dengan role `admin`. Proteksi dilakukan dengan middleware chain:
+
+```javascript
+// Web routes - redirect ke login jika tidak terautentikasi
+router.get('/admin', isAuthenticated, isAdmin, dashboardController);
+
+// API routes - return JSON 401/403 jika tidak terautentikasi/tidak admin
+router.get('/api/admin/stats', isAuthenticatedAPI, isAdminAPI, getStats);
+```
+
+### Route Admin
+
+#### Web Routes (`/admin/*`)
+
+| Method | Route | Deskripsi |
+|--------|-------|-----------|
+| GET | `/admin` | Halaman dashboard utama |
+| GET | `/admin/users` | Halaman manajemen user |
+| GET | `/admin/scraper` | Halaman kontrol scraper |
+| GET | `/admin/logs` | Halaman log viewer |
+| POST | `/admin/users/:id/role` | Update role user |
+| POST | `/admin/users/:id/reset-password` | Reset password user |
+| POST | `/admin/users/:id/toggle-status` | Enable/disable akun user |
+| POST | `/admin/scraper/run-full` | Jalankan full scraper |
+| POST | `/admin/scraper/run-latest` | Jalankan latest scraper |
+| POST | `/admin/scraper/stop` | Hentikan scraper yang berjalan |
+
+#### API Routes (`/api/admin/*`)
+
+| Method | Route | Deskripsi |
+|--------|-------|-----------|
+| GET | `/api/admin/stats` | Ambil statistik sistem |
+| GET | `/api/admin/users` | Ambil daftar user (paginated) |
+| GET | `/api/admin/scraper/status` | Cek status scraper |
+| GET | `/api/admin/scraper/output` | Ambil output scraper |
+| GET | `/api/admin/logs` | Ambil log scraper |
+
+### Dashboard Overview
+
+Dashboard menampilkan informasi sistem secara real-time:
+
+```javascript
+// Data yang ditampilkan di dashboard
+{
+  stats: {
+    comics: 1500,      // Total komik di database
+    chapters: 25000,   // Total chapter
+    images: 500000,    // Total halaman/gambar
+    users: 150         // Total user terdaftar
+  },
+  database: {
+    mysql: "connected",    // Status koneksi MySQL
+    mongodb: "connected"   // Status koneksi MongoDB
+  },
+  system: {
+    uptime: "5d 3h 45m",   // Server uptime
+    memory: {
+      used: 256,           // RAM terpakai (MB)
+      total: 512           // Total RAM (MB)
+    },
+    nodeVersion: "v18.17.0"
+  }
+}
+```
+
+### User Management
+
+Fitur manajemen user memungkinkan admin untuk:
+
+1. **Melihat Daftar User**: Dengan pagination dan pencarian
+2. **Mengubah Role User**: Upgrade/downgrade antara `user` dan `admin`
+3. **Reset Password**: Generate password sementara untuk user
+4. **Toggle Status**: Enable/disable akun user
+
+```javascript
+// Contoh update role user
+POST /admin/users/:id/role
+Body: { role: "admin" | "user" }
+
+// Contoh reset password (generate temp password)
+POST /admin/users/:id/reset-password
+Response: { success: true, tempPassword: "abc123xyz" }
+```
+
+### Scraper Control
+
+Panel kontrol scraper memungkinkan admin untuk:
+
+1. **Run Full Scraper**: Scrape semua komik dari sumber
+2. **Run Latest Scraper**: Scrape hanya update terbaru
+3. **Stop Scraper**: Hentikan scraper yang sedang berjalan
+4. **Monitor Output**: Lihat output real-time dari scraper
+
+```javascript
+// Scraper dijalankan menggunakan child_process.spawn
+const { spawn } = require('child_process');
+
+// Full scraper
+const process = spawn('node', ['scraper/scrap-all.js'], {
+  cwd: __dirname,
+  env: { ...process.env }
+});
+
+// Output ditangkap dan disimpan untuk ditampilkan di UI
+process.stdout.on('data', (data) => {
+  scraperOutput.push(data.toString());
+});
+```
+
+**Catatan**: Hanya satu instance scraper yang dapat berjalan dalam satu waktu. Sistem akan menolak request run jika scraper sudah berjalan.
+
+### Log Viewer
+
+Log Viewer menampilkan log eksekusi scraper dengan fitur:
+
+1. **Filter by Level**: ALL, ERROR, WARNING, INFO, SUCCESS
+2. **Search**: Cari teks dalam log
+3. **Pagination**: Batasi jumlah baris yang ditampilkan
+4. **Download**: Download log file lengkap
+
+```javascript
+// Log dibaca dari file scraper.log
+GET /api/admin/logs?lines=500
+
+Response:
+{
+  success: true,
+  logs: ["[2024-01-15 10:30:00] Scraping page 1...", ...],
+  file: "scraper.log"
+}
+```
+
+### Desain UI Admin
+
+Admin Dashboard menggunakan tema dark dengan aksen neon blue, konsisten dengan desain aplikasi utama:
+
+- **Background**: `#0f172a` (dark-400)
+- **Card Background**: `#1e293b` (dark-300)
+- **Neon Blue Accent**: `#0d87ff` (neon-600)
+- **Layout**: Sidebar navigation di kiri, konten di kanan
+- **Responsive**: Mendukung tampilan mobile dengan collapsible sidebar
+
+### Struktur File Admin
+
+```
+server/
+├── controllers/admin/
+│   ├── index.js                 # Export semua controller
+│   ├── adminController.js       # Dashboard & stats
+│   ├── userAdminController.js   # User management
+│   └── scraperAdminController.js # Scraper control & logs
+├── routes/
+│   ├── admin.routes.js          # Web routes
+│   └── api/admin.api.routes.js  # API routes
+└── views/
+    ├── layouts/admin.ejs        # Admin layout dengan sidebar
+    └── pages/admin/
+        ├── dashboard.ejs        # Dashboard page
+        ├── users.ejs            # User management page
+        ├── scraper.ejs          # Scraper control page
+        └── logs.ejs             # Log viewer page
+```
+
+### Keamanan Admin
+
+1. **Authentication Required**: Semua route admin membutuhkan login
+2. **Role Check**: Hanya user dengan `role: 'admin'` yang dapat akses
+3. **Session Based**: Menggunakan session MongoDB untuk state management
+4. **CSRF Protection**: Form submission menggunakan POST method
+5. **Input Validation**: Validasi input untuk mencegah injection
+
+---
+
+## 🛠️ Teknologi yang Digunakan
 
 ### Backend Stack
 

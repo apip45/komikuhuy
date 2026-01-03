@@ -1,0 +1,343 @@
+<%# Admin Logs Viewer Page %>
+
+<!-- Header -->
+<div class="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
+  <div>
+    <h2 class="text-2xl font-bold text-white">Scraper Logs</h2>
+    <p class="text-gray-400 text-sm mt-1">View and filter scraper execution logs</p>
+  </div>
+  
+  <div class="flex gap-3">
+    <button 
+      onclick="refreshLogs()" 
+      class="px-4 py-2 bg-neon-600 hover:bg-neon-700 text-white rounded-lg transition-colors flex items-center gap-2"
+    >
+      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
+      </svg>
+      Refresh
+    </button>
+    
+    <a 
+      href="/admin/logs/download" 
+      class="px-4 py-2 bg-dark-300 hover:bg-dark-200 text-gray-300 rounded-lg transition-colors flex items-center gap-2"
+    >
+      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/>
+      </svg>
+      Download
+    </a>
+  </div>
+</div>
+
+<!-- Filter Tabs -->
+<div class="flex flex-wrap gap-2 mb-6">
+  <button 
+    onclick="setFilter('all')" 
+    class="filter-btn px-4 py-2 rounded-lg transition-colors bg-neon-600 text-white"
+    data-filter="all"
+  >
+    All Logs
+  </button>
+  <button 
+    onclick="setFilter('error')" 
+    class="filter-btn px-4 py-2 rounded-lg transition-colors bg-dark-300 text-gray-300 hover:bg-dark-200"
+    data-filter="error"
+  >
+    <span class="flex items-center gap-2">
+      <span class="w-2 h-2 rounded-full bg-red-400"></span>
+      Errors
+    </span>
+  </button>
+  <button 
+    onclick="setFilter('warn')" 
+    class="filter-btn px-4 py-2 rounded-lg transition-colors bg-dark-300 text-gray-300 hover:bg-dark-200"
+    data-filter="warn"
+  >
+    <span class="flex items-center gap-2">
+      <span class="w-2 h-2 rounded-full bg-yellow-400"></span>
+      Warnings
+    </span>
+  </button>
+  <button 
+    onclick="setFilter('info')" 
+    class="filter-btn px-4 py-2 rounded-lg transition-colors bg-dark-300 text-gray-300 hover:bg-dark-200"
+    data-filter="info"
+  >
+    <span class="flex items-center gap-2">
+      <span class="w-2 h-2 rounded-full bg-neon-400"></span>
+      Info
+    </span>
+  </button>
+  <button 
+    onclick="setFilter('success')" 
+    class="filter-btn px-4 py-2 rounded-lg transition-colors bg-dark-300 text-gray-300 hover:bg-dark-200"
+    data-filter="success"
+  >
+    <span class="flex items-center gap-2">
+      <span class="w-2 h-2 rounded-full bg-green-400"></span>
+      Success
+    </span>
+  </button>
+</div>
+
+<!-- Log Stats -->
+<div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+  <div class="bg-dark-300 rounded-lg p-4 text-center">
+    <p id="stat-total" class="text-2xl font-bold text-white">0</p>
+    <p class="text-sm text-gray-400">Total Lines</p>
+  </div>
+  <div class="bg-dark-300 rounded-lg p-4 text-center">
+    <p id="stat-errors" class="text-2xl font-bold text-red-400">0</p>
+    <p class="text-sm text-gray-400">Errors</p>
+  </div>
+  <div class="bg-dark-300 rounded-lg p-4 text-center">
+    <p id="stat-warnings" class="text-2xl font-bold text-yellow-400">0</p>
+    <p class="text-sm text-gray-400">Warnings</p>
+  </div>
+  <div class="bg-dark-300 rounded-lg p-4 text-center">
+    <p id="stat-success" class="text-2xl font-bold text-green-400">0</p>
+    <p class="text-sm text-gray-400">Success</p>
+  </div>
+</div>
+
+<!-- Log Viewer -->
+<div class="card overflow-hidden">
+  <div class="p-4 bg-dark-300 border-b border-dark-100 flex items-center justify-between">
+    <div class="flex items-center gap-3">
+      <svg class="w-5 h-5 text-neon-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+      </svg>
+      <h3 class="text-lg font-semibold text-white">Log Viewer</h3>
+      <span id="log-file" class="text-sm text-gray-500"></span>
+    </div>
+    
+    <div class="flex items-center gap-3">
+      <label class="flex items-center gap-2 text-sm text-gray-400">
+        <input 
+          type="checkbox" 
+          id="auto-scroll" 
+          checked 
+          class="w-4 h-4 rounded bg-dark-400 border-dark-100 text-neon-600 focus:ring-neon-600"
+        >
+        Auto-scroll
+      </label>
+      
+      <select 
+        id="lines-limit" 
+        onchange="refreshLogs()"
+        class="px-3 py-1 bg-dark-400 border border-dark-100 rounded text-gray-300 text-sm focus:outline-none focus:border-neon-600"
+      >
+        <option value="100">Last 100 lines</option>
+        <option value="500" selected>Last 500 lines</option>
+        <option value="1000">Last 1000 lines</option>
+        <option value="5000">Last 5000 lines</option>
+      </select>
+    </div>
+  </div>
+  
+  <div 
+    id="log-viewer" 
+    class="p-4 font-mono text-sm overflow-auto bg-dark-400"
+    style="min-height: 500px; max-height: 700px;"
+  >
+    <p class="text-gray-500">Loading logs...</p>
+  </div>
+</div>
+
+<!-- Search -->
+<div class="mt-6 card p-4">
+  <div class="flex gap-4">
+    <input 
+      type="text" 
+      id="search-input"
+      placeholder="Search in logs..."
+      class="flex-1 px-4 py-2 bg-dark-400 border border-dark-100 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:border-neon-600"
+    >
+    <button 
+      onclick="searchLogs()" 
+      class="px-6 py-2 bg-neon-600 hover:bg-neon-700 text-white rounded-lg transition-colors"
+    >
+      Search
+    </button>
+    <button 
+      onclick="clearSearch()" 
+      class="px-6 py-2 bg-dark-300 hover:bg-dark-200 text-gray-300 rounded-lg transition-colors"
+    >
+      Clear
+    </button>
+  </div>
+</div>
+
+<script>
+let allLogs = [];
+let currentFilter = 'all';
+let searchQuery = '';
+
+// Initialize
+document.addEventListener('DOMContentLoaded', () => {
+  refreshLogs();
+});
+
+// Refresh logs
+async function refreshLogs() {
+  const limit = document.getElementById('lines-limit').value;
+  
+  try {
+    const response = await fetch(`/api/admin/logs?lines=${limit}`);
+    const data = await response.json();
+    
+    if (data.success) {
+      allLogs = data.logs;
+      document.getElementById('log-file').textContent = data.file || '';
+      updateStats();
+      renderLogs();
+    } else {
+      document.getElementById('log-viewer').innerHTML = 
+        `<p class="text-red-400">${data.message || 'Failed to load logs'}</p>`;
+    }
+  } catch (error) {
+    document.getElementById('log-viewer').innerHTML = 
+      '<p class="text-red-400">Error loading logs</p>';
+  }
+}
+
+// Update statistics
+function updateStats() {
+  const errors = allLogs.filter(l => isError(l)).length;
+  const warnings = allLogs.filter(l => isWarning(l)).length;
+  const success = allLogs.filter(l => isSuccess(l)).length;
+  
+  document.getElementById('stat-total').textContent = allLogs.length.toLocaleString();
+  document.getElementById('stat-errors').textContent = errors.toLocaleString();
+  document.getElementById('stat-warnings').textContent = warnings.toLocaleString();
+  document.getElementById('stat-success').textContent = success.toLocaleString();
+}
+
+// Render logs
+function renderLogs() {
+  const viewer = document.getElementById('log-viewer');
+  
+  let filteredLogs = allLogs;
+  
+  // Apply filter
+  if (currentFilter !== 'all') {
+    filteredLogs = allLogs.filter(log => {
+      switch (currentFilter) {
+        case 'error': return isError(log);
+        case 'warn': return isWarning(log);
+        case 'info': return isInfo(log);
+        case 'success': return isSuccess(log);
+        default: return true;
+      }
+    });
+  }
+  
+  // Apply search
+  if (searchQuery) {
+    const query = searchQuery.toLowerCase();
+    filteredLogs = filteredLogs.filter(log => log.toLowerCase().includes(query));
+  }
+  
+  if (filteredLogs.length === 0) {
+    viewer.innerHTML = '<p class="text-gray-500">No logs matching filter...</p>';
+    return;
+  }
+  
+  viewer.innerHTML = filteredLogs.map((line, index) => {
+    const className = getLineClass(line);
+    const highlighted = searchQuery ? 
+      highlightSearch(escapeHtml(line), searchQuery) : 
+      escapeHtml(line);
+    
+    return `<div class="${className} py-0.5 border-b border-dark-300/30 hover:bg-dark-300/30">
+      <span class="text-gray-600 select-none">${String(index + 1).padStart(4, ' ')} │ </span>${highlighted}
+    </div>`;
+  }).join('');
+  
+  // Auto-scroll
+  if (document.getElementById('auto-scroll').checked) {
+    viewer.scrollTop = viewer.scrollHeight;
+  }
+}
+
+// Set filter
+function setFilter(filter) {
+  currentFilter = filter;
+  
+  // Update button styles
+  document.querySelectorAll('.filter-btn').forEach(btn => {
+    if (btn.dataset.filter === filter) {
+      btn.className = 'filter-btn px-4 py-2 rounded-lg transition-colors bg-neon-600 text-white';
+    } else {
+      btn.className = 'filter-btn px-4 py-2 rounded-lg transition-colors bg-dark-300 text-gray-300 hover:bg-dark-200';
+    }
+  });
+  
+  renderLogs();
+}
+
+// Search logs
+function searchLogs() {
+  searchQuery = document.getElementById('search-input').value;
+  renderLogs();
+}
+
+// Clear search
+function clearSearch() {
+  searchQuery = '';
+  document.getElementById('search-input').value = '';
+  renderLogs();
+}
+
+// Helper functions
+function isError(log) {
+  const lower = log.toLowerCase();
+  return lower.includes('error') || lower.includes('failed') || lower.includes('exception');
+}
+
+function isWarning(log) {
+  const lower = log.toLowerCase();
+  return lower.includes('warn') || lower.includes('warning');
+}
+
+function isInfo(log) {
+  const lower = log.toLowerCase();
+  return lower.includes('[info]') || lower.includes('processing') || lower.includes('scraping');
+}
+
+function isSuccess(log) {
+  const lower = log.toLowerCase();
+  return lower.includes('success') || lower.includes('found') || lower.includes('saved') || lower.includes('complete');
+}
+
+function getLineClass(line) {
+  if (isError(line)) return 'text-red-400';
+  if (isWarning(line)) return 'text-yellow-400';
+  if (isSuccess(line)) return 'text-green-400';
+  if (isInfo(line)) return 'text-neon-400';
+  if (line.includes('---') || line.includes('===')) return 'text-gray-500';
+  return 'text-gray-300';
+}
+
+function escapeHtml(text) {
+  const div = document.createElement('div');
+  div.textContent = text;
+  return div.innerHTML;
+}
+
+function highlightSearch(text, query) {
+  if (!query) return text;
+  const regex = new RegExp(`(${escapeRegex(query)})`, 'gi');
+  return text.replace(regex, '<mark class="bg-yellow-500/30 text-yellow-300 px-0.5 rounded">$1</mark>');
+}
+
+function escapeRegex(string) {
+  return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+// Search on Enter
+document.getElementById('search-input').addEventListener('keydown', (e) => {
+  if (e.key === 'Enter') searchLogs();
+});
+</script>
