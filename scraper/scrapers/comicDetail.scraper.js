@@ -113,6 +113,31 @@ const ComicDetailScraper = {
   },
   
   /**
+   * Parse date string in DD/MM/YYYY format (used by komiku.org)
+   * 
+   * @param {string} dateStr - Date string like "01/01/2024"
+   * @returns {Date|null} Parsed date or null
+   */
+  parseDateString(dateStr) {
+    if (!dateStr) return null;
+    
+    // Try DD/MM/YYYY format first
+    const parts = dateStr.split('/');
+    if (parts.length === 3) {
+      const [day, month, year] = parts;
+      if (day && month && year) {
+        const date = new Date(`${year}-${month}-${day}`);
+        if (!isNaN(date.getTime())) {
+          return date;
+        }
+      }
+    }
+    
+    // Fallback to parseReleaseDate for relative dates
+    return this.parseReleaseDate(dateStr);
+  },
+  
+  /**
    * Scrape comic detail page
    * 
    * @param {string} param - Comic URL param
@@ -154,15 +179,19 @@ const ComicDetailScraper = {
       // Extract description and synopsis
       // ========================================
       
-      // Synopsis - look for synopsis section
-      let synopsis = '';
-      const $synopsis = $('#Sinopsis p, .desc p, .sinopsis p');
-      $synopsis.each((i, el) => {
-        const text = $(el).text().trim();
-        if (text && text.length > 20) {
-          synopsis += (synopsis ? '\n\n' : '') + text;
-        }
-      });
+      // Synopsis from #Judul .desc (matches reference: $('#Judul .desc').text().trim())
+      let synopsis = $('#Judul .desc').text().trim();
+      
+      // Fallback to other selectors if not found
+      if (!synopsis) {
+        const $synopsis = $('#Sinopsis p, .desc p, .sinopsis p');
+        $synopsis.each((i, el) => {
+          const text = $(el).text().trim();
+          if (text && text.length > 20) {
+            synopsis += (synopsis ? '\n\n' : '') + text;
+          }
+        });
+      }
       
       // Short description (first paragraph or meta description)
       let description = $('meta[name="description"]').attr('content') || '';
@@ -171,14 +200,14 @@ const ComicDetailScraper = {
       }
       
       // ========================================
-      // Extract genres
+      // Extract genres (matches reference: $(".genre li a"))
       // ========================================
       
       const genres = [];
-      $('.genre li a, .info .genre a, a[href*="/genre/"]').each((i, el) => {
-        const genre = $(el).text().trim();
-        if (genre && !genres.includes(genre)) {
-          genres.push(genre);
+      $('.genre li a').each((i, el) => {
+        const genreName = $(el).text().trim();
+        if (genreName && !genres.includes(genreName)) {
+          genres.push(genreName);
         }
       });
       
@@ -208,35 +237,42 @@ const ComicDetailScraper = {
       });
       
       // ========================================
-      // Extract chapter list
+      // Extract chapter list (matches reference: #Daftar_Chapter tbody tr)
       // ========================================
       
       const chapters = [];
       
-      // Method 1: Table-based chapter list
-      $('#Daftar_Chapter tbody tr, #daftar_chapter tbody tr, table.chapter tbody tr').each((i, el) => {
+      // Method 1: Table-based chapter list (skip header row with i === 0)
+      $('#Daftar_Chapter tbody tr').each((i, el) => {
+        if (i === 0) return; // Skip header row
+        
         const $row = $(el);
         const $link = $row.find('a').first();
-        const chapterUrl = $link.attr('href');
-        const chapterParam = this.extractChapterParam(chapterUrl);
+        const href = $link.attr('href');
+        
+        if (!href) return;
+        
+        // Extract param: href.includes('ch/') ? href.split('ch/')[1] : href.split('/')[1]
+        const chapterParam = href.includes('ch/') 
+          ? href.split('ch/')[1]?.replace(/\/$/, '')
+          : href.split('/')[1]?.replace(/\/$/, '');
         
         if (!chapterParam) return;
         
-        // Get chapter label
-        const labelText = $row.find('.jud_l, .chapter-title, td:first-child a').text().trim() ||
-                          $link.text().trim();
+        // Get chapter label from .judulseries (reference selector)
+        const labelText = $row.find('.judulseries').text().trim() || $link.text().trim();
         const { label, number } = this.parseChapterLabel(labelText);
         
-        // Get release date
-        const dateText = $row.find('.tgl_l, .chapter-date, td:last-child').text().trim();
-        const releaseDate = this.parseReleaseDate(dateText);
+        // Get release date from .tanggalseries (reference selector)
+        const dateText = $row.find('.tanggalseries').text().trim();
+        const releaseDate = this.parseDateString(dateText);
         
         chapters.push({
           param: chapterParam,
           label,
           number,
           releaseDate,
-          url: chapterUrl
+          url: href
         });
       });
       

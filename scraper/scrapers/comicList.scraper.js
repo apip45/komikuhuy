@@ -18,8 +18,9 @@ const { fetchHtml } = require('../utils/http');
 const { withRetry } = require('../utils/retry');
 const { delayBetweenPages } = require('../utils/delay');
 
-// API endpoint for latest updates (used by pustaka via HTMX)
-const LATEST_API_URL = 'https://api.komiku.org/manga/';
+// API endpoint for comic list (used by both full scrape and latest updates)
+// Uses pagination: https://api.komiku.org/manga/page/{n}/
+const API_BASE_URL = 'https://api.komiku.org/manga';
 
 /**
  * Comic List Scraper
@@ -158,10 +159,8 @@ const ComicListScraper = {
    * @returns {Promise<Array>} Array of comic info objects
    */
   async scrapeLatestPage(pageNum = 1) {
-    // The API uses offset pagination (10 items per page)
-    const url = pageNum === 1 
-      ? LATEST_API_URL
-      : `${LATEST_API_URL}?page=${pageNum}`;
+    // The API uses path-based pagination: /page/{n}/
+    const url = `${API_BASE_URL}/page/${pageNum}/`;
     
     logger.info(`Scraping latest updates page ${pageNum}: ${url}`);
     
@@ -177,43 +176,40 @@ const ComicListScraper = {
       const $ = cheerio.load(html);
       const comics = [];
       
-      // Parse .bge entries from the API response
+      // Parse .bge entries from the API response (matches reference implementation)
       $('div.bge').each((index, element) => {
         try {
           const $el = $(element);
           
-          // Get link to manga detail page
-          const $link = $el.find('a[href*="/manga/"]').first();
-          const comicUrl = $link.attr('href');
-          const param = this.extractParam(comicUrl);
+          // Get title from .kan h3 (reference: $(el).find('.kan h3').text().trim())
+          const title = $el.find('.kan h3').text().trim();
           
-          if (!param) return;
+          // Get param from link href (reference: href.split('/')[4])
+          const href = $el.find('.kan a').eq(0).attr('href');
+          const param = href?.split('/')[4];
           
-          // Get title from h3
-          const title = $el.find('h3').text().trim() ||
-                       $el.find('.kan h3').text().trim() ||
-                       $link.attr('title') || '';
+          if (!title || !param) return;
           
-          // Get thumbnail
-          const $img = $el.find('.bgei img, img').first();
-          const thumbnail = $img.attr('src') || $img.attr('data-src') || null;
+          // Get thumbnail from .bgei img
+          const thumbnail = $el.find('.bgei img').attr('src') || null;
           
-          // Get type from .tpe1_inf
-          const typeText = $el.find('.tpe1_inf b').text().trim();
-          const comicType = typeText || 'Unknown';
+          // Get description from .kan p
+          const description = $el.find('.kan p').text().trim();
           
-          // Get latest chapter info
-          const latestChapterLink = $el.find('.new1 a[href*="-chapter-"]').last().attr('href');
-          const latestChapterMatch = latestChapterLink?.match(/-chapter-(\d+)/);
-          const latestChapter = latestChapterMatch ? parseInt(latestChapterMatch[1], 10) : null;
+          // Get latest chapter from .new1 span (last one)
+          const latestChapter = $el.find('.new1 span').last().text().trim();
+          
+          // Get type from .tpe1_inf b
+          const comicType = $el.find('.tpe1_inf b').text().trim() || 'Unknown';
           
           comics.push({
             param,
             title,
             thumbnail,
+            description,
             comicType,
             latestChapter,
-            url: comicUrl || `${config.baseUrl}/manga/${param}/`
+            url: `${config.baseUrl}/manga/${param}/`
           });
           
         } catch (error) {

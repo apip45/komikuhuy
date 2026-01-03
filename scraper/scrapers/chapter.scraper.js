@@ -42,6 +42,7 @@ const ChapterScraper = {
   
   /**
    * Normalize image URL
+   * Replace img.komiku.id with cdn.komiku.co.id (matches reference implementation)
    * 
    * @param {string} url - Image URL
    * @returns {string} Normalized URL
@@ -51,8 +52,11 @@ const ChapterScraper = {
     
     // Add protocol if starts with //
     if (url.startsWith('//')) {
-      return 'https:' + url;
+      url = 'https:' + url;
     }
+    
+    // Replace img.komiku.id with cdn.komiku.co.id (reference: img.replace('img.komiku.id', 'cdn.komiku.co.id'))
+    url = url.replace('img.komiku.id', 'cdn.komiku.co.id');
     
     return url;
   },
