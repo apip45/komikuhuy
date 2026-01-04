@@ -285,33 +285,64 @@
 
 <!-- User Dropdown Script -->
 <script>
-document.addEventListener('DOMContentLoaded', function() {
-  // Mobile menu toggle
-  const mobileMenuButton = document.getElementById('mobile-menu-button');
-  const mobileMenu = document.getElementById('mobile-menu');
-  
-  if (mobileMenuButton && mobileMenu) {
-    mobileMenuButton.addEventListener('click', function() {
-      mobileMenu.classList.toggle('hidden');
-    });
-  }
-  
-  // User dropdown toggle
-  const userMenuButton = document.getElementById('user-menu-button');
-  const userMenu = document.getElementById('user-menu');
-  
-  if (userMenuButton && userMenu) {
-    userMenuButton.addEventListener('click', function(e) {
-      e.stopPropagation();
-      userMenu.classList.toggle('hidden');
-    });
+(function() {
+  // Wait for DOM to be ready
+  function initNavbar() {
+    // Mobile menu toggle
+    const mobileMenuButton = document.getElementById('mobile-menu-button');
+    const mobileMenu = document.getElementById('mobile-menu');
     
-    // Close dropdown when clicking outside
-    document.addEventListener('click', function(e) {
-      if (!userMenu.contains(e.target) && !userMenuButton.contains(e.target)) {
-        userMenu.classList.add('hidden');
-      }
-    });
+    if (mobileMenuButton && mobileMenu) {
+      // Remove any existing listeners by cloning
+      const newMobileButton = mobileMenuButton.cloneNode(true);
+      mobileMenuButton.parentNode.replaceChild(newMobileButton, mobileMenuButton);
+      
+      newMobileButton.addEventListener('click', function(e) {
+        e.preventDefault();
+        e.stopPropagation();
+        mobileMenu.classList.toggle('hidden');
+      });
+      
+      // Also handle touch events for mobile
+      newMobileButton.addEventListener('touchend', function(e) {
+        e.preventDefault();
+        e.stopPropagation();
+        mobileMenu.classList.toggle('hidden');
+      });
+    }
+    
+    // User dropdown toggle (desktop only)
+    const userMenuButton = document.getElementById('user-menu-button');
+    const userMenu = document.getElementById('user-menu');
+    
+    if (userMenuButton && userMenu) {
+      // Remove any existing listeners by cloning
+      const newUserButton = userMenuButton.cloneNode(true);
+      userMenuButton.parentNode.replaceChild(newUserButton, userMenuButton);
+      
+      newUserButton.addEventListener('click', function(e) {
+        e.preventDefault();
+        e.stopPropagation();
+        userMenu.classList.toggle('hidden');
+      });
+      
+      // Close dropdown when clicking outside
+      document.addEventListener('click', function(e) {
+        const dropdown = document.getElementById('user-menu');
+        const button = document.getElementById('user-menu-button');
+        if (dropdown && button && !dropdown.contains(e.target) && !button.contains(e.target)) {
+          dropdown.classList.add('hidden');
+        }
+      });
+    }
   }
-});
+  
+  // Run on DOMContentLoaded
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initNavbar);
+  } else {
+    // DOM already loaded
+    initNavbar();
+  }
+})();
 </script>
