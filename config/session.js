@@ -54,9 +54,6 @@ const createSessionMiddleware = () => {
       collectionName: 'sessions',
       ttl: parseInt(process.env.SESSION_MAX_AGE) / 1000 || 86400, // 24 hours in seconds
       autoRemove: 'native',
-      crypto: {
-        secret: process.env.SESSION_SECRET
-      },
       touchAfter: 24 * 3600 // Only update session once per 24 hours unless data changes
     }),
 
