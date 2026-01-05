@@ -6,6 +6,10 @@
     <h2 class="text-2xl font-bold text-white">Scraper Control</h2>
     <p class="text-gray-400 text-sm mt-1">Run and monitor web scrapers</p>
   </div>
+  <div id="runtime-display" class="hidden px-4 py-2 bg-dark-300 rounded-lg">
+    <span class="text-gray-400 text-sm">Runtime: </span>
+    <span id="runtime-value" class="text-neon-400 font-mono font-medium">00:00:00</span>
+  </div>
 </div>
 
 <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -19,54 +23,60 @@
       
       <div id="scraper-status" class="flex items-center gap-3 p-4 bg-dark-300 rounded-lg mb-4">
         <div id="status-indicator" class="w-3 h-3 rounded-full bg-gray-500"></div>
-        <div>
+        <div class="flex-1">
           <p id="status-text" class="text-white font-medium">Checking...</p>
           <p id="status-detail" class="text-sm text-gray-400">-</p>
         </div>
       </div>
       
+      <!-- Progress Bar -->
+      <div id="progress-container" class="hidden mb-4">
+        <div class="flex justify-between text-sm mb-1">
+          <span class="text-gray-400">Progress</span>
+          <span id="progress-text" class="text-neon-400">0%</span>
+        </div>
+        <div class="w-full bg-dark-300 rounded-full h-2">
+          <div id="progress-bar" class="bg-neon-500 h-2 rounded-full transition-all duration-300" style="width: 0%"></div>
+        </div>
+        <p id="progress-detail" class="text-xs text-gray-500 mt-1">Waiting...</p>
+      </div>
+      
       <!-- Action Buttons -->
       <div class="space-y-3">
-        <form id="form-full-scraper" action="/admin/scraper/run-full" method="POST" class="w-full">
-          <button 
-            type="submit" 
-            id="btn-full-scraper"
-            class="w-full px-4 py-3 bg-neon-600 hover:bg-neon-700 disabled:bg-gray-600 disabled:cursor-not-allowed text-white rounded-lg transition-colors flex items-center justify-center gap-2"
-          >
-            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"/>
-            </svg>
-            Run Full Scraper
-          </button>
-        </form>
+        <button 
+          type="button" 
+          id="btn-full-scraper"
+          class="w-full px-4 py-3 bg-neon-600 hover:bg-neon-700 disabled:bg-gray-600 disabled:cursor-not-allowed text-white rounded-lg transition-colors flex items-center justify-center gap-2"
+        >
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"/>
+          </svg>
+          <span>Run Full Scraper</span>
+        </button>
         
-        <form id="form-latest-scraper" action="/admin/scraper/run-latest" method="POST" class="w-full">
-          <button 
-            type="submit" 
-            id="btn-latest-scraper"
-            class="w-full px-4 py-3 bg-green-600 hover:bg-green-700 disabled:bg-gray-600 disabled:cursor-not-allowed text-white rounded-lg transition-colors flex items-center justify-center gap-2"
-          >
-            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/>
-            </svg>
-            Run Latest Only
-          </button>
-        </form>
+        <button 
+          type="button" 
+          id="btn-latest-scraper"
+          class="w-full px-4 py-3 bg-green-600 hover:bg-green-700 disabled:bg-gray-600 disabled:cursor-not-allowed text-white rounded-lg transition-colors flex items-center justify-center gap-2"
+        >
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/>
+          </svg>
+          <span>Run Latest Only</span>
+        </button>
         
-        <form id="form-stop-scraper" action="/admin/scraper/stop" method="POST" class="w-full">
-          <button 
-            type="submit" 
-            id="btn-stop-scraper"
-            class="w-full px-4 py-3 bg-red-600 hover:bg-red-700 disabled:bg-gray-600 disabled:cursor-not-allowed text-white rounded-lg transition-colors flex items-center justify-center gap-2"
-            disabled
-          >
-            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 10a1 1 0 011-1h4a1 1 0 011 1v4a1 1 0 01-1 1h-4a1 1 0 01-1-1v-4z"/>
-            </svg>
-            Stop Scraper
-          </button>
-        </form>
+        <button 
+          type="button" 
+          id="btn-stop-scraper"
+          class="w-full px-4 py-3 bg-red-600 hover:bg-red-700 disabled:bg-gray-600 disabled:cursor-not-allowed text-white rounded-lg transition-colors flex items-center justify-center gap-2"
+          disabled
+        >
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 10a1 1 0 011-1h4a1 1 0 011 1v4a1 1 0 01-1 1h-4a1 1 0 01-1-1v-4z"/>
+          </svg>
+          <span>Stop Scraper</span>
+        </button>
       </div>
     </div>
     
@@ -121,14 +131,21 @@
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 9l3 3-3 3m5 0h3M5 20h14a2 2 0 002-2V6a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/>
           </svg>
           <h3 class="text-lg font-semibold text-white">Output Console</h3>
+          <span id="output-counter" class="text-xs text-gray-500 font-mono">(0 lines)</span>
         </div>
         
-        <button 
-          onclick="clearOutput()" 
-          class="text-sm text-gray-400 hover:text-white transition-colors"
-        >
-          Clear
-        </button>
+        <div class="flex items-center gap-3">
+          <label class="flex items-center gap-2 text-sm text-gray-400">
+            <input type="checkbox" id="auto-scroll" checked class="w-4 h-4 rounded bg-dark-400 border-dark-100">
+            Auto-scroll
+          </label>
+          <button 
+            id="btn-clear-output"
+            class="text-sm text-gray-400 hover:text-white transition-colors"
+          >
+            Clear
+          </button>
+        </div>
       </div>
       
       <div 
@@ -138,50 +155,155 @@
       >
         <p class="text-gray-500">Waiting for scraper output...</p>
       </div>
+      
+      <!-- Console Footer Stats -->
+      <div class="p-3 bg-dark-300 border-t border-dark-100 flex items-center justify-between text-xs">
+        <div class="flex items-center gap-4">
+          <span class="text-gray-500">Comics: <span id="stat-comics-live" class="text-green-400">0</span></span>
+          <span class="text-gray-500">Chapters: <span id="stat-chapters-live" class="text-blue-400">0</span></span>
+          <span class="text-gray-500">Errors: <span id="stat-errors-live" class="text-red-400">0</span></span>
+        </div>
+        <div id="polling-indicator" class="flex items-center gap-2 text-gray-500">
+          <span class="w-2 h-2 rounded-full bg-gray-600"></span>
+          <span>Idle</span>
+        </div>
+      </div>
     </div>
   </div>
   
 </div>
 
 <script>
-let pollInterval = null;
-let lastOutputLength = 0;
+// Scraper page logic
+var pollInterval = null;
+var statusInterval = null;
+var runtimeInterval = null;
+var lastOutputLength = 0;
+var scraperStartTime = null;
 
-// Initialize
-document.addEventListener('DOMContentLoaded', () => {
+// Run scraper function
+function runScraper(type) {
+  console.log('runScraper called:', type);
+  
+  var btn = document.getElementById('btn-' + type + '-scraper');
+  if (btn) btn.disabled = true;
+  
+  fetch('/api/admin/scraper/' + type, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' }
+  })
+  .then(function(response) { return response.json(); })
+  .then(function(data) {
+    console.log('Response:', data);
+    alert(data.success ? 'Scraper started!' : ('Error: ' + (data.error || data.message)));
+    if (btn) btn.disabled = false;
+    if (data.success) {
+      setTimeout(checkStatus, 500);
+      startPolling();
+    }
+  })
+  .catch(function(error) {
+    console.error('Error:', error);
+    alert('Failed: ' + error.message);
+    if (btn) btn.disabled = false;
+  });
+}
+
+// Stop scraper function
+function stopScraper() {
+  console.log('stopScraper called');
+  
+  fetch('/api/admin/scraper/stop', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' }
+  })
+  .then(function(response) { return response.json(); })
+  .then(function(data) {
+    console.log('Stop response:', data);
+    alert(data.success ? 'Scraper stopped!' : ('Error: ' + (data.error || data.message)));
+    setTimeout(checkStatus, 500);
+  })
+  .catch(function(error) {
+    console.error('Error:', error);
+    alert('Failed: ' + error.message);
+  });
+}
+
+// Clear output function
+function clearOutput() {
+  console.log('clearOutput called');
+  var el = document.getElementById('output-console');
+  if (el) el.innerHTML = '<p class="text-gray-500">Output cleared...</p>';
+  var counter = document.getElementById('output-counter');
+  if (counter) counter.textContent = '(0 lines)';
+  lastOutputLength = 0;
+}
+
+// Initialize on page load
+document.addEventListener('DOMContentLoaded', function() {
+  console.log('[SCRAPER] DOM ready, initializing...');
+  
+  // Attach button event listeners
+  var btnFull = document.getElementById('btn-full-scraper');
+  var btnLatest = document.getElementById('btn-latest-scraper');
+  var btnStop = document.getElementById('btn-stop-scraper');
+  var btnClear = document.getElementById('btn-clear-output');
+  
+  if (btnFull) {
+    btnFull.addEventListener('click', function() { runScraper('full'); });
+    console.log('[SCRAPER] Full button listener attached');
+  }
+  if (btnLatest) {
+    btnLatest.addEventListener('click', function() { runScraper('latest'); });
+    console.log('[SCRAPER] Latest button listener attached');
+  }
+  if (btnStop) {
+    btnStop.addEventListener('click', function() { stopScraper(); });
+    console.log('[SCRAPER] Stop button listener attached');
+  }
+  if (btnClear) {
+    btnClear.addEventListener('click', function() { clearOutput(); });
+    console.log('[SCRAPER] Clear button listener attached');
+  }
+  
   checkStatus();
   loadStats();
+  statusInterval = setInterval(checkStatus, 2000);
   
-  // Poll status every 3 seconds
-  setInterval(checkStatus, 3000);
+  console.log('[SCRAPER] Initialization complete');
 });
 
 // Check scraper status
-async function checkStatus() {
-  try {
-    const response = await fetch('/api/admin/scraper/status');
-    const data = await response.json();
-    
-    updateStatusUI(data);
-    
-    if (data.running) {
-      startPolling();
-    } else {
-      stopPolling();
-    }
-  } catch (error) {
-    console.error('Error checking status:', error);
-  }
+function checkStatus() {
+  fetch('/api/admin/scraper/status')
+    .then(function(response) { return response.json(); })
+    .then(function(data) {
+      if (data.success) {
+        updateStatusUI(data.data);
+        if (data.data.running) {
+          startPolling();
+          startRuntimeCounter(data.data.startTime);
+        } else {
+          stopPolling();
+          stopRuntimeCounter();
+        }
+      }
+    })
+    .catch(function(error) {
+      console.error('Error checking status:', error);
+    });
 }
 
 // Update status UI
 function updateStatusUI(data) {
-  const indicator = document.getElementById('status-indicator');
-  const text = document.getElementById('status-text');
-  const detail = document.getElementById('status-detail');
-  const btnFull = document.getElementById('btn-full-scraper');
-  const btnLatest = document.getElementById('btn-latest-scraper');
-  const btnStop = document.getElementById('btn-stop-scraper');
+  var indicator = document.getElementById('status-indicator');
+  var text = document.getElementById('status-text');
+  var detail = document.getElementById('status-detail');
+  var btnFull = document.getElementById('btn-full-scraper');
+  var btnLatest = document.getElementById('btn-latest-scraper');
+  var btnStop = document.getElementById('btn-stop-scraper');
+  var progressContainer = document.getElementById('progress-container');
+  var runtimeDisplay = document.getElementById('runtime-display');
   
   if (data.running) {
     indicator.className = 'w-3 h-3 rounded-full bg-green-400 animate-pulse';
@@ -191,6 +313,8 @@ function updateStatusUI(data) {
     btnFull.disabled = true;
     btnLatest.disabled = true;
     btnStop.disabled = false;
+    progressContainer.classList.remove('hidden');
+    runtimeDisplay.classList.remove('hidden');
   } else {
     indicator.className = 'w-3 h-3 rounded-full bg-gray-500';
     text.textContent = 'Idle';
@@ -199,13 +323,44 @@ function updateStatusUI(data) {
     btnFull.disabled = false;
     btnLatest.disabled = false;
     btnStop.disabled = true;
+    progressContainer.classList.add('hidden');
+    runtimeDisplay.classList.add('hidden');
   }
+}
+
+// Start runtime counter
+function startRuntimeCounter(startTime) {
+  if (runtimeInterval) return;
+  
+  scraperStartTime = startTime ? new Date(startTime) : new Date();
+  
+  runtimeInterval = setInterval(function() {
+    var elapsed = Date.now() - scraperStartTime.getTime();
+    document.getElementById('runtime-value').textContent = formatDuration(elapsed);
+  }, 1000);
+}
+
+// Stop runtime counter
+function stopRuntimeCounter() {
+  if (runtimeInterval) {
+    clearInterval(runtimeInterval);
+    runtimeInterval = null;
+  }
+}
+
+// Format duration
+function formatDuration(ms) {
+  var seconds = Math.floor(ms / 1000) % 60;
+  var minutes = Math.floor(ms / 60000) % 60;
+  var hours = Math.floor(ms / 3600000);
+  return hours.toString().padStart(2, '0') + ':' + minutes.toString().padStart(2, '0') + ':' + seconds.toString().padStart(2, '0');
 }
 
 // Start polling output
 function startPolling() {
   if (pollInterval) return;
   
+  updatePollingIndicator(true, 'Polling...');
   pollInterval = setInterval(fetchOutput, 1000);
   fetchOutput();
 }
@@ -215,141 +370,182 @@ function stopPolling() {
   if (pollInterval) {
     clearInterval(pollInterval);
     pollInterval = null;
+    updatePollingIndicator(false, 'Idle');
+  }
+}
+
+// Update polling indicator
+function updatePollingIndicator(active, labelText) {
+  var indicator = document.getElementById('polling-indicator');
+  if (indicator) {
+    var dot = indicator.querySelector('span:first-child');
+    var label = indicator.querySelector('span:last-child');
+    
+    if (active) {
+      dot.className = 'w-2 h-2 rounded-full bg-green-400 animate-pulse';
+    } else {
+      dot.className = 'w-2 h-2 rounded-full bg-gray-600';
+    }
+    label.textContent = labelText;
   }
 }
 
 // Fetch scraper output
-async function fetchOutput() {
-  try {
-    const response = await fetch('/api/admin/scraper/output');
-    const data = await response.json();
-    
-    if (data.output && data.output.length > 0) {
-      updateOutput(data.output);
-    }
-  } catch (error) {
-    console.error('Error fetching output:', error);
-  }
+function fetchOutput() {
+  fetch('/api/admin/scraper/output')
+    .then(function(response) { return response.json(); })
+    .then(function(data) {
+      if (data.success && data.output) {
+        updateOutput(data.output);
+      }
+    })
+    .catch(function(error) {
+      console.error('Error fetching output:', error);
+    });
 }
 
 // Update output console
 function updateOutput(lines) {
-  const console = document.getElementById('output-console');
+  var consoleEl = document.getElementById('output-console');
+  var counterEl = document.getElementById('output-counter');
+  var autoScroll = document.getElementById('auto-scroll').checked;
   
   if (lines.length !== lastOutputLength) {
     lastOutputLength = lines.length;
+    counterEl.textContent = '(' + lines.length + ' lines)';
     
-    console.innerHTML = lines.map(line => {
-      // Color coding based on content
-      let className = 'text-gray-300';
+    var html = '';
+    for (var i = 0; i < lines.length; i++) {
+      var line = lines[i];
+      var className = 'text-gray-300';
       
-      if (line.includes('ERROR') || line.includes('error') || line.includes('stderr')) {
+      if (line.indexOf('[ERROR]') >= 0 || line.indexOf('ERROR') >= 0) {
         className = 'text-red-400';
-      } else if (line.includes('SUCCESS') || line.includes('success') || line.includes('Found')) {
-        className = 'text-green-400';
-      } else if (line.includes('WARNING') || line.includes('warn')) {
+      } else if (line.indexOf('[WARN]') >= 0 || line.indexOf('WARNING') >= 0) {
         className = 'text-yellow-400';
-      } else if (line.includes('[INFO]') || line.includes('Scraping') || line.includes('Processing')) {
-        className = 'text-neon-400';
-      } else if (line.includes('---') || line.includes('===')) {
-        className = 'text-gray-500';
+      } else if (line.indexOf('SUCCESS') >= 0 || line.indexOf('Inserted') >= 0) {
+        className = 'text-green-400';
+      } else if (line.indexOf('[INFO]') >= 0 || line.indexOf('Scraping') >= 0) {
+        className = 'text-blue-400';
       }
       
-      return `<div class="${className}">${escapeHtml(line)}</div>`;
-    }).join('');
+      // Strip ANSI codes
+      var cleanLine = line.replace(/\x1b\[[0-9;]*m/g, '');
+      html += '<div class="' + className + '">' + escapeHtml(cleanLine) + '</div>';
+    }
     
-    // Auto scroll to bottom
-    console.scrollTop = console.scrollHeight;
+    consoleEl.innerHTML = html;
+    
+    if (autoScroll) {
+      consoleEl.scrollTop = consoleEl.scrollHeight;
+    }
   }
 }
 
-// Clear output
-function clearOutput() {
-  document.getElementById('output-console').innerHTML = '<p class="text-gray-500">Output cleared...</p>';
-  lastOutputLength = 0;
+// Update live stats from output
+function updateLiveStats(lines) {
+  var comics = 0;
+  var chapters = 0;
+  var errors = 0;
+  
+  for (var i = 0; i < lines.length; i++) {
+    var line = lines[i];
+    
+    if (line.indexOf('Inserted comic') >= 0 || line.indexOf('Updated comic') >= 0) {
+      comics++;
+    }
+    if (line.indexOf('Inserted chapter') >= 0 || line.indexOf('Chapter saved') >= 0) {
+      var match = line.match(/(\d+)\s*chapters?/i);
+      if (match) chapters = Math.max(chapters, parseInt(match[1]));
+    }
+    if (line.indexOf('[ERROR]') >= 0 || line.indexOf('Failed') >= 0) {
+      errors++;
+    }
+    
+    var comicMatch = line.match(/Comics?:\s*(\d+)/i);
+    if (comicMatch) comics = Math.max(comics, parseInt(comicMatch[1]));
+    
+    var chapterMatch = line.match(/Chapters?:\s*(\d+)/i);
+    if (chapterMatch) chapters = Math.max(chapters, parseInt(chapterMatch[1]));
+  }
+  
+  document.getElementById('stat-comics-live').textContent = comics;
+  document.getElementById('stat-chapters-live').textContent = chapters;
+  document.getElementById('stat-errors-live').textContent = errors;
+  
+  updateProgressFromOutput(lines);
+}
+
+// Update progress bar
+function updateProgressFromOutput(lines) {
+  var progressBar = document.getElementById('progress-bar');
+  var progressText = document.getElementById('progress-text');
+  var progressDetail = document.getElementById('progress-detail');
+  
+  var currentPage = 0;
+  var totalPages = 0;
+  var lastActivity = 'Processing...';
+  
+  for (var i = lines.length - 1; i >= 0; i--) {
+    var line = lines[i];
+    
+    var pageMatch = line.match(/Page\s*(\d+)(?:\s*\/\s*(\d+))?/i);
+    if (pageMatch && !currentPage) {
+      currentPage = parseInt(pageMatch[1]);
+      if (pageMatch[2]) totalPages = parseInt(pageMatch[2]);
+    }
+    
+    if (line.indexOf('Scraping') >= 0 || line.indexOf('Processing') >= 0 || line.indexOf('Fetching') >= 0) {
+      lastActivity = line.replace(/\x1b\[[0-9;]*m/g, '').substring(0, 60);
+      if (lastActivity.length === 60) lastActivity += '...';
+      break;
+    }
+  }
+  
+  var percentage = 0;
+  if (totalPages > 0) {
+    percentage = Math.round((currentPage / totalPages) * 100);
+  } else if (currentPage > 0) {
+    percentage = Math.min(Math.round((currentPage / 50) * 100), 95);
+  }
+  
+  progressBar.style.width = percentage + '%';
+  progressText.textContent = percentage + '%';
+  progressDetail.textContent = lastActivity;
 }
 
 // Load database stats
-async function loadStats() {
-  try {
-    const response = await fetch('/api/admin/stats');
-    const data = await response.json();
-    
-    document.getElementById('stat-comics').textContent = (data.stats?.comics || 0).toLocaleString();
-    document.getElementById('stat-chapters').textContent = (data.stats?.chapters || 0).toLocaleString();
-    document.getElementById('stat-images').textContent = (data.stats?.images || 0).toLocaleString();
-  } catch (error) {
-    console.error('Error loading stats:', error);
-  }
+function loadStats() {
+  fetch('/api/admin/stats')
+    .then(function(response) { return response.json(); })
+    .then(function(data) {
+      console.log('Stats response:', data);
+      
+      if (data.success && data.data) {
+        var comics = data.data.comics && data.data.comics.total ? data.data.comics.total : 0;
+        var chapters = data.data.chapters && data.data.chapters.total ? data.data.chapters.total : 0;
+        var images = data.data.images && data.data.images.total ? data.data.images.total : 0;
+        
+        document.getElementById('stat-comics').textContent = comics.toLocaleString();
+        document.getElementById('stat-chapters').textContent = chapters.toLocaleString();
+        document.getElementById('stat-images').textContent = images.toLocaleString();
+      }
+    })
+    .catch(function(error) {
+      console.error('Error loading stats:', error);
+      document.getElementById('stat-comics').textContent = 'Error';
+      document.getElementById('stat-chapters').textContent = 'Error';
+      document.getElementById('stat-images').textContent = 'Error';
+    });
 }
 
 // Escape HTML
 function escapeHtml(text) {
-  const div = document.createElement('div');
+  var div = document.createElement('div');
   div.textContent = text;
   return div.innerHTML;
 }
 
-// Handle form submissions
-['form-full-scraper', 'form-latest-scraper', 'form-stop-scraper'].forEach(formId => {
-  document.getElementById(formId).addEventListener('submit', async (e) => {
-    e.preventDefault();
-    
-    const form = e.target;
-    const btn = form.querySelector('button');
-    const originalText = btn.innerHTML;
-    
-    btn.disabled = true;
-    btn.innerHTML = '<svg class="animate-spin w-5 h-5" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path></svg> Processing...';
-    
-    try {
-      const response = await fetch(form.action, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' }
-      });
-      
-      const data = await response.json();
-      
-      if (data.success) {
-        showToast(data.message || 'Operation successful', 'success');
-        
-        // Clear output on new run
-        if (formId !== 'form-stop-scraper') {
-          clearOutput();
-        }
-        
-        setTimeout(checkStatus, 500);
-      } else {
-        showToast(data.message || 'Operation failed', 'error');
-      }
-    } catch (error) {
-      showToast('Request failed', 'error');
-    }
-    
-    btn.innerHTML = originalText;
-    setTimeout(checkStatus, 1000);
-  });
-});
-
-// Toast notification
-function showToast(message, type = 'info') {
-  const container = document.getElementById('toast-container');
-  if (!container) return;
-  
-  const toast = document.createElement('div');
-  toast.className = `px-6 py-3 rounded-lg shadow-lg ${
-    type === 'success' ? 'bg-green-600' : 
-    type === 'error' ? 'bg-red-600' : 
-    'bg-neon-600'
-  } text-white`;
-  toast.textContent = message;
-  
-  container.appendChild(toast);
-  
-  setTimeout(() => {
-    toast.style.opacity = '0';
-    toast.style.transition = 'opacity 0.3s';
-    setTimeout(() => toast.remove(), 300);
-  }, 3000);
-}
+console.log('[SCRAPER] Page script loaded');
 </script>
+

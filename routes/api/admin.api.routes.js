@@ -105,6 +105,18 @@ router.post('/scraper/latest', ScraperAdminController.runLatestScraper.bind(Scra
 router.post('/scraper/:type/stop', ScraperAdminController.stopScraper.bind(ScraperAdminController));
 
 /**
+ * POST /api/admin/scraper/stop
+ * Stop any running scraper
+ */
+router.post('/scraper/stop', ScraperAdminController.stopAnyScraper.bind(ScraperAdminController));
+
+/**
+ * GET /api/admin/scraper/output
+ * Get output from any running scraper
+ */
+router.get('/scraper/output', ScraperAdminController.getAnyOutput.bind(ScraperAdminController));
+
+/**
  * GET /api/admin/scraper/:type/output
  * Get live scraper output
  */

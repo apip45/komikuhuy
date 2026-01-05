@@ -70,9 +70,23 @@ const ScraperAdminController = {
     try {
       const status = ScraperAdminController.getScraperStatus();
       
+      // Determine which scraper is running and simplify response
+      const isFullRunning = !!runningProcesses.full;
+      const isLatestRunning = !!runningProcesses.latest;
+      const running = isFullRunning || isLatestRunning;
+      const type = isFullRunning ? 'full' : (isLatestRunning ? 'latest' : null);
+      
       res.json({
         success: true,
-        data: status
+        data: {
+          running,
+          type,
+          startTime: isFullRunning ? scraperOutput.full.startTime : 
+                     isLatestRunning ? scraperOutput.latest.startTime : null,
+          lastRun: status.full.lastRun || status.latest.lastRun,
+          full: status.full,
+          latest: status.latest
+        }
       });
       
     } catch (error) {
@@ -382,6 +396,70 @@ const ScraperAdminController = {
   },
   
   /**
+   * Stop any running scraper
+   * POST /admin/scraper/stop
+   */
+  async stopAnyScraper(req, res) {
+    try {
+      const adminId = req.session.userId;
+      let stoppedType = null;
+      
+      // Check and stop full scraper
+      if (runningProcesses.full) {
+        runningProcesses.full.kill('SIGTERM');
+        scraperOutput.full.status = 'stopped';
+        scraperOutput.full.endTime = new Date();
+        scraperOutput.full.stoppedBy = adminId;
+        stoppedType = 'full';
+        runningProcesses.full = null;
+        logger.info(`Full scraper stopped by admin ${adminId}`);
+      }
+      
+      // Check and stop latest scraper
+      if (runningProcesses.latest) {
+        runningProcesses.latest.kill('SIGTERM');
+        scraperOutput.latest.status = 'stopped';
+        scraperOutput.latest.endTime = new Date();
+        scraperOutput.latest.stoppedBy = adminId;
+        stoppedType = stoppedType ? 'both' : 'latest';
+        runningProcesses.latest = null;
+        logger.info(`Latest scraper stopped by admin ${adminId}`);
+      }
+      
+      if (!stoppedType) {
+        if (req.xhr || req.headers.accept?.includes('application/json')) {
+          return res.status(404).json({
+            success: false,
+            message: 'No scraper is currently running'
+          });
+        }
+        return res.redirect('/admin/scraper?error=no_scraper_running');
+      }
+      
+      if (req.xhr || req.headers.accept?.includes('application/json')) {
+        return res.json({
+          success: true,
+          message: `Scraper stopped (${stoppedType})`
+        });
+      }
+      
+      res.redirect('/admin/scraper?success=stopped');
+      
+    } catch (error) {
+      logger.error(`Stop any scraper error: ${error.message}`);
+      
+      if (req.xhr || req.headers.accept?.includes('application/json')) {
+        return res.status(500).json({
+          success: false,
+          error: error.message
+        });
+      }
+      
+      res.redirect('/admin/scraper?error=stop_failed');
+    }
+  },
+  
+  /**
    * Get scraper output (for live viewing)
    * GET /api/admin/scraper/:type/output
    */
@@ -402,6 +480,51 @@ const ScraperAdminController = {
           ...scraperOutput[type],
           isRunning: !!runningProcesses[type]
         }
+      });
+      
+    } catch (error) {
+      res.status(500).json({
+        success: false,
+        error: error.message
+      });
+    }
+  },
+  
+  /**
+   * Get output from any running scraper
+   * GET /api/admin/scraper/output
+   */
+  getAnyOutput(req, res) {
+    try {
+      // Get output from whichever scraper is running or most recent
+      let output = [];
+      let type = null;
+      
+      if (runningProcesses.full) {
+        output = [...scraperOutput.full.stdout, ...scraperOutput.full.stderr];
+        type = 'full';
+      } else if (runningProcesses.latest) {
+        output = [...scraperOutput.latest.stdout, ...scraperOutput.latest.stderr];
+        type = 'latest';
+      } else {
+        // Return most recent output if available
+        const fullOutput = scraperOutput.full.stdout.length + scraperOutput.full.stderr.length;
+        const latestOutput = scraperOutput.latest.stdout.length + scraperOutput.latest.stderr.length;
+        
+        if (fullOutput > latestOutput) {
+          output = [...scraperOutput.full.stdout, ...scraperOutput.full.stderr];
+          type = 'full';
+        } else if (latestOutput > 0) {
+          output = [...scraperOutput.latest.stdout, ...scraperOutput.latest.stderr];
+          type = 'latest';
+        }
+      }
+      
+      res.json({
+        success: true,
+        output: output,
+        type: type,
+        running: !!(runningProcesses.full || runningProcesses.latest)
       });
       
     } catch (error) {

@@ -98,6 +98,12 @@ router.post('/scraper/full', ScraperAdminController.runFullScraper.bind(ScraperA
 router.post('/scraper/latest', ScraperAdminController.runLatestScraper.bind(ScraperAdminController));
 
 /**
+ * POST /admin/scraper/stop
+ * Stop any running scraper
+ */
+router.post('/scraper/stop', ScraperAdminController.stopAnyScraper.bind(ScraperAdminController));
+
+/**
  * POST /admin/scraper/:type/stop
  * Stop running scraper (full or latest)
  */
