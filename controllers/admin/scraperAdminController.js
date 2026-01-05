@@ -14,6 +14,7 @@ const { spawn } = require('child_process');
 const path = require('path');
 const fs = require('fs');
 const logger = require('../../config/logger');
+const { getMySQLPool } = require('../../config/mysql');
 
 // Track running scraper processes to prevent concurrent runs
 const runningProcesses = {
@@ -30,6 +31,43 @@ const scraperOutput = {
 // State file path
 const STATE_FILE = path.join(__dirname, '../../scraper/state.json');
 
+// Log file for scraper output (streamed to file for web viewing)
+const SCRAPER_LOG_FILE = path.join(__dirname, '../../logs/scraper-output.log');
+
+// Helper function to append log to file
+function appendToLogFile(line) {
+  try {
+    const logsDir = path.dirname(SCRAPER_LOG_FILE);
+    if (!fs.existsSync(logsDir)) {
+      fs.mkdirSync(logsDir, { recursive: true });
+    }
+    fs.appendFileSync(SCRAPER_LOG_FILE, line + '\n');
+  } catch (e) {
+    // Silent fail
+  }
+}
+
+// Helper function to clear log file
+function clearLogFile() {
+  try {
+    fs.writeFileSync(SCRAPER_LOG_FILE, '');
+  } catch (e) {
+    // Silent fail
+  }
+}
+
+// Helper function to escape HTML
+function escapeHtml(text) {
+  const map = {
+    '&': '&amp;',
+    '<': '&lt;',
+    '>': '&gt;',
+    '"': '&quot;',
+    "'": '&#039;'
+  };
+  return text.replace(/[&<>"']/g, m => map[m]);
+}
+
 /**
  * Scraper Admin Controller
  */
@@ -45,12 +83,27 @@ const ScraperAdminController = {
       
       const status = this.getScraperStatus();
       
+      // Get database stats
+      let dbStats = { comics: 0, chapters: 0, images: 0 };
+      try {
+        const pool = getMySQLPool();
+        const [comicRows] = await pool.query('SELECT COUNT(*) as total FROM komik');
+        const [chapterRows] = await pool.query('SELECT COUNT(*) as total FROM chapter');
+        const [imageRows] = await pool.query('SELECT COUNT(*) as total FROM image');
+        dbStats.comics = comicRows[0]?.total || 0;
+        dbStats.chapters = chapterRows[0]?.total || 0;
+        dbStats.images = imageRows[0]?.total || 0;
+      } catch (dbErr) {
+        logger.error(`Error fetching DB stats: ${dbErr.message}`);
+      }
+      
       res.render('pages/admin/scraper', {
         layout: 'layouts/admin',
         title: 'Scraper Control - Admin',
         page: 'scraper',
         user: req.session,
         status,
+        dbStats,
         query: req.query
       });
       
@@ -157,6 +210,10 @@ const ScraperAdminController = {
         triggeredBy: adminId
       };
       
+      // Clear log file for fresh output
+      clearLogFile();
+      appendToLogFile('[SCRAPER] Starting Full Scraper at ' + new Date().toISOString());
+      
       runningProcesses.full = spawn('node', args, {
         cwd: scraperPath,
         env: { ...process.env }
@@ -166,6 +223,8 @@ const ScraperAdminController = {
       runningProcesses.full.stdout.on('data', (data) => {
         const lines = data.toString().split('\n').filter(l => l.trim());
         scraperOutput.full.stdout.push(...lines);
+        // Write to log file
+        lines.forEach(line => appendToLogFile(line));
         // Keep only last 500 lines
         if (scraperOutput.full.stdout.length > 500) {
           scraperOutput.full.stdout = scraperOutput.full.stdout.slice(-500);
@@ -176,6 +235,8 @@ const ScraperAdminController = {
       runningProcesses.full.stderr.on('data', (data) => {
         const lines = data.toString().split('\n').filter(l => l.trim());
         scraperOutput.full.stderr.push(...lines);
+        // Write to log file
+        lines.forEach(line => appendToLogFile('[STDERR] ' + line));
       });
       
       // Handle process exit
@@ -287,6 +348,10 @@ const ScraperAdminController = {
         triggeredBy: adminId
       };
       
+      // Clear log file for fresh output
+      clearLogFile();
+      appendToLogFile('[SCRAPER] Starting Latest Scraper at ' + new Date().toISOString());
+      
       runningProcesses.latest = spawn('node', args, {
         cwd: scraperPath,
         env: { ...process.env }
@@ -296,6 +361,8 @@ const ScraperAdminController = {
       runningProcesses.latest.stdout.on('data', (data) => {
         const lines = data.toString().split('\n').filter(l => l.trim());
         scraperOutput.latest.stdout.push(...lines);
+        // Write to log file
+        lines.forEach(line => appendToLogFile(line));
         if (scraperOutput.latest.stdout.length > 500) {
           scraperOutput.latest.stdout = scraperOutput.latest.stdout.slice(-500);
         }
@@ -305,6 +372,8 @@ const ScraperAdminController = {
       runningProcesses.latest.stderr.on('data', (data) => {
         const lines = data.toString().split('\n').filter(l => l.trim());
         scraperOutput.latest.stderr.push(...lines);
+        // Write to log file
+        lines.forEach(line => appendToLogFile('[STDERR] ' + line));
       });
       
       // Handle process exit
@@ -565,6 +634,79 @@ const ScraperAdminController = {
     }
   },
   
+  /**
+   * Get scraper output as HTML page (for iframe embedding)
+   * GET /admin/scraper/console
+   */
+  getConsoleHtml(req, res) {
+    try {
+      const isRunning = !!(runningProcesses.full || runningProcesses.latest);
+      let lines = [];
+      
+      // Read from log file
+      if (fs.existsSync(SCRAPER_LOG_FILE)) {
+        const content = fs.readFileSync(SCRAPER_LOG_FILE, 'utf8');
+        lines = content.split('\\n').filter(l => l.trim());
+      }
+      
+      // Build HTML with auto-refresh if running
+      let html = `<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  ${isRunning ? '<meta http-equiv="refresh" content="2">' : ''}
+  <style>
+    body {
+      margin: 0;
+      padding: 12px;
+      background: #1a1a2e;
+      color: #e0e0e0;
+      font-family: 'Courier New', monospace;
+      font-size: 13px;
+      line-height: 1.5;
+    }
+    .line { margin: 2px 0; }
+    .error { color: #ff6b6b; }
+    .success { color: #51cf66; }
+    .info { color: #4dabf7; }
+    .stderr { color: #ffa94d; }
+    .header { color: #845ef7; font-weight: bold; }
+  </style>
+</head>
+<body>`;
+      
+      if (lines.length === 0) {
+        html += '<p style="color:#888;">No output yet. Start a scraper to see logs here.</p>';
+      } else {
+        for (const line of lines) {
+          let cls = 'line';
+          const cleanLine = line.replace(/\\x1b\\[[0-9;]*m/g, '');
+          
+          if (line.includes('[STDERR]')) cls += ' stderr';
+          else if (line.includes('ERROR') || line.includes('error')) cls += ' error';
+          else if (line.includes('SUCCESS') || line.includes('Inserted') || line.includes('Updated')) cls += ' success';
+          else if (line.includes('[SCRAPER]')) cls += ' header';
+          else if (line.includes('Scraping') || line.includes('Processing')) cls += ' info';
+          
+          html += '<div class="' + cls + '">' + escapeHtml(cleanLine) + '</div>';
+        }
+      }
+      
+      html += `
+  <script>
+    // Auto-scroll to bottom
+    window.scrollTo(0, document.body.scrollHeight);
+  </script>
+</body>
+</html>`;
+      
+      res.type('html').send(html);
+      
+    } catch (error) {
+      res.status(500).send('<html><body style="background:#1a1a2e;color:#ff6b6b;padding:20px;">Error: ' + error.message + '</body></html>');
+    }
+  },
+
   /**
    * Render logs page
    * GET /admin/logs

@@ -109,6 +109,12 @@ router.post('/scraper/stop', ScraperAdminController.stopAnyScraper.bind(ScraperA
  */
 router.post('/scraper/:type/stop', ScraperAdminController.stopScraper.bind(ScraperAdminController));
 
+/**
+ * GET /admin/scraper/console
+ * Get scraper output as HTML page (for iframe)
+ */
+router.get('/scraper/console', ScraperAdminController.getConsoleHtml.bind(ScraperAdminController));
+
 // ===========================================
 // Logs Routes
 // ===========================================

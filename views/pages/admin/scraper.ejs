@@ -128,15 +128,15 @@
       <div class="space-y-3">
         <div class="flex justify-between items-center">
           <span class="text-gray-400">Total Comics</span>
-          <span class="text-white font-medium" id="stat-comics">Loading...</span>
+          <span class="text-white font-medium"><%= dbStats.comics.toLocaleString() %></span>
         </div>
         <div class="flex justify-between items-center">
           <span class="text-gray-400">Total Chapters</span>
-          <span class="text-white font-medium" id="stat-chapters">Loading...</span>
+          <span class="text-white font-medium"><%= dbStats.chapters.toLocaleString() %></span>
         </div>
         <div class="flex justify-between items-center">
           <span class="text-gray-400">Total Images</span>
-          <span class="text-white font-medium" id="stat-images">Loading...</span>
+          <span class="text-white font-medium"><%= dbStats.images.toLocaleString() %></span>
         </div>
       </div>
     </div>
@@ -180,38 +180,32 @@
             <input type="checkbox" id="auto-scroll" checked class="w-4 h-4 rounded bg-dark-400 border-dark-100">
             Auto-scroll
           </label>
-          <button 
-            type="button"
-            id="btn-clear"
+          <a 
+            href="/admin/scraper/console"
+            target="_blank"
             class="text-sm text-gray-400 hover:text-white transition-colors"
           >
-            Clear
-          </button>
+            Open in new tab ↗
+          </a>
         </div>
       </div>
       
-      <div 
+      <!-- Use iframe with auto-refresh for output -->
+      <iframe 
         id="output-console" 
-        class="flex-1 p-4 font-mono text-sm text-gray-300 overflow-auto bg-dark-400"
+        src="/admin/scraper/console"
+        class="flex-1 w-full bg-dark-400 border-0"
         style="min-height: 500px; max-height: 700px;"
-      >
-        <% if (isRunning) { %>
-          <p class="text-neon-400">Scraper is running. Output will appear here...</p>
-        <% } else { %>
-          <p class="text-gray-500">Waiting for scraper to start...</p>
-        <% } %>
-      </div>
+      ></iframe>
       
       <!-- Console Footer Stats -->
       <div class="p-3 bg-dark-300 border-t border-dark-100 flex items-center justify-between text-xs">
         <div class="flex items-center gap-4">
-          <span class="text-gray-500">Comics: <span id="stat-comics-live" class="text-green-400">0</span></span>
-          <span class="text-gray-500">Chapters: <span id="stat-chapters-live" class="text-blue-400">0</span></span>
-          <span class="text-gray-500">Errors: <span id="stat-errors-live" class="text-red-400">0</span></span>
+          <a href="/admin/scraper" class="text-neon-400 hover:underline">↻ Refresh Page</a>
         </div>
         <div id="polling-indicator" class="flex items-center gap-2 text-gray-500">
           <span class="w-2 h-2 rounded-full <%= isRunning ? 'bg-green-400 animate-pulse' : 'bg-gray-600' %>"></span>
-          <span><%= isRunning ? 'Polling...' : 'Idle' %></span>
+          <span><%= isRunning ? 'Auto-refreshing (2s)' : 'Idle' %></span>
         </div>
       </div>
     </div>
@@ -219,98 +213,3 @@
   
 </div>
 
-<script>
-(function() {
-  var isRunning = <%= isRunning ? 'true' : 'false' %>;
-  var pollInterval = null;
-  var lastLen = 0;
-  
-  // Load database stats
-  function loadStats() {
-    var xhr = new XMLHttpRequest();
-    xhr.open('GET', '/api/admin/stats');
-    xhr.onload = function() {
-      if (xhr.status === 200) {
-        try {
-          var d = JSON.parse(xhr.responseText);
-          if (d.success && d.data) {
-            var c = d.data.comics ? d.data.comics.total : 0;
-            var ch = d.data.chapters ? d.data.chapters.total : 0;
-            var im = d.data.images ? d.data.images.total : 0;
-            document.getElementById('stat-comics').textContent = c;
-            document.getElementById('stat-chapters').textContent = ch;
-            document.getElementById('stat-images').textContent = im;
-          }
-        } catch(e) {}
-      }
-    };
-    xhr.send();
-  }
-  
-  // Poll scraper output
-  function pollOutput() {
-    var xhr = new XMLHttpRequest();
-    xhr.open('GET', '/api/admin/scraper/output');
-    xhr.onload = function() {
-      if (xhr.status === 200) {
-        try {
-          var d = JSON.parse(xhr.responseText);
-          if (d.success && d.output && d.output.length > 0) {
-            showOutput(d.output);
-          }
-        } catch(e) {}
-      }
-    };
-    xhr.send();
-  }
-  
-  // Display output lines
-  function showOutput(lines) {
-    if (lines.length === lastLen) return;
-    lastLen = lines.length;
-    
-    var el = document.getElementById('output-console');
-    var cnt = document.getElementById('output-counter');
-    cnt.textContent = '(' + lines.length + ' lines)';
-    
-    var h = '';
-    for (var i = 0; i < lines.length; i++) {
-      var ln = lines[i].replace(/\x1b\[[0-9;]*m/g, '');
-      var cl = 'text-gray-300';
-      if (ln.indexOf('ERROR') >= 0) cl = 'text-red-400';
-      else if (ln.indexOf('SUCCESS') >= 0 || ln.indexOf('Inserted') >= 0) cl = 'text-green-400';
-      else if (ln.indexOf('Scraping') >= 0) cl = 'text-neon-400';
-      h += '<div class="' + cl + '">' + esc(ln) + '</div>';
-    }
-    el.innerHTML = h;
-    
-    if (document.getElementById('auto-scroll').checked) {
-      el.scrollTop = el.scrollHeight;
-    }
-  }
-  
-  function esc(t) {
-    var d = document.createElement('div');
-    d.textContent = t;
-    return d.innerHTML;
-  }
-  
-  // Clear button
-  var clearBtn = document.getElementById('btn-clear');
-  if (clearBtn) {
-    clearBtn.onclick = function() {
-      document.getElementById('output-console').innerHTML = '<p class="text-gray-500">Cleared.</p>';
-      document.getElementById('output-counter').textContent = '(0 lines)';
-      lastLen = 0;
-    };
-  }
-  
-  // Initialize
-  loadStats();
-  
-  if (isRunning) {
-    pollOutput();
-    pollInterval = setInterval(pollOutput, 1000);
-  }
-})();
-</script>
