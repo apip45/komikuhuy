@@ -6,12 +6,16 @@ Scraper mandiri untuk mengambil data komik dari komiku.org dan menyimpannya ke d
 
 1. [Tujuan](#-tujuan)
 2. [Mode Scraping](#-mode-scraping)
-3. [Struktur Folder](#-struktur-folder)
-4. [Instalasi](#-instalasi)
-5. [Konfigurasi](#-konfigurasi)
-6. [Cara Menjalankan](#-cara-menjalankan)
-7. [Contoh Output](#-contoh-output)
-8. [Catatan Penting](#-catatan-penting)
+   - [Full Scrape](#1-full-scrape-scrap-alljs)
+   - [Periodic Scrape](#2-periodic-scrape-scrap-latestjs)
+   - [Fix Chapters](#3-fix-chapters-fix-chaptersjs)
+3. [Fitur Utama](#-fitur-utama)
+4. [Struktur Folder](#-struktur-folder)
+5. [Instalasi](#-instalasi)
+6. [Konfigurasi](#-konfigurasi)
+7. [Cara Menjalankan](#-cara-menjalankan)
+8. [Contoh Output](#-contoh-output)
+9. [Catatan Penting](#-catatan-penting)
 
 ---
 
@@ -28,9 +32,11 @@ Scraper ini dibuat untuk:
 
 | Tabel | Field |
 |-------|-------|
-| `komik` | id, param, title, thumbnail, description, synopsis, genres, latest_chapter, updated_at |
+| `komik` | id, param, title, thumbnail, description, synopsis, genres, latest_chapter, **status**, **author**, **comic_type**, **last_scraped**, updated_at |
 | `chapter` | id, komik_id, param, chapter_label, release_date |
 | `image` | id, chapter_id, page_number, image_url |
+
+> 💡 **Auto-Migration**: Kolom baru (status, author, comic_type, last_scraped) akan ditambahkan otomatis saat scraper pertama kali dijalankan.
 
 > ⚠️ **Penting**: Scraper ini hanya menyimpan URL gambar, TIDAK mengunduh file gambar ke server.
 
@@ -46,6 +52,8 @@ Mode untuk scraping pertama kali atau refresh total database.
 - Mengambil SEMUA halaman daftar komik
 - Mengambil detail SEMUA komik
 - Mengambil SEMUA chapter dan gambar
+- ✨ **Auto-Resume**: Otomatis lanjut dari halaman terakhir jika terputus
+- ✨ **Chapter Sync**: Mendeteksi dan mengisi chapter yang hilang
 - Waktu eksekusi: berjam-jam hingga berhari-hari
 - Direkomendasikan untuk inisialisasi pertama
 
@@ -53,6 +61,7 @@ Mode untuk scraping pertama kali atau refresh total database.
 - Setup pertama kali
 - Reset database
 - Migrasi data
+- Melanjutkan scraping yang terputus
 
 ### 2. PERIODIC SCRAPE (`scrap-latest.js`)
 
@@ -61,14 +70,81 @@ Mode untuk update berkala database.
 **Karakteristik:**
 - Hanya scan ±10 halaman terbaru
 - Maksimal ±100 komik per eksekusi
-- Skip data yang sudah ada
+- ✨ **Chapter Sync**: Mendeteksi dan mengisi chapter yang hilang (bukan hanya chapter baru)
 - Waktu eksekusi: 15-60 menit
 - Direkomendasikan via cron job
 
 **Kapan Digunakan:**
 - Update harian/per-jam
 - Menambah chapter baru
+- Memperbaiki chapter yang hilang
 - Sinkronisasi dengan website
+
+### 3. FIX CHAPTERS (`fix-chapters.js`)
+
+Mode khusus untuk memperbaiki chapter yang tidak lengkap.
+
+**Karakteristik:**
+- Scan database untuk komik dengan chapter tidak lengkap
+- Bandingkan dengan website dan tambahkan chapter yang hilang
+- Tidak menghapus data yang sudah ada
+- Waktu eksekusi: tergantung jumlah komik yang diperbaiki
+
+**Kapan Digunakan:**
+- Setelah full scrape selesai, untuk memastikan data lengkap
+- Ketika menemukan komik dengan chapter yang loncat (misal: ch 1 → ch 14 → ch 20)
+- Perbaikan data berkala
+
+**Contoh Masalah yang Diperbaiki:**
+```
+❌ Sebelum: Chapter 1, 14, 20, 55, 89 (banyak yang hilang)
+✅ Sesudah: Chapter 1, 2, 3, ... 14, 15, ... 89 (lengkap)
+```
+
+---
+
+## ✨ Fitur Utama
+
+### Auto-Resume (Full Scrape)
+
+Full scraper menyimpan progress ke file `progress-full.json`. Jika scraping terputus (error, timeout, manual stop), scraper akan otomatis melanjutkan dari halaman terakhir saat dijalankan kembali.
+
+```json
+// progress-full.json
+{
+  "lastCompletedPage": 25,
+  "lastComic": "one-piece",
+  "totalComicsProcessed": 625,
+  "lastUpdated": "2026-01-05T10:30:00.000Z"
+}
+```
+
+### Chapter Sync System
+
+Semua mode scraping menggunakan sistem **Chapter Sync** yang cerdas:
+
+1. **Ambil daftar chapter** dari website
+2. **Bandingkan** dengan chapter di database
+3. **Identifikasi** chapter yang hilang (di website tapi tidak di DB)
+4. **Insert** HANYA chapter yang hilang
+5. **Scrape gambar** untuk chapter baru
+
+```
+Website: Ch 1, 2, 3, 4, 5, 6, 7, 8, 9, 10
+DB:      Ch 1, 2,       5, 6,       9, 10
+                  ↓ Sync ↓
+Missing: Ch    3, 4,       7, 8
+                  ↓ Insert ↓  
+DB:      Ch 1, 2, 3, 4, 5, 6, 7, 8, 9, 10 ✅
+```
+
+### Smart Metadata Update
+
+Scraper secara otomatis mengambil metadata tambahan:
+- **Status**: Ongoing, Completed, dll
+- **Author**: Nama author/artist
+- **Comic Type**: Manga, Manhwa, Manhua
+- **Last Scraped**: Timestamp kapan terakhir di-scrape
 
 ---
 
@@ -97,8 +173,10 @@ Mode untuk update berkala database.
 │   ├── comicDetail.scraper.js # Scraper halaman detail komik
 │   └── chapter.scraper.js     # Scraper halaman chapter
 │
-├── scrap-all.js           # Entry point: Full scrape
+├── scrap-all.js           # Entry point: Full scrape (dengan auto-resume)
 ├── scrap-latest.js        # Entry point: Periodic scrape
+├── fix-chapters.js        # Entry point: Fix missing chapters
+├── progress-full.json     # File progress auto-resume (auto-generated)
 └── README.md              # Dokumentasi ini
 ```
 
@@ -148,6 +226,10 @@ CREATE TABLE IF NOT EXISTS komik (
   synopsis TEXT,
   genres JSON,
   latest_chapter VARCHAR(255),
+  status VARCHAR(100),
+  author VARCHAR(500),
+  comic_type VARCHAR(100),
+  last_scraped TIMESTAMP,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 );
@@ -237,10 +319,16 @@ delay: {
 ```bash
 cd /path/to/AF-Komik-V2/server/scraper
 
-# Scrape semua komik
+# Scrape semua komik (auto-resume dari progress terakhir)
 node scrap-all.js
 
-# Scrape dengan opsi
+# Scrape dengan auto-resume (default)
+node scrap-all.js --resume
+
+# Reset progress dan mulai dari awal
+node scrap-all.js --reset
+
+# Scrape dengan opsi halaman
 node scrap-all.js --start-page 1 --end-page 10
 
 # Dry run (tanpa simpan ke database)
@@ -254,6 +342,8 @@ node scrap-all.js --skip-images
 
 | Opsi | Deskripsi |
 |------|-----------|
+| `--resume` | Lanjutkan dari halaman terakhir (default) |
+| `--reset` | Reset progress dan mulai dari halaman 1 |
 | `--start-page <n>` | Mulai dari halaman ke-n |
 | `--end-page <n>` | Berhenti di halaman ke-n |
 | `--skip-chapters` | Hanya scrape metadata komik |
@@ -286,6 +376,38 @@ node scrap-latest.js --dry-run
 | `--dry-run` | Parsing tanpa simpan ke DB |
 | `--help` | Tampilkan bantuan |
 
+### Fix Chapters (Perbaikan)
+
+```bash
+cd /path/to/AF-Komik-V2/server/scraper
+
+# Fix semua komik dengan chapter tidak lengkap
+node fix-chapters.js
+
+# Fix komik spesifik (by param atau title)
+node fix-chapters.js --comic solo-leveling
+node fix-chapters.js --comic "Solo Leveling"
+
+# Limit jumlah komik yang diperbaiki
+node fix-chapters.js --limit 50
+
+# Preview mode (tidak menyimpan ke DB)
+node fix-chapters.js --dry-run
+
+# Skip scraping gambar
+node fix-chapters.js --skip-images
+```
+
+**Opsi Fix Chapters:**
+
+| Opsi | Deskripsi |
+|------|-----------|
+| `--comic <param>` | Fix komik spesifik (by param atau title) |
+| `--limit <n>` | Maksimal komik yang diperbaiki |
+| `--skip-images` | Skip scraping gambar chapter baru |
+| `--dry-run` | Preview tanpa simpan ke DB |
+| `--help` | Tampilkan bantuan |
+
 ### Setup Cron Job
 
 Untuk update otomatis setiap 6 jam:
@@ -309,6 +431,7 @@ crontab -e
                     AF-KOMIK FULL SCRAPER                    
 ============================================================
 2026-01-02 10:00:00 [INFO ] Starting full scrape...
+2026-01-02 10:00:00 [INFO ] Resume mode: Starting from page 1
 2026-01-02 10:00:00 [INFO ] Options: {"startPage":1,"endPage":0,"skipChapters":false}
 2026-01-02 10:00:00 [INFO ] Initializing MySQL connection pool...
 2026-01-02 10:00:01 [INFO ] MySQL connection test successful
@@ -317,14 +440,15 @@ crontab -e
 ============================================================
 2026-01-02 10:00:02 [INFO ] Scraping comic list page 1: https://komiku.org/daftar-komik/page/1/
 2026-01-02 10:00:03 [INFO ] Found 50 comics on page 1
-2026-01-02 10:00:04 [INFO ] [Comic List] Progress: 1/∞ - 50 comics total
+2026-01-02 10:00:04 [INFO ] Progress saved: page 1, 50 comics processed
 ...
 ============================================================
                     Phase 2: Comic Details                   
 ============================================================
 2026-01-02 10:05:00 [INFO ] [Comics] Progress: 1/500 - one-piece
 2026-01-02 10:05:02 [INFO ] Comic inserted: one-piece (ID: 1)
-2026-01-02 10:05:02 [INFO ] Found 15 new chapters for one-piece
+2026-01-02 10:05:03 [INFO ] Chapter sync: 0 existing, 15 from website, 15 missing
+2026-01-02 10:05:02 [INFO ] Inserted 15 new chapters for one-piece
 ...
 ============================================================
                      SCRAPING COMPLETE                       
@@ -389,6 +513,46 @@ Images:
   Failed:       0
 ```
 
+### Fix Chapters
+
+```
+============================================================
+                  AF-KOMIK FIX CHAPTERS                      
+============================================================
+2026-01-02 20:00:00 [INFO ] Starting fix chapters...
+2026-01-02 20:00:00 [INFO ] Options: {"limit":0,"skipImages":false,"dryRun":false}
+============================================================
+           Phase 1: Finding Comics with Missing Chapters     
+============================================================
+2026-01-02 20:00:05 [INFO ] Found 25 comics with potentially incomplete chapters
+============================================================
+              Phase 2: Syncing Missing Chapters              
+============================================================
+2026-01-02 20:00:10 [INFO ] [Fix] Progress: 1/25 - one-piece
+2026-01-02 20:00:12 [INFO ] Chapter sync: 85 existing, 120 from website, 35 missing
+2026-01-02 20:00:15 [INFO ] Inserted 35 missing chapters for one-piece
+...
+============================================================
+                     FIX COMPLETE                            
+============================================================
+2026-01-02 21:30:00 [INFO ] Duration: 90 minutes
+
+Comics:
+  Checked:      25
+  Fixed:        18
+  Already OK:   7
+  Failed:       0
+
+Chapters:
+  Missing:      450
+  Inserted:     450
+  Failed:       0
+
+Images:
+  Inserted:     7200
+  Failed:       0
+```
+
 ---
 
 ## ⚠️ Catatan Penting
@@ -405,6 +569,7 @@ Images:
 | Mode | Estimasi Waktu | Beban Server |
 |------|----------------|--------------|
 | Full Scrape | 2-6 jam | Tinggi |
+| Fix Chapters | 30-120 menit | Sedang |
 | Periodic (10 hal) | 15-30 menit | Rendah |
 | Periodic (5 hal) | 5-15 menit | Sangat Rendah |
 
@@ -446,6 +611,33 @@ Untuk melihat log real-time:
 ```bash
 tail -f ../logs/scraper.log
 ```
+
+### Progress File
+
+File progress untuk auto-resume: `progress-full.json`
+
+Untuk reset progress:
+```bash
+# Via command line option
+node scrap-all.js --reset
+
+# Atau hapus file manual
+rm progress-full.json
+```
+
+---
+
+## 🎛️ Admin Panel
+
+Scraper dapat dijalankan melalui Admin Panel di `/admin/scraper`:
+
+| Tombol | Endpoint | Fungsi |
+|--------|----------|--------|
+| Full Scrape | `POST /admin/scraper/full` | Jalankan scrap-all.js --resume |
+| Latest Scrape | `POST /admin/scraper/latest` | Jalankan scrap-latest.js |
+| Fix Chapters | `POST /admin/scraper/fix-chapters` | Jalankan fix-chapters.js |
+| Reset Progress | `POST /admin/scraper/reset-progress` | Reset progress auto-resume |
+| Get Progress | `GET /admin/scraper/progress` | Lihat progress terakhir |
 
 ---
 
