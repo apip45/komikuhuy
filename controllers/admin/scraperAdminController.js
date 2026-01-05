@@ -117,12 +117,77 @@ const ScraperAdminController = {
   },
   
   /**
+   * Get full scraper progress
+   * GET /api/admin/scraper/progress
+   */
+  getProgress(req, res) {
+    try {
+      const progressFile = path.join(__dirname, '../../scraper/progress-full.json');
+      
+      if (fs.existsSync(progressFile)) {
+        const data = JSON.parse(fs.readFileSync(progressFile, 'utf8'));
+        res.json({
+          success: true,
+          data
+        });
+      } else {
+        res.json({
+          success: true,
+          data: null,
+          message: 'No progress saved yet'
+        });
+      }
+    } catch (error) {
+      logger.error(`Get progress error: ${error.message}`);
+      res.status(500).json({
+        success: false,
+        error: error.message
+      });
+    }
+  },
+  
+  /**
+   * Reset full scraper progress
+   * POST /api/admin/scraper/reset-progress
+   */
+  resetProgress(req, res) {
+    try {
+      const progressFile = path.join(__dirname, '../../scraper/progress-full.json');
+      
+      if (fs.existsSync(progressFile)) {
+        fs.unlinkSync(progressFile);
+        logger.info('Scraper progress reset by admin');
+      }
+      
+      res.json({
+        success: true,
+        message: 'Progress reset successfully'
+      });
+    } catch (error) {
+      logger.error(`Reset progress error: ${error.message}`);
+      res.status(500).json({
+        success: false,
+        error: error.message
+      });
+    }
+  },
+  
+  /**
    * Get scraper status (API)
    * GET /api/admin/scraper/status
    */
   getStatus(req, res) {
     try {
       const status = ScraperAdminController.getScraperStatus();
+      
+      // Load progress info
+      let progress = null;
+      try {
+        const progressFile = path.join(__dirname, '../../scraper/progress-full.json');
+        if (fs.existsSync(progressFile)) {
+          progress = JSON.parse(fs.readFileSync(progressFile, 'utf8'));
+        }
+      } catch (e) {}
       
       // Determine which scraper is running and simplify response
       const isFullRunning = !!runningProcesses.full;
@@ -139,7 +204,8 @@ const ScraperAdminController = {
                      isLatestRunning ? scraperOutput.latest.startTime : null,
           lastRun: status.full.lastRun || status.latest.lastRun,
           full: status.full,
-          latest: status.latest
+          latest: status.latest,
+          progress  // Include progress info
         }
       });
       
@@ -184,15 +250,26 @@ const ScraperAdminController = {
       
       // Get options from request
       const options = {
-        startPage: parseInt(req.body.startPage) || 1,
+        startPage: parseInt(req.body.startPage) || 0,  // 0 means use resume
         endPage: parseInt(req.body.endPage) || 0,
         skipChapters: req.body.skipChapters === 'true' || req.body.skipChapters === true,
-        skipImages: req.body.skipImages === 'true' || req.body.skipImages === true
+        skipImages: req.body.skipImages === 'true' || req.body.skipImages === true,
+        resume: req.body.resume !== 'false',  // Default to true (resume mode)
+        reset: req.body.reset === 'true' || req.body.reset === true
       };
       
       // Build command arguments
       const args = ['scrap-all.js'];
-      if (options.startPage > 1) args.push('--start-page', options.startPage.toString());
+      
+      // Resume is default behavior unless explicitly starting from a page
+      if (options.reset) {
+        args.push('--reset');
+      } else if (options.startPage > 0) {
+        args.push('--start-page', options.startPage.toString());
+      } else {
+        args.push('--resume');  // Default: resume from last progress
+      }
+      
       if (options.endPage > 0) args.push('--end-page', options.endPage.toString());
       if (options.skipChapters) args.push('--skip-chapters');
       if (options.skipImages) args.push('--skip-images');
@@ -213,6 +290,7 @@ const ScraperAdminController = {
       // Clear log file for fresh output
       clearLogFile();
       appendToLogFile('[SCRAPER] Starting Full Scraper at ' + new Date().toISOString());
+      appendToLogFile('[SCRAPER] Args: ' + args.join(' '));
       
       runningProcesses.full = spawn('node', args, {
         cwd: scraperPath,

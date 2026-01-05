@@ -115,6 +115,18 @@ router.post('/scraper/:type/stop', ScraperAdminController.stopScraper.bind(Scrap
  */
 router.get('/scraper/console', ScraperAdminController.getConsoleHtml.bind(ScraperAdminController));
 
+/**
+ * GET /admin/scraper/progress
+ * Get full scraper progress (API)
+ */
+router.get('/scraper/progress', ScraperAdminController.getProgress.bind(ScraperAdminController));
+
+/**
+ * POST /admin/scraper/reset-progress
+ * Reset full scraper progress
+ */
+router.post('/scraper/reset-progress', ScraperAdminController.resetProgress.bind(ScraperAdminController));
+
 // ===========================================
 // Logs Routes
 // ===========================================

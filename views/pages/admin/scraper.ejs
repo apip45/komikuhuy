@@ -76,6 +76,8 @@
       <!-- Action Buttons with Forms -->
       <div class="space-y-3">
         <form action="/api/admin/scraper/full" method="POST">
+          <!-- Hidden field to enable resume by default -->
+          <input type="hidden" name="resume" value="true">
           <button 
             type="submit" 
             <%= isRunning ? 'disabled' : '' %>
@@ -84,7 +86,21 @@
             <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"/>
             </svg>
-            <span>Run Full Scraper</span>
+            <span>Run Full Scraper (Resume)</span>
+          </button>
+        </form>
+        
+        <form action="/api/admin/scraper/full" method="POST">
+          <input type="hidden" name="reset" value="true">
+          <button 
+            type="submit" 
+            <%= isRunning ? 'disabled' : '' %>
+            class="w-full px-4 py-2 bg-yellow-600 hover:bg-yellow-700 disabled:bg-gray-600 disabled:cursor-not-allowed text-white rounded-lg transition-colors flex items-center justify-center gap-2 text-sm"
+          >
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
+            </svg>
+            <span>Restart from Page 1</span>
           </button>
         </form>
         
@@ -119,6 +135,36 @@
           <a href="/admin/scraper" class="text-neon-400 hover:underline">↻ Refresh Status</a>
         </p>
       </div>
+    </div>
+    
+    <!-- Progress Info -->
+    <div class="card p-6">
+      <h3 class="text-lg font-semibold text-white mb-4">Full Scraper Progress</h3>
+      
+      <div id="progress-info" class="space-y-3 text-sm">
+        <div class="flex justify-between">
+          <span class="text-gray-400">Last Page</span>
+          <span id="progress-page" class="text-white font-medium">Loading...</span>
+        </div>
+        <div class="flex justify-between">
+          <span class="text-gray-400">Status</span>
+          <span id="progress-status" class="text-gray-300">Loading...</span>
+        </div>
+        <div class="flex justify-between">
+          <span class="text-gray-400">Last Updated</span>
+          <span id="progress-time" class="text-gray-300">Loading...</span>
+        </div>
+      </div>
+      
+      <form action="/admin/scraper/reset-progress" method="POST" class="mt-4">
+        <button 
+          type="submit"
+          onclick="return confirm('Reset progress? Next run will start from page 1.')"
+          class="w-full px-3 py-2 bg-dark-300 hover:bg-dark-200 text-gray-300 rounded-lg transition-colors text-sm"
+        >
+          Reset Progress
+        </button>
+      </form>
     </div>
     
     <!-- Quick Stats -->
@@ -213,3 +259,48 @@
   
 </div>
 
+<!-- Script to load progress info -->
+<script>
+(function() {
+  function loadProgress() {
+    fetch('/admin/scraper/progress')
+      .then(r => r.json())
+      .then(data => {
+        const pageEl = document.getElementById('progress-page');
+        const statusEl = document.getElementById('progress-status');
+        const timeEl = document.getElementById('progress-time');
+        
+        if (data.success && data.data) {
+          pageEl.textContent = 'Page ' + data.data.lastPage;
+          statusEl.textContent = data.data.status || 'unknown';
+          statusEl.className = data.data.status === 'completed' 
+            ? 'text-green-400' 
+            : data.data.status === 'error' 
+              ? 'text-red-400' 
+              : 'text-yellow-400';
+          
+          if (data.data.lastUpdated) {
+            const d = new Date(data.data.lastUpdated);
+            timeEl.textContent = d.toLocaleString('id-ID');
+          } else {
+            timeEl.textContent = '-';
+          }
+        } else {
+          pageEl.textContent = 'No progress';
+          statusEl.textContent = 'Not started';
+          statusEl.className = 'text-gray-400';
+          timeEl.textContent = '-';
+        }
+      })
+      .catch(() => {
+        document.getElementById('progress-page').textContent = 'Error';
+      });
+  }
+  
+  // Load on page load
+  loadProgress();
+  
+  // Refresh every 5 seconds
+  setInterval(loadProgress, 5000);
+})();
+</script>

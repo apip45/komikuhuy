@@ -12,18 +12,21 @@
  *   node scrap-all.js [options]
  * 
  * Options:
- *   --start-page <n>    Start from page n (default: 1)
+ *   --start-page <n>    Start from page n (default: 1 or resume)
  *   --end-page <n>      End at page n (default: unlimited)
+ *   --resume            Resume from last saved progress
+ *   --reset             Reset progress and start from page 1
  *   --skip-chapters     Only scrape comic metadata, skip chapters
  *   --skip-images       Only scrape comics and chapters, skip images
  *   --dry-run           Parse but don't save to database
  *   --help              Show help
  * 
- * This script is designed for one-time initial scraping.
- * For periodic updates, use scrap-latest.js instead.
+ * Progress is automatically saved after each page.
+ * Use --resume to continue from where you left off.
  */
 
 const path = require('path');
+const fs = require('fs');
 
 // Load environment variables
 require('dotenv').config({ path: path.resolve(__dirname, '../.env') });
@@ -31,6 +34,9 @@ require('dotenv').config({ path: path.resolve(__dirname, '../.env') });
 const logger = require('./config/logger');
 const db = require('./config/db');
 const config = require('./config/scraper.config');
+
+// Progress file path
+const PROGRESS_FILE = path.join(__dirname, 'progress-full.json');
 const { delayBetweenComics, delayBetweenChapters } = require('./utils/delay');
 
 // Scrapers
@@ -52,6 +58,8 @@ const args = process.argv.slice(2);
 const options = {
   startPage: 1,
   endPage: 0, // 0 = unlimited
+  resume: false,
+  reset: false,
   skipChapters: false,
   skipImages: false,
   dryRun: false
@@ -64,6 +72,10 @@ for (let i = 0; i < args.length; i++) {
     options.startPage = parseInt(args[++i]) || 1;
   } else if (arg === '--end-page' && args[i + 1]) {
     options.endPage = parseInt(args[++i]) || 0;
+  } else if (arg === '--resume') {
+    options.resume = true;
+  } else if (arg === '--reset') {
+    options.reset = true;
   } else if (arg === '--skip-chapters') {
     options.skipChapters = true;
   } else if (arg === '--skip-images') {
@@ -78,14 +90,60 @@ Usage:
   node scrap-all.js [options]
 
 Options:
-  --start-page <n>    Start from page n (default: 1)
+  --start-page <n>    Start from page n (default: 1 or resume)
   --end-page <n>      End at page n (default: unlimited)
+  --resume            Resume from last saved progress
+  --reset             Reset progress and start from page 1
   --skip-chapters     Only scrape comic metadata, skip chapters
   --skip-images       Only scrape comics and chapters, skip images
   --dry-run           Parse but don't save to database
   --help              Show help
     `);
     process.exit(0);
+  }
+}
+
+// =============================================
+// Progress Management
+// =============================================
+
+function loadProgress() {
+  try {
+    if (fs.existsSync(PROGRESS_FILE)) {
+      const data = JSON.parse(fs.readFileSync(PROGRESS_FILE, 'utf8'));
+      return data;
+    }
+  } catch (e) {
+    logger.warn(`Failed to load progress: ${e.message}`);
+  }
+  return null;
+}
+
+function saveProgress(page, status = 'in_progress') {
+  try {
+    const data = {
+      lastPage: page,
+      status,
+      lastUpdated: new Date().toISOString(),
+      options: {
+        skipChapters: options.skipChapters,
+        skipImages: options.skipImages
+      }
+    };
+    fs.writeFileSync(PROGRESS_FILE, JSON.stringify(data, null, 2));
+  } catch (e) {
+    logger.warn(`Failed to save progress: ${e.message}`);
+  }
+}
+
+function resetProgress() {
+  try {
+    if (fs.existsSync(PROGRESS_FILE)) {
+      fs.unlinkSync(PROGRESS_FILE);
+      logger.info('Progress reset successfully');
+    }
+  } catch (e) {
+    logger.warn(`Failed to reset progress: ${e.message}`);
   }
 }
 
@@ -273,6 +331,25 @@ async function processChapterImages(chapterId, chapterParam) {
 async function main() {
   logger.separator('AF-KOMIK FULL SCRAPER');
   logger.info('Starting full scrape...');
+  
+  // Handle reset option
+  if (options.reset) {
+    resetProgress();
+  }
+  
+  // Handle resume option - load saved progress
+  if (options.resume) {
+    const savedProgress = loadProgress();
+    if (savedProgress && savedProgress.lastPage) {
+      // Resume from NEXT page after last completed
+      options.startPage = savedProgress.lastPage + 1;
+      logger.info(`Resuming from page ${options.startPage} (last completed: ${savedProgress.lastPage})`);
+      logger.info(`Last run: ${savedProgress.lastUpdated}`);
+    } else {
+      logger.info('No previous progress found, starting from page 1');
+    }
+  }
+  
   logger.info(`Options: ${JSON.stringify(options)}`);
   
   stats.startTime = new Date();
@@ -288,63 +365,97 @@ async function main() {
     }
     
     // ========================================
-    // Phase 1: Scrape Comic List
+    // Phase 1: Scrape Comic List (Page by Page)
     // ========================================
     
-    logger.separator('Phase 1: Comic List');
+    logger.separator('Phase 1: Scrape Comics Page by Page');
     
-    const comicList = await ComicListScraper.scrapeMultiplePages({
-      startPage: options.startPage,
-      endPage: options.endPage,
-      onPageComplete: (page, comics, total) => {
-        logger.progress('Comic List', page, options.endPage || '∞', `${total} comics`);
+    let currentPage = options.startPage;
+    let hasMorePages = true;
+    let totalComicsProcessed = 0;
+    
+    while (hasMorePages) {
+      // Check end page limit
+      if (options.endPage > 0 && currentPage > options.endPage) {
+        logger.info(`Reached end page limit: ${options.endPage}`);
+        break;
       }
-    });
-    
-    logger.info(`Found ${comicList.length} comics to process`);
-    
-    // ========================================
-    // Phase 2: Scrape Comic Details
-    // ========================================
-    
-    logger.separator('Phase 2: Comic Details');
-    
-    const totalComics = comicList.length;
-    
-    for (let i = 0; i < totalComics; i++) {
-      const comic = comicList[i];
+      
+      logger.separator(`Page ${currentPage}`);
       
       try {
-        logger.progress('Comics', i + 1, totalComics, comic.param);
+        // Scrape single page
+        const pageComics = await ComicListScraper.scrapePage(currentPage);
         
-        // Scrape comic detail
-        const detail = await ComicDetailScraper.scrape(comic.param);
-        
-        // Save to database
-        const { comicId, success } = await processComic(detail);
-        
-        // Process chapters if comic was saved successfully
-        if (success && detail.chapters.length > 0) {
-          await processChapters(comicId, detail.chapters, comic.param);
+        if (!pageComics || pageComics.length === 0) {
+          logger.info(`No comics found on page ${currentPage}, assuming end of list`);
+          hasMorePages = false;
+          break;
         }
         
-        // Delay between comics
-        await delayBetweenComics();
+        logger.info(`Found ${pageComics.length} comics on page ${currentPage}`);
         
-      } catch (error) {
-        logger.error(`Failed to process comic ${comic.param}: ${error.message}`);
-        stats.comics.failed++;
+        // Process each comic on this page
+        for (let i = 0; i < pageComics.length; i++) {
+          const comic = pageComics[i];
+          
+          try {
+            logger.progress('Comics', i + 1, pageComics.length, comic.param);
+            
+            // Scrape comic detail
+            const detail = await ComicDetailScraper.scrape(comic.param);
+            
+            // Save to database
+            const { comicId, success } = await processComic(detail);
+            
+            // Process chapters if comic was saved successfully
+            if (success && detail.chapters.length > 0) {
+              await processChapters(comicId, detail.chapters, comic.param);
+            }
+            
+            // Delay between comics
+            await delayBetweenComics();
+            
+            totalComicsProcessed++;
+            
+          } catch (error) {
+            logger.error(`Failed to process comic ${comic.param}: ${error.message}`);
+            stats.comics.failed++;
+          }
+        }
+        
+        // Save progress after successfully completing this page
+        if (!options.dryRun) {
+          saveProgress(currentPage, 'in_progress');
+          logger.info(`Progress saved: completed page ${currentPage}`);
+        }
+        
+        currentPage++;
+        
+      } catch (pageError) {
+        logger.error(`Failed to scrape page ${currentPage}: ${pageError.message}`);
+        // Save progress so we can resume from this page
+        if (!options.dryRun) {
+          saveProgress(currentPage - 1, 'error');
+        }
+        throw pageError;
       }
     }
     
+    // Mark as completed
+    if (!options.dryRun) {
+      saveProgress(currentPage - 1, 'completed');
+    }
+    
     // ========================================
-    // Phase 3: Summary
+    // Summary
     // ========================================
     
     stats.endTime = new Date();
     const duration = (stats.endTime - stats.startTime) / 1000;
     
     logger.separator('SCRAPING COMPLETE');
+    logger.info(`Total pages processed: ${currentPage - options.startPage}`);
     logger.info(`Duration: ${Math.round(duration / 60)} minutes`);
     logger.info('');
     logger.info('Comics:');
