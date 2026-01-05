@@ -1,16 +1,54 @@
 <%# Admin Scraper Control Page %>
 
+<% 
+  // Determine current status from server-side data
+  var isFullRunning = status && status.full && status.full.status === 'running';
+  var isLatestRunning = status && status.latest && status.latest.status === 'running';
+  var isRunning = isFullRunning || isLatestRunning;
+  var runningType = isFullRunning ? 'Full' : (isLatestRunning ? 'Latest' : null);
+%>
+
 <!-- Header -->
 <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
   <div>
     <h2 class="text-2xl font-bold text-white">Scraper Control</h2>
     <p class="text-gray-400 text-sm mt-1">Run and monitor web scrapers</p>
   </div>
-  <div id="runtime-display" class="hidden px-4 py-2 bg-dark-300 rounded-lg">
-    <span class="text-gray-400 text-sm">Runtime: </span>
-    <span id="runtime-value" class="text-neon-400 font-mono font-medium">00:00:00</span>
+  <% if (isRunning) { %>
+  <div class="px-4 py-2 bg-dark-300 rounded-lg">
+    <span class="text-gray-400 text-sm">Status: </span>
+    <span class="text-green-400 font-medium"><%= runningType %> Scraper Running</span>
   </div>
+  <% } %>
 </div>
+
+<!-- Success/Error Messages from Query Params -->
+<% if (typeof query !== 'undefined') { %>
+  <% if (query.success) { %>
+  <div class="mb-4 p-4 bg-green-900/50 border border-green-500 rounded-lg text-green-400">
+    <% if (query.success === 'full_started') { %>
+      Full scraper started successfully!
+    <% } else if (query.success === 'latest_started') { %>
+      Latest scraper started successfully!
+    <% } else if (query.success === 'stopped') { %>
+      Scraper stopped successfully!
+    <% } else { %>
+      Operation completed successfully!
+    <% } %>
+  </div>
+  <% } %>
+  <% if (query.error) { %>
+  <div class="mb-4 p-4 bg-red-900/50 border border-red-500 rounded-lg text-red-400">
+    <% if (query.error === 'already_running') { %>
+      A scraper is already running!
+    <% } else if (query.error === 'no_scraper_running') { %>
+      No scraper is currently running.
+    <% } else { %>
+      An error occurred. Please try again.
+    <% } %>
+  </div>
+  <% } %>
+<% } %>
 
 <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
   
@@ -21,32 +59,26 @@
     <div class="card p-6">
       <h3 class="text-lg font-semibold text-white mb-4">Scraper Status</h3>
       
-      <div id="scraper-status" class="flex items-center gap-3 p-4 bg-dark-300 rounded-lg mb-4">
-        <div id="status-indicator" class="w-3 h-3 rounded-full bg-gray-500"></div>
+      <div class="flex items-center gap-3 p-4 bg-dark-300 rounded-lg mb-4">
+        <div class="w-3 h-3 rounded-full <%= isRunning ? 'bg-green-400 animate-pulse' : 'bg-gray-500' %>"></div>
         <div class="flex-1">
-          <p id="status-text" class="text-white font-medium">Checking...</p>
-          <p id="status-detail" class="text-sm text-gray-400">-</p>
+          <p class="text-white font-medium"><%= isRunning ? 'Running' : 'Idle' %></p>
+          <p class="text-sm text-gray-400">
+            <% if (isRunning) { %>
+              <%= runningType %> scraper is running...
+            <% } else { %>
+              No scraper running
+            <% } %>
+          </p>
         </div>
       </div>
       
-      <!-- Progress Bar -->
-      <div id="progress-container" class="hidden mb-4">
-        <div class="flex justify-between text-sm mb-1">
-          <span class="text-gray-400">Progress</span>
-          <span id="progress-text" class="text-neon-400">0%</span>
-        </div>
-        <div class="w-full bg-dark-300 rounded-full h-2">
-          <div id="progress-bar" class="bg-neon-500 h-2 rounded-full transition-all duration-300" style="width: 0%"></div>
-        </div>
-        <p id="progress-detail" class="text-xs text-gray-500 mt-1">Waiting...</p>
-      </div>
-      
-      <!-- Action Buttons - Using forms for direct POST (no JS) -->
+      <!-- Action Buttons with Forms -->
       <div class="space-y-3">
         <form action="/api/admin/scraper/full" method="POST">
           <button 
             type="submit" 
-            id="btn-full-scraper"
+            <%= isRunning ? 'disabled' : '' %>
             class="w-full px-4 py-3 bg-neon-600 hover:bg-neon-700 disabled:bg-gray-600 disabled:cursor-not-allowed text-white rounded-lg transition-colors flex items-center justify-center gap-2"
           >
             <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -59,7 +91,7 @@
         <form action="/api/admin/scraper/latest" method="POST">
           <button 
             type="submit" 
-            id="btn-latest-scraper"
+            <%= isRunning ? 'disabled' : '' %>
             class="w-full px-4 py-3 bg-green-600 hover:bg-green-700 disabled:bg-gray-600 disabled:cursor-not-allowed text-white rounded-lg transition-colors flex items-center justify-center gap-2"
           >
             <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -72,7 +104,7 @@
         <form action="/api/admin/scraper/stop" method="POST">
           <button 
             type="submit" 
-            id="btn-stop-scraper"
+            <%= !isRunning ? 'disabled' : '' %>
             class="w-full px-4 py-3 bg-red-600 hover:bg-red-700 disabled:bg-gray-600 disabled:cursor-not-allowed text-white rounded-lg transition-colors flex items-center justify-center gap-2"
           >
             <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -82,6 +114,10 @@
             <span>Stop Scraper</span>
           </button>
         </form>
+        
+        <p class="text-center text-gray-400 text-sm mt-2">
+          <a href="/admin/scraper" class="text-neon-400 hover:underline">↻ Refresh Status</a>
+        </p>
       </div>
     </div>
     
@@ -92,15 +128,15 @@
       <div class="space-y-3">
         <div class="flex justify-between items-center">
           <span class="text-gray-400">Total Comics</span>
-          <span class="text-white font-medium" id="stat-comics">-</span>
+          <span class="text-white font-medium" id="stat-comics">Loading...</span>
         </div>
         <div class="flex justify-between items-center">
           <span class="text-gray-400">Total Chapters</span>
-          <span class="text-white font-medium" id="stat-chapters">-</span>
+          <span class="text-white font-medium" id="stat-chapters">Loading...</span>
         </div>
         <div class="flex justify-between items-center">
           <span class="text-gray-400">Total Images</span>
-          <span class="text-white font-medium" id="stat-images">-</span>
+          <span class="text-white font-medium" id="stat-images">Loading...</span>
         </div>
       </div>
     </div>
@@ -145,7 +181,8 @@
             Auto-scroll
           </label>
           <button 
-            id="btn-clear-output"
+            type="button"
+            id="btn-clear"
             class="text-sm text-gray-400 hover:text-white transition-colors"
           >
             Clear
@@ -158,7 +195,11 @@
         class="flex-1 p-4 font-mono text-sm text-gray-300 overflow-auto bg-dark-400"
         style="min-height: 500px; max-height: 700px;"
       >
-        <p class="text-gray-500">Waiting for scraper output...</p>
+        <% if (isRunning) { %>
+          <p class="text-neon-400">Scraper is running. Output will appear here...</p>
+        <% } else { %>
+          <p class="text-gray-500">Waiting for scraper to start...</p>
+        <% } %>
       </div>
       
       <!-- Console Footer Stats -->
@@ -169,8 +210,8 @@
           <span class="text-gray-500">Errors: <span id="stat-errors-live" class="text-red-400">0</span></span>
         </div>
         <div id="polling-indicator" class="flex items-center gap-2 text-gray-500">
-          <span class="w-2 h-2 rounded-full bg-gray-600"></span>
-          <span>Idle</span>
+          <span class="w-2 h-2 rounded-full <%= isRunning ? 'bg-green-400 animate-pulse' : 'bg-gray-600' %>"></span>
+          <span><%= isRunning ? 'Polling...' : 'Idle' %></span>
         </div>
       </div>
     </div>
@@ -179,378 +220,97 @@
 </div>
 
 <script>
-// Scraper page logic
-var pollInterval = null;
-var statusInterval = null;
-var runtimeInterval = null;
-var lastOutputLength = 0;
-var scraperStartTime = null;
-
-// Run scraper function
-function runScraper(type) {
-  console.log('runScraper called:', type);
+(function() {
+  var isRunning = <%= isRunning ? 'true' : 'false' %>;
+  var pollInterval = null;
+  var lastLen = 0;
   
-  var btn = document.getElementById('btn-' + type + '-scraper');
-  if (btn) btn.disabled = true;
-  
-  fetch('/api/admin/scraper/' + type, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' }
-  })
-  .then(function(response) { return response.json(); })
-  .then(function(data) {
-    console.log('Response:', data);
-    alert(data.success ? 'Scraper started!' : ('Error: ' + (data.error || data.message)));
-    if (btn) btn.disabled = false;
-    if (data.success) {
-      setTimeout(checkStatus, 500);
-      startPolling();
-    }
-  })
-  .catch(function(error) {
-    console.error('Error:', error);
-    alert('Failed: ' + error.message);
-    if (btn) btn.disabled = false;
-  });
-}
-
-// Stop scraper function
-function stopScraper() {
-  console.log('stopScraper called');
-  
-  fetch('/api/admin/scraper/stop', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' }
-  })
-  .then(function(response) { return response.json(); })
-  .then(function(data) {
-    console.log('Stop response:', data);
-    alert(data.success ? 'Scraper stopped!' : ('Error: ' + (data.error || data.message)));
-    setTimeout(checkStatus, 500);
-  })
-  .catch(function(error) {
-    console.error('Error:', error);
-    alert('Failed: ' + error.message);
-  });
-}
-
-// Clear output function
-function clearOutput() {
-  console.log('clearOutput called');
-  var el = document.getElementById('output-console');
-  if (el) el.innerHTML = '<p class="text-gray-500">Output cleared...</p>';
-  var counter = document.getElementById('output-counter');
-  if (counter) counter.textContent = '(0 lines)';
-  lastOutputLength = 0;
-}
-
-// Initialize on page load
-document.addEventListener('DOMContentLoaded', function() {
-  console.log('[SCRAPER] DOM ready, initializing...');
-  
-  // Attach button event listeners
-  var btnFull = document.getElementById('btn-full-scraper');
-  var btnLatest = document.getElementById('btn-latest-scraper');
-  var btnStop = document.getElementById('btn-stop-scraper');
-  var btnClear = document.getElementById('btn-clear-output');
-  
-  if (btnFull) {
-    btnFull.addEventListener('click', function() { runScraper('full'); });
-    console.log('[SCRAPER] Full button listener attached');
-  }
-  if (btnLatest) {
-    btnLatest.addEventListener('click', function() { runScraper('latest'); });
-    console.log('[SCRAPER] Latest button listener attached');
-  }
-  if (btnStop) {
-    btnStop.addEventListener('click', function() { stopScraper(); });
-    console.log('[SCRAPER] Stop button listener attached');
-  }
-  if (btnClear) {
-    btnClear.addEventListener('click', function() { clearOutput(); });
-    console.log('[SCRAPER] Clear button listener attached');
-  }
-  
-  checkStatus();
-  loadStats();
-  statusInterval = setInterval(checkStatus, 2000);
-  
-  console.log('[SCRAPER] Initialization complete');
-});
-
-// Check scraper status
-function checkStatus() {
-  fetch('/api/admin/scraper/status')
-    .then(function(response) { return response.json(); })
-    .then(function(data) {
-      if (data.success) {
-        updateStatusUI(data.data);
-        if (data.data.running) {
-          startPolling();
-          startRuntimeCounter(data.data.startTime);
-        } else {
-          stopPolling();
-          stopRuntimeCounter();
-        }
+  // Load database stats
+  function loadStats() {
+    var xhr = new XMLHttpRequest();
+    xhr.open('GET', '/api/admin/stats');
+    xhr.onload = function() {
+      if (xhr.status === 200) {
+        try {
+          var d = JSON.parse(xhr.responseText);
+          if (d.success && d.data) {
+            var c = d.data.comics ? d.data.comics.total : 0;
+            var ch = d.data.chapters ? d.data.chapters.total : 0;
+            var im = d.data.images ? d.data.images.total : 0;
+            document.getElementById('stat-comics').textContent = c;
+            document.getElementById('stat-chapters').textContent = ch;
+            document.getElementById('stat-images').textContent = im;
+          }
+        } catch(e) {}
       }
-    })
-    .catch(function(error) {
-      console.error('Error checking status:', error);
-    });
-}
-
-// Update status UI
-function updateStatusUI(data) {
-  var indicator = document.getElementById('status-indicator');
-  var text = document.getElementById('status-text');
-  var detail = document.getElementById('status-detail');
-  var btnFull = document.getElementById('btn-full-scraper');
-  var btnLatest = document.getElementById('btn-latest-scraper');
-  var btnStop = document.getElementById('btn-stop-scraper');
-  var progressContainer = document.getElementById('progress-container');
-  var runtimeDisplay = document.getElementById('runtime-display');
-  
-  if (data.running) {
-    indicator.className = 'w-3 h-3 rounded-full bg-green-400 animate-pulse';
-    text.textContent = 'Running';
-    detail.textContent = data.type === 'full' ? 'Full scraper is running...' : 'Latest scraper is running...';
-    
-    btnFull.disabled = true;
-    btnLatest.disabled = true;
-    btnStop.disabled = false;
-    progressContainer.classList.remove('hidden');
-    runtimeDisplay.classList.remove('hidden');
-  } else {
-    indicator.className = 'w-3 h-3 rounded-full bg-gray-500';
-    text.textContent = 'Idle';
-    detail.textContent = 'No scraper running';
-    
-    btnFull.disabled = false;
-    btnLatest.disabled = false;
-    btnStop.disabled = true;
-    progressContainer.classList.add('hidden');
-    runtimeDisplay.classList.add('hidden');
+    };
+    xhr.send();
   }
-}
-
-// Start runtime counter
-function startRuntimeCounter(startTime) {
-  if (runtimeInterval) return;
   
-  scraperStartTime = startTime ? new Date(startTime) : new Date();
-  
-  runtimeInterval = setInterval(function() {
-    var elapsed = Date.now() - scraperStartTime.getTime();
-    document.getElementById('runtime-value').textContent = formatDuration(elapsed);
-  }, 1000);
-}
-
-// Stop runtime counter
-function stopRuntimeCounter() {
-  if (runtimeInterval) {
-    clearInterval(runtimeInterval);
-    runtimeInterval = null;
-  }
-}
-
-// Format duration
-function formatDuration(ms) {
-  var seconds = Math.floor(ms / 1000) % 60;
-  var minutes = Math.floor(ms / 60000) % 60;
-  var hours = Math.floor(ms / 3600000);
-  return hours.toString().padStart(2, '0') + ':' + minutes.toString().padStart(2, '0') + ':' + seconds.toString().padStart(2, '0');
-}
-
-// Start polling output
-function startPolling() {
-  if (pollInterval) return;
-  
-  updatePollingIndicator(true, 'Polling...');
-  pollInterval = setInterval(fetchOutput, 1000);
-  fetchOutput();
-}
-
-// Stop polling
-function stopPolling() {
-  if (pollInterval) {
-    clearInterval(pollInterval);
-    pollInterval = null;
-    updatePollingIndicator(false, 'Idle');
-  }
-}
-
-// Update polling indicator
-function updatePollingIndicator(active, labelText) {
-  var indicator = document.getElementById('polling-indicator');
-  if (indicator) {
-    var dot = indicator.querySelector('span:first-child');
-    var label = indicator.querySelector('span:last-child');
-    
-    if (active) {
-      dot.className = 'w-2 h-2 rounded-full bg-green-400 animate-pulse';
-    } else {
-      dot.className = 'w-2 h-2 rounded-full bg-gray-600';
-    }
-    label.textContent = labelText;
-  }
-}
-
-// Fetch scraper output
-function fetchOutput() {
-  fetch('/api/admin/scraper/output')
-    .then(function(response) { return response.json(); })
-    .then(function(data) {
-      if (data.success && data.output) {
-        updateOutput(data.output);
+  // Poll scraper output
+  function pollOutput() {
+    var xhr = new XMLHttpRequest();
+    xhr.open('GET', '/api/admin/scraper/output');
+    xhr.onload = function() {
+      if (xhr.status === 200) {
+        try {
+          var d = JSON.parse(xhr.responseText);
+          if (d.success && d.output && d.output.length > 0) {
+            showOutput(d.output);
+          }
+        } catch(e) {}
       }
-    })
-    .catch(function(error) {
-      console.error('Error fetching output:', error);
-    });
-}
-
-// Update output console
-function updateOutput(lines) {
-  var consoleEl = document.getElementById('output-console');
-  var counterEl = document.getElementById('output-counter');
-  var autoScroll = document.getElementById('auto-scroll').checked;
+    };
+    xhr.send();
+  }
   
-  if (lines.length !== lastOutputLength) {
-    lastOutputLength = lines.length;
-    counterEl.textContent = '(' + lines.length + ' lines)';
+  // Display output lines
+  function showOutput(lines) {
+    if (lines.length === lastLen) return;
+    lastLen = lines.length;
     
-    var html = '';
+    var el = document.getElementById('output-console');
+    var cnt = document.getElementById('output-counter');
+    cnt.textContent = '(' + lines.length + ' lines)';
+    
+    var h = '';
     for (var i = 0; i < lines.length; i++) {
-      var line = lines[i];
-      var className = 'text-gray-300';
-      
-      if (line.indexOf('[ERROR]') >= 0 || line.indexOf('ERROR') >= 0) {
-        className = 'text-red-400';
-      } else if (line.indexOf('[WARN]') >= 0 || line.indexOf('WARNING') >= 0) {
-        className = 'text-yellow-400';
-      } else if (line.indexOf('SUCCESS') >= 0 || line.indexOf('Inserted') >= 0) {
-        className = 'text-green-400';
-      } else if (line.indexOf('[INFO]') >= 0 || line.indexOf('Scraping') >= 0) {
-        className = 'text-blue-400';
-      }
-      
-      // Strip ANSI codes
-      var cleanLine = line.replace(/\x1b\[[0-9;]*m/g, '');
-      html += '<div class="' + className + '">' + escapeHtml(cleanLine) + '</div>';
+      var ln = lines[i].replace(/\x1b\[[0-9;]*m/g, '');
+      var cl = 'text-gray-300';
+      if (ln.indexOf('ERROR') >= 0) cl = 'text-red-400';
+      else if (ln.indexOf('SUCCESS') >= 0 || ln.indexOf('Inserted') >= 0) cl = 'text-green-400';
+      else if (ln.indexOf('Scraping') >= 0) cl = 'text-neon-400';
+      h += '<div class="' + cl + '">' + esc(ln) + '</div>';
     }
+    el.innerHTML = h;
     
-    consoleEl.innerHTML = html;
-    
-    if (autoScroll) {
-      consoleEl.scrollTop = consoleEl.scrollHeight;
-    }
-  }
-}
-
-// Update live stats from output
-function updateLiveStats(lines) {
-  var comics = 0;
-  var chapters = 0;
-  var errors = 0;
-  
-  for (var i = 0; i < lines.length; i++) {
-    var line = lines[i];
-    
-    if (line.indexOf('Inserted comic') >= 0 || line.indexOf('Updated comic') >= 0) {
-      comics++;
-    }
-    if (line.indexOf('Inserted chapter') >= 0 || line.indexOf('Chapter saved') >= 0) {
-      var match = line.match(/(\d+)\s*chapters?/i);
-      if (match) chapters = Math.max(chapters, parseInt(match[1]));
-    }
-    if (line.indexOf('[ERROR]') >= 0 || line.indexOf('Failed') >= 0) {
-      errors++;
-    }
-    
-    var comicMatch = line.match(/Comics?:\s*(\d+)/i);
-    if (comicMatch) comics = Math.max(comics, parseInt(comicMatch[1]));
-    
-    var chapterMatch = line.match(/Chapters?:\s*(\d+)/i);
-    if (chapterMatch) chapters = Math.max(chapters, parseInt(chapterMatch[1]));
-  }
-  
-  document.getElementById('stat-comics-live').textContent = comics;
-  document.getElementById('stat-chapters-live').textContent = chapters;
-  document.getElementById('stat-errors-live').textContent = errors;
-  
-  updateProgressFromOutput(lines);
-}
-
-// Update progress bar
-function updateProgressFromOutput(lines) {
-  var progressBar = document.getElementById('progress-bar');
-  var progressText = document.getElementById('progress-text');
-  var progressDetail = document.getElementById('progress-detail');
-  
-  var currentPage = 0;
-  var totalPages = 0;
-  var lastActivity = 'Processing...';
-  
-  for (var i = lines.length - 1; i >= 0; i--) {
-    var line = lines[i];
-    
-    var pageMatch = line.match(/Page\s*(\d+)(?:\s*\/\s*(\d+))?/i);
-    if (pageMatch && !currentPage) {
-      currentPage = parseInt(pageMatch[1]);
-      if (pageMatch[2]) totalPages = parseInt(pageMatch[2]);
-    }
-    
-    if (line.indexOf('Scraping') >= 0 || line.indexOf('Processing') >= 0 || line.indexOf('Fetching') >= 0) {
-      lastActivity = line.replace(/\x1b\[[0-9;]*m/g, '').substring(0, 60);
-      if (lastActivity.length === 60) lastActivity += '...';
-      break;
+    if (document.getElementById('auto-scroll').checked) {
+      el.scrollTop = el.scrollHeight;
     }
   }
   
-  var percentage = 0;
-  if (totalPages > 0) {
-    percentage = Math.round((currentPage / totalPages) * 100);
-  } else if (currentPage > 0) {
-    percentage = Math.min(Math.round((currentPage / 50) * 100), 95);
+  function esc(t) {
+    var d = document.createElement('div');
+    d.textContent = t;
+    return d.innerHTML;
   }
   
-  progressBar.style.width = percentage + '%';
-  progressText.textContent = percentage + '%';
-  progressDetail.textContent = lastActivity;
-}
-
-// Load database stats
-function loadStats() {
-  fetch('/api/admin/stats')
-    .then(function(response) { return response.json(); })
-    .then(function(data) {
-      console.log('Stats response:', data);
-      
-      if (data.success && data.data) {
-        var comics = data.data.comics && data.data.comics.total ? data.data.comics.total : 0;
-        var chapters = data.data.chapters && data.data.chapters.total ? data.data.chapters.total : 0;
-        var images = data.data.images && data.data.images.total ? data.data.images.total : 0;
-        
-        document.getElementById('stat-comics').textContent = comics.toLocaleString();
-        document.getElementById('stat-chapters').textContent = chapters.toLocaleString();
-        document.getElementById('stat-images').textContent = images.toLocaleString();
-      }
-    })
-    .catch(function(error) {
-      console.error('Error loading stats:', error);
-      document.getElementById('stat-comics').textContent = 'Error';
-      document.getElementById('stat-chapters').textContent = 'Error';
-      document.getElementById('stat-images').textContent = 'Error';
-    });
-}
-
-// Escape HTML
-function escapeHtml(text) {
-  var div = document.createElement('div');
-  div.textContent = text;
-  return div.innerHTML;
-}
-
-console.log('[SCRAPER] Page script loaded');
+  // Clear button
+  var clearBtn = document.getElementById('btn-clear');
+  if (clearBtn) {
+    clearBtn.onclick = function() {
+      document.getElementById('output-console').innerHTML = '<p class="text-gray-500">Cleared.</p>';
+      document.getElementById('output-counter').textContent = '(0 lines)';
+      lastLen = 0;
+    };
+  }
+  
+  // Initialize
+  loadStats();
+  
+  if (isRunning) {
+    pollOutput();
+    pollInterval = setInterval(pollOutput, 1000);
+  }
+})();
 </script>
-

@@ -50,7 +50,8 @@ const ScraperAdminController = {
         title: 'Scraper Control - Admin',
         page: 'scraper',
         user: req.session,
-        status
+        status,
+        query: req.query
       });
       
     } catch (error) {
@@ -208,16 +209,18 @@ const ScraperAdminController = {
         }
       };
       
-      if (req.xhr || req.headers.accept?.includes('application/json')) {
+      // Only return JSON if explicitly requested via XHR
+      if (req.xhr) {
         return res.json(response);
       }
       
+      // Form submission - redirect back
       res.redirect('/admin/scraper?success=full_started');
       
     } catch (error) {
       logger.error(`Run full scraper error: ${error.message}`);
       
-      if (req.xhr || req.headers.accept?.includes('application/json')) {
+      if (req.xhr) {
         return res.status(500).json({
           success: false,
           error: error.message
@@ -335,7 +338,7 @@ const ScraperAdminController = {
         }
       };
       
-      if (req.xhr || req.headers.accept?.includes('application/json')) {
+      if (req.xhr) {
         return res.json(response);
       }
       
@@ -344,7 +347,7 @@ const ScraperAdminController = {
     } catch (error) {
       logger.error(`Run latest scraper error: ${error.message}`);
       
-      if (req.xhr || req.headers.accept?.includes('application/json')) {
+      if (req.xhr) {
         return res.status(500).json({
           success: false,
           error: error.message
@@ -454,7 +457,7 @@ const ScraperAdminController = {
       }
       
       if (!stoppedType) {
-        if (req.xhr || req.headers.accept?.includes('application/json')) {
+        if (req.xhr) {
           return res.status(404).json({
             success: false,
             message: 'No scraper is currently running'
@@ -463,7 +466,7 @@ const ScraperAdminController = {
         return res.redirect('/admin/scraper?error=no_scraper_running');
       }
       
-      if (req.xhr || req.headers.accept?.includes('application/json')) {
+      if (req.xhr) {
         return res.json({
           success: true,
           message: `Scraper stopped (${stoppedType})`
@@ -475,7 +478,7 @@ const ScraperAdminController = {
     } catch (error) {
       logger.error(`Stop any scraper error: ${error.message}`);
       
-      if (req.xhr || req.headers.accept?.includes('application/json')) {
+      if (req.xhr) {
         return res.status(500).json({
           success: false,
           error: error.message
