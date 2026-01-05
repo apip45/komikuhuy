@@ -151,11 +151,83 @@ const closePool = async () => {
   }
 };
 
+/**
+ * Run database migrations to ensure all required columns exist
+ * Adds new columns if they don't exist (for backward compatibility)
+ */
+const runMigrations = async () => {
+  logger.info('Checking database schema...');
+  
+  try {
+    // Check if status column exists
+    const [columns] = await (await getPool()).query(`
+      SELECT COLUMN_NAME 
+      FROM INFORMATION_SCHEMA.COLUMNS 
+      WHERE TABLE_SCHEMA = ? AND TABLE_NAME = 'komik'
+    `, [process.env.MYSQL_DATABASE]);
+    
+    const columnNames = new Set(columns.map(c => c.COLUMN_NAME));
+    
+    // Add status column if missing
+    if (!columnNames.has('status')) {
+      logger.info('Adding status column to komik table...');
+      await query(`
+        ALTER TABLE komik 
+        ADD COLUMN status ENUM('Ongoing', 'Completed', 'Hiatus', 'Dropped') 
+        DEFAULT 'Ongoing' 
+        AFTER latest_chapter
+      `);
+      logger.info('status column added');
+    }
+    
+    // Add author column if missing
+    if (!columnNames.has('author')) {
+      logger.info('Adding author column to komik table...');
+      await query(`
+        ALTER TABLE komik 
+        ADD COLUMN author VARCHAR(255) DEFAULT NULL 
+        AFTER status
+      `);
+      logger.info('author column added');
+    }
+    
+    // Add comic_type column if missing
+    if (!columnNames.has('comic_type')) {
+      logger.info('Adding comic_type column to komik table...');
+      await query(`
+        ALTER TABLE komik 
+        ADD COLUMN comic_type ENUM('Manga', 'Manhwa', 'Manhua', 'Webtoon', 'Other') 
+        DEFAULT 'Manga' 
+        AFTER author
+      `);
+      logger.info('comic_type column added');
+    }
+    
+    // Add last_scraped column if missing
+    if (!columnNames.has('last_scraped')) {
+      logger.info('Adding last_scraped column to komik table...');
+      await query(`
+        ALTER TABLE komik 
+        ADD COLUMN last_scraped TIMESTAMP DEFAULT NULL 
+        AFTER comic_type
+      `);
+      logger.info('last_scraped column added');
+    }
+    
+    logger.info('Database schema check complete');
+    
+  } catch (error) {
+    logger.warn(`Migration check failed: ${error.message}`);
+    // Don't throw - allow scraper to continue with existing schema
+  }
+};
+
 module.exports = {
   initializePool,
   getPool,
   query,
   insert,
   transaction,
-  closePool
+  closePool,
+  runMigrations
 };

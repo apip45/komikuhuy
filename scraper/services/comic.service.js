@@ -37,7 +37,8 @@ const ComicService = {
     try {
       const sql = `
         SELECT id, param, title, thumbnail, description, synopsis, 
-               genres, latest_chapter, created_at, updated_at
+               genres, latest_chapter, status, author, comic_type, 
+               last_scraped, created_at, updated_at
         FROM komik 
         WHERE param = ?
       `;
@@ -59,7 +60,8 @@ const ComicService = {
     try {
       const sql = `
         SELECT id, param, title, thumbnail, description, synopsis, 
-               genres, latest_chapter, created_at, updated_at
+               genres, latest_chapter, status, author, comic_type,
+               last_scraped, created_at, updated_at
         FROM komik 
         WHERE id = ?
       `;
@@ -109,8 +111,9 @@ const ComicService = {
         : comic.genres || '[]';
       
       const sql = `
-        INSERT INTO komik (param, title, thumbnail, description, synopsis, genres, latest_chapter)
-        VALUES (?, ?, ?, ?, ?, ?, ?)
+        INSERT INTO komik (param, title, thumbnail, description, synopsis, genres, 
+                           latest_chapter, status, author, comic_type, last_scraped)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())
       `;
       
       const result = await db.insert(sql, [
@@ -120,7 +123,10 @@ const ComicService = {
         comic.description || null,
         comic.synopsis || null,
         genresJson,
-        comic.latestChapter || null
+        comic.latestChapter || null,
+        comic.status || 'Ongoing',
+        comic.author || null,
+        comic.comicType || 'Manga'
       ]);
       
       logger.info(`Comic inserted: ${comic.param} (ID: ${result.insertId})`);
@@ -177,6 +183,21 @@ const ComicService = {
         fields.push('latest_chapter = ?');
         values.push(updates.latestChapter);
       }
+      if (updates.status !== undefined) {
+        fields.push('status = ?');
+        values.push(updates.status);
+      }
+      if (updates.author !== undefined) {
+        fields.push('author = ?');
+        values.push(updates.author);
+      }
+      if (updates.comicType !== undefined) {
+        fields.push('comic_type = ?');
+        values.push(updates.comicType);
+      }
+      if (updates.markScraped) {
+        fields.push('last_scraped = NOW()');
+      }
       
       // Always update updated_at
       fields.push('updated_at = NOW()');
@@ -215,19 +236,31 @@ const ComicService = {
       const existing = await this.getByParam(comic.param);
       
       if (existing) {
-        // Check if update is needed
+        // Check if update is needed - compare all relevant fields
+        const existingGenres = typeof existing.genres === 'string' 
+          ? JSON.parse(existing.genres || '[]') 
+          : existing.genres || [];
+        const comicGenres = comic.genres || [];
+        const genresChanged = JSON.stringify(existingGenres.sort()) !== JSON.stringify(comicGenres.sort());
+        
         const needsUpdate = 
           (comic.title && comic.title !== existing.title) ||
           (comic.thumbnail && comic.thumbnail !== existing.thumbnail) ||
           (comic.description && comic.description !== existing.description) ||
           (comic.synopsis && comic.synopsis !== existing.synopsis) ||
-          (comic.latestChapter && comic.latestChapter !== existing.latest_chapter);
+          (comic.latestChapter && comic.latestChapter !== existing.latest_chapter) ||
+          (comic.status && comic.status !== existing.status) ||
+          (comic.author && comic.author !== existing.author) ||
+          (comic.comicType && comic.comicType !== existing.comic_type) ||
+          genresChanged;
         
         if (needsUpdate) {
-          await this.update(comic.param, comic);
+          await this.update(comic.param, { ...comic, markScraped: true });
           return { action: 'updated', id: existing.id };
         }
         
+        // Just mark as scraped even if no changes
+        await this.update(comic.param, { markScraped: true });
         return { action: 'unchanged', id: existing.id };
       } else {
         const result = await this.insert(comic);
@@ -289,6 +322,110 @@ const ComicService = {
       return await db.query(sql, [since]);
     } catch (error) {
       logger.error(`ComicService.getRecentlyUpdated failed: ${error.message}`);
+      throw error;
+    }
+  },
+  
+  /**
+   * Get ongoing comics that need to be checked for updates
+   * Prioritizes comics that haven't been scraped recently
+   * 
+   * @param {number} limit - Maximum number to return
+   * @param {number} hoursOld - Consider comics not scraped in this many hours
+   * @returns {Promise<Array>} List of comics needing update
+   */
+  async getOngoingNeedingUpdate(limit = 50, hoursOld = 24) {
+    try {
+      const sql = `
+        SELECT id, param, title, latest_chapter, status, last_scraped, updated_at
+        FROM komik
+        WHERE status = 'Ongoing' OR status IS NULL
+          AND (last_scraped IS NULL OR last_scraped < NOW() - INTERVAL ? HOUR)
+        ORDER BY 
+          CASE WHEN last_scraped IS NULL THEN 0 ELSE 1 END,
+          last_scraped ASC
+        LIMIT ?
+      `;
+      return await db.query(sql, [hoursOld, limit]);
+    } catch (error) {
+      logger.error(`ComicService.getOngoingNeedingUpdate failed: ${error.message}`);
+      throw error;
+    }
+  },
+  
+  /**
+   * Smart update - compares and only updates changed fields
+   * Returns which fields were actually updated
+   * 
+   * @param {Object} existing - Existing comic from database
+   * @param {Object} scraped - Freshly scraped comic data
+   * @returns {Promise<Object>} Result with changed fields
+   */
+  async smartUpdate(existing, scraped) {
+    try {
+      const changes = {};
+      let hasChanges = false;
+      
+      // Compare each field and collect changes
+      if (scraped.title && scraped.title !== existing.title) {
+        changes.title = scraped.title;
+        hasChanges = true;
+      }
+      if (scraped.thumbnail && scraped.thumbnail !== existing.thumbnail) {
+        changes.thumbnail = scraped.thumbnail;
+        hasChanges = true;
+      }
+      if (scraped.description && scraped.description !== existing.description) {
+        changes.description = scraped.description;
+        hasChanges = true;
+      }
+      if (scraped.synopsis && scraped.synopsis !== existing.synopsis) {
+        changes.synopsis = scraped.synopsis;
+        hasChanges = true;
+      }
+      if (scraped.latestChapter && scraped.latestChapter !== existing.latest_chapter) {
+        changes.latestChapter = scraped.latestChapter;
+        hasChanges = true;
+      }
+      if (scraped.status && scraped.status !== existing.status) {
+        changes.status = scraped.status;
+        hasChanges = true;
+      }
+      if (scraped.author && scraped.author !== existing.author) {
+        changes.author = scraped.author;
+        hasChanges = true;
+      }
+      if (scraped.comicType && scraped.comicType !== existing.comic_type) {
+        changes.comicType = scraped.comicType;
+        hasChanges = true;
+      }
+      
+      // Compare genres (JSON comparison)
+      const existingGenres = typeof existing.genres === 'string' 
+        ? JSON.parse(existing.genres || '[]') 
+        : existing.genres || [];
+      const scrapedGenres = scraped.genres || [];
+      
+      if (JSON.stringify(existingGenres.sort()) !== JSON.stringify(scrapedGenres.sort())) {
+        changes.genres = scrapedGenres;
+        hasChanges = true;
+      }
+      
+      // Always mark as scraped
+      changes.markScraped = true;
+      
+      if (hasChanges) {
+        await this.update(existing.param, changes);
+        logger.info(`Smart update for ${existing.param}: ${Object.keys(changes).filter(k => k !== 'markScraped').join(', ')}`);
+        return { updated: true, changes: Object.keys(changes).filter(k => k !== 'markScraped') };
+      } else {
+        // Just update last_scraped
+        await this.update(existing.param, { markScraped: true });
+        return { updated: false, changes: [] };
+      }
+      
+    } catch (error) {
+      logger.error(`ComicService.smartUpdate failed: ${error.message}`, { param: existing.param });
       throw error;
     }
   }

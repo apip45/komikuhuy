@@ -124,7 +124,7 @@ const stats = {
  * Process a single comic: save to DB and scrape chapters
  */
 async function processComic(comicDetail) {
-  const { param, title, thumbnail, description, synopsis, genres, latestChapter, chapters } = comicDetail;
+  const { param, title, thumbnail, description, synopsis, genres, latestChapter, chapters, status, author, comicType } = comicDetail;
   
   if (options.dryRun) {
     logger.info(`[DRY RUN] Would save comic: ${title} (${chapters.length} chapters)`);
@@ -141,7 +141,10 @@ async function processComic(comicDetail) {
       description,
       synopsis,
       genres,
-      latestChapter
+      latestChapter,
+      status: status || 'Ongoing',
+      author: author || null,
+      comicType: comicType || 'Manga'
     });
     
     if (result.action === 'inserted') {
@@ -279,6 +282,9 @@ async function main() {
     if (!options.dryRun) {
       await db.initializePool();
       logger.info('Database connection established');
+      
+      // Run migrations to ensure schema is up to date
+      await db.runMigrations();
     }
     
     // ========================================

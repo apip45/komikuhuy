@@ -52,7 +52,10 @@ const options = {
   pages: config.limits.latestPageLimit,
   limit: config.limits.latestComicLimit,
   skipImages: false,
-  dryRun: false
+  dryRun: false,
+  updateOngoing: false,  // Also update ongoing comics that haven't been scraped recently
+  ongoingLimit: 50,      // How many ongoing comics to update
+  ongoingHours: 24       // Update comics not scraped in this many hours
 };
 
 for (let i = 0; i < args.length; i++) {
@@ -66,6 +69,12 @@ for (let i = 0; i < args.length; i++) {
     options.skipImages = true;
   } else if (arg === '--dry-run') {
     options.dryRun = true;
+  } else if (arg === '--update-ongoing') {
+    options.updateOngoing = true;
+  } else if (arg === '--ongoing-limit' && args[i + 1]) {
+    options.ongoingLimit = parseInt(args[++i]) || 50;
+  } else if (arg === '--ongoing-hours' && args[i + 1]) {
+    options.ongoingHours = parseInt(args[++i]) || 24;
   } else if (arg === '--help') {
     console.log(`
 AF-Komik Periodic Scraper
@@ -74,10 +83,13 @@ Usage:
   node scrap-latest.js [options]
 
 Options:
-  --pages <n>         Number of pages to scan (default: ${config.limits.latestPageLimit})
-  --limit <n>         Maximum comics to process (default: ${config.limits.latestComicLimit})
-  --skip-images       Only update chapters, skip image scraping
-  --dry-run           Parse but don't save to database
+  --pages <n>            Number of pages to scan (default: ${config.limits.latestPageLimit})
+  --limit <n>            Maximum comics to process (default: ${config.limits.latestComicLimit})
+  --skip-images          Only update chapters, skip image scraping
+  --update-ongoing       Also check ongoing comics not recently scraped
+  --ongoing-limit <n>    How many ongoing comics to update (default: 50)
+  --ongoing-hours <n>    Update comics not scraped in N hours (default: 24)
+  --dry-run              Parse but don't save to database
   --help              Show help
     `);
     process.exit(0);
@@ -201,6 +213,7 @@ async function processChapterImages(chapterId, chapterParam) {
 
 /**
  * Check and update a single comic
+ * Always updates metadata for ongoing comics to keep them fresh
  */
 async function updateComic(comic) {
   try {
@@ -211,23 +224,34 @@ async function updateComic(comic) {
     const detail = await ComicDetailScraper.scrape(comic.param);
     
     if (existing) {
-      // Comic exists - check for new chapters
+      // Comic exists - smart update metadata and check for new chapters
+      
+      // Always update metadata for ongoing comics
+      if (!options.dryRun) {
+        const updateResult = await ComicService.smartUpdate(existing, {
+          title: detail.title,
+          thumbnail: detail.thumbnail,
+          description: detail.description,
+          synopsis: detail.synopsis,
+          genres: detail.genres,
+          latestChapter: detail.latestChapter,
+          status: detail.status,
+          author: detail.author,
+          comicType: detail.comicType
+        });
+        
+        if (updateResult.updated) {
+          stats.comics.updated++;
+          logger.debug(`Metadata updated for ${comic.param}: ${updateResult.changes.join(', ')}`);
+        }
+      }
+      
+      // Check for new chapters
       const newChapterCount = await processNewChapters(
         existing.id, 
         detail.chapters, 
         comic.param
       );
-      
-      // Update comic metadata if latest chapter changed
-      if (detail.latestChapter && detail.latestChapter !== existing.latest_chapter) {
-        if (!options.dryRun) {
-          await ComicService.update(comic.param, {
-            latestChapter: detail.latestChapter,
-            thumbnail: detail.thumbnail
-          });
-        }
-        stats.comics.updated++;
-      }
       
       if (newChapterCount > 0) {
         stats.comics.newChapters++;
@@ -245,7 +269,10 @@ async function updateComic(comic) {
           description: detail.description,
           synopsis: detail.synopsis,
           genres: detail.genres,
-          latestChapter: detail.latestChapter
+          latestChapter: detail.latestChapter,
+          status: detail.status || 'Ongoing',
+          author: detail.author,
+          comicType: detail.comicType || 'Manga'
         });
         
         if (result.insertId) {
@@ -293,6 +320,9 @@ async function main() {
   logger.separator('AF-KOMIK PERIODIC SCRAPER');
   logger.info('Starting periodic update...');
   logger.info(`Options: pages=${options.pages}, limit=${options.limit}, dryRun=${options.dryRun}`);
+  if (options.updateOngoing) {
+    logger.info(`Ongoing update: limit=${options.ongoingLimit}, hours=${options.ongoingHours}`);
+  }
   
   stats.startTime = new Date();
   
@@ -301,6 +331,9 @@ async function main() {
     if (!options.dryRun) {
       await db.initializePool();
       logger.info('Database connection established');
+      
+      // Run migrations to ensure schema is up to date
+      await db.runMigrations();
     }
     
     // ========================================
@@ -317,10 +350,10 @@ async function main() {
     logger.info(`Found ${latestComics.length} comics, processing ${comicsToProcess.length}`);
     
     // ========================================
-    // Phase 2: Update Comics
+    // Phase 2: Update Comics from Latest
     // ========================================
     
-    logger.separator('Phase 2: Updating Comics');
+    logger.separator('Phase 2: Updating Comics from Latest');
     
     const total = comicsToProcess.length;
     
@@ -338,7 +371,42 @@ async function main() {
     }
     
     // ========================================
-    // Phase 3: Summary
+    // Phase 3: Update Ongoing Comics (Optional)
+    // ========================================
+    
+    if (options.updateOngoing) {
+      logger.separator('Phase 3: Updating Ongoing Comics');
+      
+      // Get ongoing comics that haven't been scraped recently
+      const ongoingComics = await ComicService.getOngoingNeedingUpdate(
+        options.ongoingLimit, 
+        options.ongoingHours
+      );
+      
+      // Filter out comics we already processed
+      const processedParams = new Set(comicsToProcess.map(c => c.param));
+      const remainingOngoing = ongoingComics.filter(c => !processedParams.has(c.param));
+      
+      logger.info(`Found ${ongoingComics.length} ongoing comics needing update, ${remainingOngoing.length} not yet processed`);
+      
+      const ongoingTotal = remainingOngoing.length;
+      
+      for (let i = 0; i < ongoingTotal; i++) {
+        const comic = remainingOngoing[i];
+        
+        logger.progress('Ongoing', i + 1, ongoingTotal, comic.param);
+        
+        await updateComic(comic);
+        
+        // Delay between comics
+        if (i < ongoingTotal - 1) {
+          await delayBetweenComics();
+        }
+      }
+    }
+    
+    // ========================================
+    // Phase 4: Summary
     // ========================================
     
     stats.endTime = new Date();
@@ -348,19 +416,19 @@ async function main() {
     logger.info(`Duration: ${Math.round(duration)} seconds`);
     logger.info('');
     logger.info('Comics:');
-    logger.info(`  Scanned:      ${stats.comics.scanned}`);
-    logger.info(`  Updated:      ${stats.comics.updated}`);
-    logger.info(`  With New Ch:  ${stats.comics.newChapters}`);
-    logger.info(`  Failed:       ${stats.comics.failed}`);
+    logger.info(`  Scanned:        ${stats.comics.scanned}`);
+    logger.info(`  Metadata Updated: ${stats.comics.updated}`);
+    logger.info(`  With New Ch:    ${stats.comics.newChapters}`);
+    logger.info(`  Failed:         ${stats.comics.failed}`);
     logger.info('');
     logger.info('Chapters:');
-    logger.info(`  New:          ${stats.chapters.new}`);
-    logger.info(`  Skipped:      ${stats.chapters.skipped}`);
-    logger.info(`  Failed:       ${stats.chapters.failed}`);
+    logger.info(`  New:            ${stats.chapters.new}`);
+    logger.info(`  Skipped:        ${stats.chapters.skipped}`);
+    logger.info(`  Failed:         ${stats.chapters.failed}`);
     logger.info('');
     logger.info('Images:');
-    logger.info(`  Inserted:     ${stats.images.inserted}`);
-    logger.info(`  Failed:       ${stats.images.failed}`);
+    logger.info(`  Inserted:       ${stats.images.inserted}`);
+    logger.info(`  Failed:         ${stats.images.failed}`);
     
     // Exit with error if too many failures
     const totalFailures = stats.comics.failed + stats.chapters.failed + stats.images.failed;
