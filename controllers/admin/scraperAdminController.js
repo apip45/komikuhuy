@@ -103,6 +103,13 @@ const ScraperAdminController = {
    * POST /admin/scraper/full or POST /api/admin/scraper/full
    */
   async runFullScraper(req, res) {
+    console.log('[SCRAPER_CTRL] =========================================');
+    console.log('[SCRAPER_CTRL] runFullScraper() CALLED');
+    console.log('[SCRAPER_CTRL] Request method:', req.method);
+    console.log('[SCRAPER_CTRL] Request URL:', req.originalUrl);
+    console.log('[SCRAPER_CTRL] Session userId:', req.session?.userId);
+    console.log('[SCRAPER_CTRL] =========================================');
+    
     try {
       const adminId = req.session.userId;
       logger.info(`Full scraper triggered by admin ${adminId}`);
@@ -226,6 +233,13 @@ const ScraperAdminController = {
    * POST /admin/scraper/latest or POST /api/admin/scraper/latest
    */
   async runLatestScraper(req, res) {
+    console.log('[SCRAPER_CTRL] =========================================');
+    console.log('[SCRAPER_CTRL] runLatestScraper() CALLED');
+    console.log('[SCRAPER_CTRL] Request method:', req.method);
+    console.log('[SCRAPER_CTRL] Request URL:', req.originalUrl);
+    console.log('[SCRAPER_CTRL] Session userId:', req.session?.userId);
+    console.log('[SCRAPER_CTRL] =========================================');
+    
     try {
       const adminId = req.session.userId;
       logger.info(`Latest scraper triggered by admin ${adminId}`);
@@ -346,6 +360,13 @@ const ScraperAdminController = {
    * POST /admin/scraper/:type/stop
    */
   async stopScraper(req, res) {
+    console.log('[SCRAPER_CTRL] =========================================');
+    console.log('[SCRAPER_CTRL] stopScraper() CALLED');
+    console.log('[SCRAPER_CTRL] Request method:', req.method);
+    console.log('[SCRAPER_CTRL] Request URL:', req.originalUrl);
+    console.log('[SCRAPER_CTRL] Type param:', req.params?.type);
+    console.log('[SCRAPER_CTRL] =========================================');
+    
     try {
       const { type } = req.params;
       const adminId = req.session.userId;
@@ -400,6 +421,12 @@ const ScraperAdminController = {
    * POST /admin/scraper/stop
    */
   async stopAnyScraper(req, res) {
+    console.log('[SCRAPER_CTRL] =========================================');
+    console.log('[SCRAPER_CTRL] stopAnyScraper() CALLED');
+    console.log('[SCRAPER_CTRL] Request method:', req.method);
+    console.log('[SCRAPER_CTRL] Request URL:', req.originalUrl);
+    console.log('[SCRAPER_CTRL] =========================================');
+    
     try {
       const adminId = req.session.userId;
       let stoppedType = null;

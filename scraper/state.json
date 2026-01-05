@@ -1,0 +1,14 @@
+{
+  "latest": {
+    "status": "failed",
+    "startTime": "2026-01-05T05:03:14.487Z",
+    "endTime": "2026-01-05T05:04:44.002Z",
+    "exitCode": null,
+    "options": {
+      "pages": 5,
+      "limit": 100,
+      "skipImages": false
+    }
+  },
+  "lastUpdated": "2026-01-05T05:04:44.002Z"
+}
