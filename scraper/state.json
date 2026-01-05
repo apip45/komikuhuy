@@ -10,5 +10,15 @@
       "skipImages": false
     }
   },
-  "lastUpdated": "2026-01-05T05:44:11.782Z"
+  "lastUpdated": "2026-01-05T10:27:29.142Z",
+  "fix-chapters": {
+    "status": "failed",
+    "startTime": "2026-01-05T10:27:25.033Z",
+    "endTime": "2026-01-05T10:27:29.141Z",
+    "exitCode": null,
+    "options": {
+      "limit": 0,
+      "skipImages": false
+    }
+  }
 }

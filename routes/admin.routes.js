@@ -98,6 +98,12 @@ router.post('/scraper/full', ScraperAdminController.runFullScraper.bind(ScraperA
 router.post('/scraper/latest', ScraperAdminController.runLatestScraper.bind(ScraperAdminController));
 
 /**
+ * POST /admin/scraper/fix-chapters
+ * Run fix-chapters script to repair missing chapters
+ */
+router.post('/scraper/fix-chapters', ScraperAdminController.runFixChapters.bind(ScraperAdminController));
+
+/**
  * POST /admin/scraper/stop
  * Stop any running scraper
  */

@@ -125,61 +125,44 @@ const stats = {
 // =============================================
 
 /**
- * Process new chapters for a comic
+ * Process and sync chapters for a comic
+ * Uses syncChapters to find and insert ALL missing chapters (not just new ones)
+ * This fixes the issue of skipped chapters in the middle
  */
 async function processNewChapters(comicId, chapters, comicParam) {
   if (!comicId) return 0;
   
-  // Get existing chapter params
-  const existingParams = await ChapterService.getParamsByComicId(comicId);
+  // Use syncChapters to find and insert ALL missing chapters
+  // This handles both new chapters AND previously missed chapters
+  const syncResult = await ChapterService.syncChapters(comicId, chapters);
   
-  // Find new chapters (not in database)
-  const newChapters = chapters.filter(ch => !existingParams.has(ch.param));
-  
-  if (newChapters.length === 0) {
+  if (syncResult.missingCount === 0) {
     return 0;
   }
   
-  logger.info(`Found ${newChapters.length} new chapters for ${comicParam}`);
+  // Log what was found
+  logger.info(`[${comicParam}] Found ${syncResult.missingCount} missing chapters (synced: ${syncResult.insertedCount})`);
   
-  let insertedCount = 0;
-  
-  for (const chapter of newChapters) {
-    try {
-      if (options.dryRun) {
-        logger.debug(`[DRY RUN] Would insert chapter: ${chapter.label}`);
-        insertedCount++;
-        continue;
-      }
-      
-      // Insert chapter
-      const result = await ChapterService.insert({
-        comicId,
-        param: chapter.param,
-        label: chapter.label,
-        releaseDate: chapter.releaseDate
-      });
-      
-      if (result.insertId) {
-        insertedCount++;
-        stats.chapters.new++;
-        
-        // Scrape images for new chapter
-        if (!options.skipImages) {
-          await processChapterImages(result.insertId, chapter.param);
+  // Process images for newly inserted chapters
+  if (!options.skipImages && !options.dryRun && syncResult.insertedCount > 0) {
+    const existingParams = await ChapterService.getParamsByComicId(comicId);
+    
+    for (const chapter of chapters) {
+      if (existingParams.has(chapter.param)) {
+        const chapterData = await ChapterService.getByParam(comicId, chapter.param);
+        if (chapterData) {
+          const hasImages = await ImageService.hasImages(chapterData.id);
+          if (!hasImages) {
+            await processChapterImages(chapterData.id, chapter.param);
+          }
         }
       }
-      
-      // Small delay between chapters
-      await delayBetweenChapters();
-      
-    } catch (error) {
-      logger.warn(`Failed to insert chapter ${chapter.param}: ${error.message}`);
-      stats.chapters.failed++;
     }
   }
   
-  return insertedCount;
+  stats.chapters.new += syncResult.insertedCount;
+  
+  return syncResult.insertedCount;
 }
 
 /**

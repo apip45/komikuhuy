@@ -223,58 +223,56 @@ async function processComic(comicDetail) {
 }
 
 /**
- * Process chapters for a comic
+ * Process chapters for a comic - sync all chapters from website
+ * This ensures no missing chapters by comparing with database
  */
 async function processChapters(comicId, chapters, comicParam) {
   if (options.skipChapters) {
-    return;
+    return { synced: 0, missing: 0 };
   }
   
   if (!comicId) {
     logger.warn(`Cannot process chapters: no comic ID for ${comicParam}`);
-    return;
+    return { synced: 0, missing: 0 };
   }
   
-  // Get existing chapter params
-  const existingParams = await ChapterService.getParamsByComicId(comicId);
-  
-  for (const chapter of chapters) {
-    try {
-      // Check if chapter already exists
-      if (existingParams.has(chapter.param)) {
-        stats.chapters.skipped++;
-        continue;
-      }
-      
-      // Insert chapter
-      if (!options.dryRun) {
-        const result = await ChapterService.insertIfNotExists({
-          comicId,
-          param: chapter.param,
-          label: chapter.label,
-          releaseDate: chapter.releaseDate
-        });
-        
-        if (result.isNew) {
-          stats.chapters.inserted++;
-          
-          // Scrape and save images if not skipping
-          if (!options.skipImages) {
-            await processChapterImages(result.id, chapter.param);
-          }
-        } else {
-          stats.chapters.skipped++;
-        }
-      } else {
-        logger.debug(`[DRY RUN] Would save chapter: ${chapter.label}`);
-      }
-      
-      stats.chapters.scraped++;
-      
-    } catch (error) {
-      logger.warn(`Failed to process chapter ${chapter.param}: ${error.message}`);
-      stats.chapters.failed++;
+  try {
+    // Use syncChapters to find and insert ALL missing chapters
+    const syncResult = await ChapterService.syncChapters(comicId, chapters);
+    
+    stats.chapters.scraped += chapters.length;
+    stats.chapters.inserted += syncResult.insertedCount;
+    stats.chapters.skipped += syncResult.existingCount;
+    
+    if (syncResult.missingCount > 0) {
+      logger.info(`[${comicParam}] Synced ${syncResult.insertedCount}/${syncResult.missingCount} missing chapters (total: ${syncResult.scrapedCount})`);
     }
+    
+    // Process images for newly inserted chapters if not skipping
+    if (!options.skipImages && syncResult.insertedCount > 0) {
+      // Get the newly inserted chapters (they won't have images yet)
+      const existingParams = await ChapterService.getParamsByComicId(comicId);
+      
+      for (const chapter of chapters) {
+        if (existingParams.has(chapter.param)) {
+          // Get chapter ID and check if it has images
+          const chapterData = await ChapterService.getByParam(comicId, chapter.param);
+          if (chapterData) {
+            const hasImages = await ImageService.hasImages(chapterData.id);
+            if (!hasImages) {
+              await processChapterImages(chapterData.id, chapter.param);
+            }
+          }
+        }
+      }
+    }
+    
+    return syncResult;
+    
+  } catch (error) {
+    logger.error(`Failed to sync chapters for ${comicParam}: ${error.message}`);
+    stats.chapters.failed++;
+    return { synced: 0, missing: 0, error };
   }
 }
 

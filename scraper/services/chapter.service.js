@@ -312,6 +312,118 @@ const ChapterService = {
       logger.error(`ChapterService.getLatest failed: ${error.message}`, { comicId });
       throw error;
     }
+  },
+  
+  /**
+   * Find missing chapters by comparing scraped chapters with database
+   * Returns chapters that exist on website but not in database
+   * 
+   * @param {number} comicId - Comic database ID
+   * @param {Array} scrapedChapters - Chapters from website
+   * @returns {Promise<Array>} Missing chapters
+   */
+  async findMissingChapters(comicId, scrapedChapters) {
+    try {
+      const existingParams = await this.getParamsByComicId(comicId);
+      const missing = scrapedChapters.filter(ch => !existingParams.has(ch.param));
+      
+      logger.debug(`Found ${missing.length} missing chapters for comic ID ${comicId}`);
+      return missing;
+    } catch (error) {
+      logger.error(`ChapterService.findMissingChapters failed: ${error.message}`, { comicId });
+      throw error;
+    }
+  },
+  
+  /**
+   * Get comics with incomplete chapter data
+   * Compares database chapter count with expected count from latest scrape
+   * 
+   * @param {number} limit - Maximum comics to return
+   * @returns {Promise<Array>} Comics with potentially missing chapters
+   */
+  async getComicsWithIncompleteChapters(limit = 100) {
+    try {
+      // Get comics where scraped chapter count doesn't match DB count
+      // Or comics that haven't been fully verified
+      const sql = `
+        SELECT 
+          k.id,
+          k.param,
+          k.title,
+          k.status,
+          COUNT(c.id) as db_chapter_count,
+          k.last_scraped
+        FROM komik k
+        LEFT JOIN chapter c ON c.komik_id = k.id
+        GROUP BY k.id
+        ORDER BY k.last_scraped ASC
+        LIMIT ?
+      `;
+      return await db.query(sql, [limit]);
+    } catch (error) {
+      logger.error(`ChapterService.getComicsWithIncompleteChapters failed: ${error.message}`);
+      throw error;
+    }
+  },
+  
+  /**
+   * Sync chapters - insert all missing chapters from scraped data
+   * 
+   * @param {number} comicId - Comic database ID
+   * @param {Array} scrapedChapters - All chapters from website
+   * @returns {Promise<Object>} Sync result summary
+   */
+  async syncChapters(comicId, scrapedChapters) {
+    try {
+      const existingParams = await this.getParamsByComicId(comicId);
+      const existingCount = existingParams.size;
+      const scrapedCount = scrapedChapters.length;
+      
+      // Find missing chapters
+      const missingChapters = scrapedChapters.filter(ch => !existingParams.has(ch.param));
+      
+      if (missingChapters.length === 0) {
+        return {
+          existingCount,
+          scrapedCount,
+          missingCount: 0,
+          insertedCount: 0,
+          status: 'complete'
+        };
+      }
+      
+      // Insert missing chapters
+      let insertedCount = 0;
+      for (const chapter of missingChapters) {
+        try {
+          const result = await this.insert({
+            comicId,
+            param: chapter.param,
+            label: chapter.label,
+            releaseDate: chapter.releaseDate
+          });
+          if (result.insertId) {
+            insertedCount++;
+          }
+        } catch (err) {
+          logger.warn(`Failed to insert missing chapter ${chapter.param}: ${err.message}`);
+        }
+      }
+      
+      logger.info(`Synced chapters for comic ${comicId}: ${insertedCount}/${missingChapters.length} missing chapters inserted`);
+      
+      return {
+        existingCount,
+        scrapedCount,
+        missingCount: missingChapters.length,
+        insertedCount,
+        status: insertedCount === missingChapters.length ? 'synced' : 'partial'
+      };
+    } catch (error) {
+      logger.error(`ChapterService.syncChapters failed: ${error.message}`, { comicId });
+      throw error;
+    }
   }
 };
 

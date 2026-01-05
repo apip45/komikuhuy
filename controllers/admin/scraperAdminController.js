@@ -506,6 +506,134 @@ const ScraperAdminController = {
   },
   
   /**
+   * Run fix-chapters script to repair missing chapters
+   * POST /admin/scraper/fix-chapters or POST /api/admin/scraper/fix-chapters
+   */
+  async runFixChapters(req, res) {
+    console.log('[SCRAPER_CTRL] =========================================');
+    console.log('[SCRAPER_CTRL] runFixChapters() CALLED');
+    console.log('[SCRAPER_CTRL] =========================================');
+    
+    try {
+      const adminId = req.session.userId;
+      logger.info(`Fix chapters triggered by admin ${adminId}`);
+      
+      // Check if any scraper is already running
+      if (runningProcesses.full || runningProcesses.latest) {
+        const message = 'Another scraper is already running';
+        logger.warn(message);
+        
+        if (req.xhr || req.headers.accept?.includes('application/json')) {
+          return res.status(409).json({
+            success: false,
+            error: message
+          });
+        }
+        return res.redirect('/admin/scraper?error=already_running');
+      }
+      
+      // Get options from request
+      const options = {
+        limit: parseInt(req.body.limit) || 0,
+        skipImages: req.body.skipImages === 'true' || req.body.skipImages === true
+      };
+      
+      // Build command arguments
+      const args = ['fix-chapters.js'];
+      if (options.limit > 0) args.push('--limit', options.limit.toString());
+      if (options.skipImages) args.push('--skip-images');
+      
+      // Start the fix-chapters process
+      const scraperPath = path.join(__dirname, '../../scraper');
+      
+      scraperOutput.full = {
+        stdout: [],
+        stderr: [],
+        startTime: new Date(),
+        endTime: null,
+        status: 'running',
+        options,
+        triggeredBy: adminId,
+        type: 'fix-chapters'
+      };
+      
+      // Clear log file for fresh output
+      clearLogFile();
+      appendToLogFile('[FIX-CHAPTERS] Starting at ' + new Date().toISOString());
+      appendToLogFile('[FIX-CHAPTERS] Args: ' + args.join(' '));
+      
+      runningProcesses.full = spawn('node', args, {
+        cwd: scraperPath,
+        env: { ...process.env }
+      });
+      
+      // Capture stdout
+      runningProcesses.full.stdout.on('data', (data) => {
+        const lines = data.toString().split('\n').filter(l => l.trim());
+        scraperOutput.full.stdout.push(...lines);
+        lines.forEach(line => appendToLogFile(line));
+        if (scraperOutput.full.stdout.length > 500) {
+          scraperOutput.full.stdout = scraperOutput.full.stdout.slice(-500);
+        }
+      });
+      
+      // Capture stderr
+      runningProcesses.full.stderr.on('data', (data) => {
+        const lines = data.toString().split('\n').filter(l => l.trim());
+        scraperOutput.full.stderr.push(...lines);
+        lines.forEach(line => appendToLogFile('[STDERR] ' + line));
+      });
+      
+      // Handle process exit
+      runningProcesses.full.on('close', (code) => {
+        scraperOutput.full.endTime = new Date();
+        scraperOutput.full.status = code === 0 ? 'completed' : 'failed';
+        scraperOutput.full.exitCode = code;
+        runningProcesses.full = null;
+        
+        ScraperAdminController.saveState('fix-chapters', scraperOutput.full);
+        logger.info(`Fix chapters finished with exit code ${code}`);
+      });
+      
+      // Handle process error
+      runningProcesses.full.on('error', (error) => {
+        scraperOutput.full.status = 'error';
+        scraperOutput.full.error = error.message;
+        runningProcesses.full = null;
+        logger.error(`Fix chapters error: ${error.message}`);
+      });
+      
+      const response = {
+        success: true,
+        message: 'Fix chapters started',
+        data: {
+          status: 'running',
+          startTime: scraperOutput.full.startTime,
+          options
+        }
+      };
+      
+      if (req.xhr) {
+        return res.json(response);
+      }
+      
+      res.redirect('/admin/scraper?success=fix_started');
+      
+    } catch (error) {
+      logger.error(`Run fix chapters error: ${error.message}`);
+      
+      if (req.xhr) {
+        return res.status(500).json({
+          success: false,
+          error: error.message
+        });
+      }
+      
+      res.redirect('/admin/scraper?error=start_failed');
+    }
+  },
+  
+  /**
    * Stop running scraper
    * POST /admin/scraper/:type/stop
    */
