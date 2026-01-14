@@ -126,9 +126,10 @@ const ComicController = {
    */
   async getComicDetailPage(req, res, next) {
     const { param } = req.params;
+    const { sort = 'desc' } = req.query; // Get sort parameter from query string, default to 'desc'
     
-    console.log(`[COMIC_CTRL] getComicDetailPage() - Comic: ${param}`);
-    logger.info(`Comic detail page requested: ${param}`);
+    console.log(`[COMIC_CTRL] getComicDetailPage() - Comic: ${param}, sort: ${sort}`);
+    logger.info(`Comic detail page requested: ${param}, sort: ${sort}`);
     
     try {
       // Validate param
@@ -153,9 +154,37 @@ const ComicController = {
         });
       }
       
-      // Fetch chapters for this comic
-      const chapters = await ChapterModel.findByComicId(comic.id);
-      const firstChapter = chapters.length > 0 ? chapters[chapters.length - 1] : null;
+      // Fetch chapters for this comic (always get all chapters first)
+      const chapters = await ChapterModel.findByComicId(comic.id, 'asc'); // Get in any order
+      
+      // Extract chapter number from label for proper sorting
+      // Supports formats like: "Chapter 1", "Chapter 1.1", "Chapter 1.5", etc.
+      const extractChapterNumber = (chapterLabel) => {
+        if (!chapterLabel) return 0;
+        // Match numbers including decimals (e.g., "Chapter 1.5" -> 1.5)
+        const match = chapterLabel.match(/(\d+(?:\.\d+)?)/);
+        return match ? parseFloat(match[1]) : 0;
+      };
+      
+      // Sort chapters by chapter number
+      chapters.sort((a, b) => {
+        const numA = extractChapterNumber(a.chapter_label);
+        const numB = extractChapterNumber(b.chapter_label);
+        
+        // Apply user's sort preference
+        if (sort === 'asc') {
+          return numA - numB; // Ascending: 1, 1.1, 1.2, 2, ...
+        } else {
+          return numB - numA; // Descending: 100, 99, 2, 1.2, 1.1, 1
+        }
+      });
+      
+      // First chapter should always be the one with lowest chapter number
+      const firstChapter = chapters.length > 0 ? chapters.reduce((min, ch) => {
+        const minNum = extractChapterNumber(min.chapter_label);
+        const chNum = extractChapterNumber(ch.chapter_label);
+        return chNum < minNum ? ch : min;
+      }, chapters[0]) : null;
       
       console.log(`[COMIC_CTRL] Found comic "${comic.title}" with ${chapters.length} chapters`);
       logger.info(`Comic detail: "${comic.title}" - ${chapters.length} chapters`);
@@ -185,7 +214,8 @@ const ComicController = {
         chapters,
         firstChapter,
         chapterCount: chapters.length,
-        readChapterIds
+        readChapterIds,
+        currentSort: sort
       });
       
     } catch (error) {

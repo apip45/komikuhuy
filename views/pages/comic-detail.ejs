@@ -162,14 +162,33 @@
     <!-- Chapter List -->
     <div class="bg-dark-400 rounded-xl border border-dark-100 overflow-hidden">
       <!-- Chapter List Header -->
-      <div class="p-4 md:p-6 border-b border-dark-100 flex items-center justify-between">
-        <h2 class="text-xl font-bold text-white flex items-center gap-2">
+      <div class="p-4 md:p-6 border-b border-dark-100 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+        <div class="flex items-center gap-2">
           <svg class="w-6 h-6 text-neon-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 10h16M4 14h16M4 18h16"></path>
           </svg>
-          Daftar Chapter
-        </h2>
-        <span class="text-sm text-gray-400"><%= chapterCount %> chapter</span>
+          <h2 class="text-xl font-bold text-white">Daftar Chapter</h2>
+          <span class="text-sm text-gray-400">(<%= chapterCount %> chapter)</span>
+        </div>
+        
+        <!-- Sort Toggle -->
+        <div class="flex items-center gap-2">
+          <span class="text-xs text-gray-400">Urutan:</span>
+          <div class="flex rounded-lg overflow-hidden border border-dark-100">
+            <a href="?sort=desc" class="px-3 py-2 text-xs <%= currentSort === 'desc' ? 'bg-neon-600 text-white' : 'bg-dark-300 text-gray-400 hover:bg-dark-200' %> transition-colors flex items-center gap-1">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 4h13M3 8h9m-9 4h9m5-4v12m0 0l-4-4m4 4l4-4"/>
+              </svg>
+              Terbaru
+            </a>
+            <a href="?sort=asc" class="px-3 py-2 text-xs <%= currentSort === 'asc' ? 'bg-neon-600 text-white' : 'bg-dark-300 text-gray-400 hover:bg-dark-200' %> transition-colors flex items-center gap-1">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 4h13M3 8h9m-9 4h6m4 0l4-4m0 0l4 4m-4-4v12"/>
+              </svg>
+              Terlama
+            </a>
+          </div>
+        </div>
       </div>
       
       <!-- Chapter List Content -->
