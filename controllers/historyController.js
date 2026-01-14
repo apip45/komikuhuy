@@ -26,6 +26,7 @@
 
 const logger = require('../config/logger');
 const ReadingHistory = require('../models/mongo/ReadingHistory');
+const { ReadChapter } = require('../models/mongo');
 const ComicModel = require('../models/mysql/comic.model');
 const ChapterModel = require('../models/mysql/chapter.model');
 const { 
@@ -233,10 +234,14 @@ const HistoryController = {
     logger.info(`History clear request: ${username}`);
     
     try {
+      // Clear history
       const deletedCount = await ReadingHistory.clearUserHistory(userId);
       
-      console.log(`[HISTORY_CTRL] ✓ Cleared ${deletedCount} history entries`);
-      logger.info(`History cleared: ${username}, ${deletedCount} entries`);
+      // Also clear all read chapters for this user to maintain consistency
+      const readChaptersDeleted = await ReadChapter.deleteMany({ userId });
+      
+      console.log(`[HISTORY_CTRL] ✓ Cleared ${deletedCount} history entries and ${readChaptersDeleted.deletedCount} read chapters`);
+      logger.info(`History cleared: ${username}, ${deletedCount} history entries, ${readChaptersDeleted.deletedCount} read chapters`);
       
       return res.redirect('/my/history?success=' + encodeURIComponent(`${deletedCount} riwayat berhasil dihapus`));
       
@@ -264,11 +269,23 @@ const HistoryController = {
     logger.info(`History remove request: ${username} -> ${comicParam}`);
     
     try {
+      // Get comic ID from param
+      const comic = await ComicModel.findByParam(comicParam);
+      
+      // Remove history
       const removed = await ReadingHistory.removeEntry(userId, comicParam);
       
       if (removed) {
-        console.log(`[HISTORY_CTRL] ✓ History removed: ${comicParam}`);
-        logger.info(`History removed: ${username} -> ${comicParam}`);
+        // Also remove all read chapters for this comic to maintain consistency
+        if (comic) {
+          const readChaptersDeleted = await ReadChapter.deleteMany({ userId, comicId: comic.id });
+          console.log(`[HISTORY_CTRL] ✓ History removed: ${comicParam}, ${readChaptersDeleted.deletedCount} read chapters cleared`);
+          logger.info(`History removed: ${username} -> ${comicParam}, ${readChaptersDeleted.deletedCount} read chapters`);
+        } else {
+          console.log(`[HISTORY_CTRL] ✓ History removed: ${comicParam}`);
+          logger.info(`History removed: ${username} -> ${comicParam}`);
+        }
+        
         return res.redirect('/my/history?success=' + encodeURIComponent('Riwayat berhasil dihapus'));
       } else {
         console.log(`[HISTORY_CTRL] History not found: ${comicParam}`);
@@ -453,13 +470,18 @@ const HistoryController = {
     logger.info(`API History clear: ${username}`);
     
     try {
+      // Clear history
       const deletedCount = await ReadingHistory.clearUserHistory(userId);
       
-      console.log(`[HISTORY_API] ✓ Cleared ${deletedCount} entries`);
-      logger.info(`API History cleared: ${username}, ${deletedCount} entries`);
+      // Also clear all read chapters for this user to maintain consistency
+      const readChaptersDeleted = await ReadChapter.deleteMany({ userId });
+      
+      console.log(`[HISTORY_API] ✓ Cleared ${deletedCount} history entries and ${readChaptersDeleted.deletedCount} read chapters`);
+      logger.info(`API History cleared: ${username}, ${deletedCount} history, ${readChaptersDeleted.deletedCount} read chapters`);
       
       return ok(res, 'Reading history cleared', {
-        deletedCount
+        deletedCount,
+        readChaptersCleared: readChaptersDeleted.deletedCount
       });
       
     } catch (error) {
@@ -486,15 +508,29 @@ const HistoryController = {
     logger.info(`API History remove: ${username} -> ${comicParam}`);
     
     try {
+      // Get comic ID from param
+      const comic = await ComicModel.findByParam(comicParam);
+      
+      // Remove history
       const removed = await ReadingHistory.removeEntry(userId, comicParam);
       
       if (removed) {
-        console.log(`[HISTORY_API] ✓ History removed: ${comicParam}`);
-        logger.info(`API History removed: ${username} -> ${comicParam}`);
+        // Also remove all read chapters for this comic to maintain consistency
+        let readChaptersCleared = 0;
+        if (comic) {
+          const readChaptersDeleted = await ReadChapter.deleteMany({ userId, comicId: comic.id });
+          readChaptersCleared = readChaptersDeleted.deletedCount;
+          console.log(`[HISTORY_API] ✓ History removed: ${comicParam}, ${readChaptersCleared} read chapters cleared`);
+          logger.info(`API History removed: ${username} -> ${comicParam}, ${readChaptersCleared} read chapters`);
+        } else {
+          console.log(`[HISTORY_API] ✓ History removed: ${comicParam}`);
+          logger.info(`API History removed: ${username} -> ${comicParam}`);
+        }
         
         return ok(res, 'History entry removed', {
           comicParam,
-          removed: true
+          removed: true,
+          readChaptersCleared
         });
       } else {
         return notFound(res, 'History entry not found');
