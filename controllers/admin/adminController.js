@@ -13,6 +13,7 @@ const { getMySQLPool } = require('../../config/mysql');
 const mongoose = require('mongoose');
 const User = require('../../models/mongo/User');
 const logger = require('../../config/logger');
+const statsService = require('../../services/statsService');
 const os = require('os');
 const fs = require('fs');
 const path = require('path');
@@ -100,25 +101,13 @@ const AdminController = {
       }
     };
     
-    // Get MySQL stats
+    // Get MySQL stats (optimized with caching and approximate counts)
     try {
-      const pool = getMySQLPool();
+      const dbStats = await statsService.getDatabaseStats();
       
-      // Total comics
-      const [comicRows] = await pool.query('SELECT COUNT(*) as total FROM komik');
-      stats.comics.total = comicRows[0]?.total || 0;
-      
-      // Last updated comic
-      const [lastUpdated] = await pool.query('SELECT updated_at FROM komik ORDER BY updated_at DESC LIMIT 1');
-      stats.comics.lastUpdated = lastUpdated[0]?.updated_at || null;
-      
-      // Total chapters
-      const [chapterRows] = await pool.query('SELECT COUNT(*) as total FROM chapter');
-      stats.chapters.total = chapterRows[0]?.total || 0;
-      
-      // Total images
-      const [imageRows] = await pool.query('SELECT COUNT(*) as total FROM image');
-      stats.images.total = imageRows[0]?.total || 0;
+      stats.comics = dbStats.comics;
+      stats.chapters = dbStats.chapters;
+      stats.images = dbStats.images;
       
       stats.database.mysql.status = 'connected';
       stats.database.mysql.connected = true;

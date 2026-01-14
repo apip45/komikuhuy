@@ -15,6 +15,7 @@ const path = require('path');
 const fs = require('fs');
 const logger = require('../../config/logger');
 const { getMySQLPool } = require('../../config/mysql');
+const statsService = require('../../services/statsService');
 
 // Track running scraper processes to prevent concurrent runs
 const runningProcesses = {
@@ -83,16 +84,13 @@ const ScraperAdminController = {
       
       const status = this.getScraperStatus();
       
-      // Get database stats
+      // Get database stats (optimized with caching)
       let dbStats = { comics: 0, chapters: 0, images: 0 };
       try {
-        const pool = getMySQLPool();
-        const [comicRows] = await pool.query('SELECT COUNT(*) as total FROM komik');
-        const [chapterRows] = await pool.query('SELECT COUNT(*) as total FROM chapter');
-        const [imageRows] = await pool.query('SELECT COUNT(*) as total FROM image');
-        dbStats.comics = comicRows[0]?.total || 0;
-        dbStats.chapters = chapterRows[0]?.total || 0;
-        dbStats.images = imageRows[0]?.total || 0;
+        const stats = await statsService.getDatabaseStats();
+        dbStats.comics = stats.comics.total;
+        dbStats.chapters = stats.chapters.total;
+        dbStats.images = stats.images.total;
       } catch (dbErr) {
         logger.error(`Error fetching DB stats: ${dbErr.message}`);
       }
@@ -324,6 +322,12 @@ const ScraperAdminController = {
         scraperOutput.full.exitCode = code;
         runningProcesses.full = null;
         
+        // Invalidate stats cache to refresh counts
+        if (code === 0) {
+          statsService.invalidateCache();
+          logger.info('Stats cache invalidated after successful full scrape');
+        }
+        
         // Save state
         ScraperAdminController.saveState('full', scraperOutput.full);
         
@@ -461,6 +465,12 @@ const ScraperAdminController = {
         scraperOutput.latest.exitCode = code;
         runningProcesses.latest = null;
         
+        // Invalidate stats cache to refresh counts
+        if (code === 0) {
+          statsService.invalidateCache();
+          logger.info('Stats cache invalidated after successful latest scrape');
+        }
+        
         // Save state
         ScraperAdminController.saveState('latest', scraperOutput.latest);
         
@@ -590,6 +600,12 @@ const ScraperAdminController = {
         scraperOutput.full.status = code === 0 ? 'completed' : 'failed';
         scraperOutput.full.exitCode = code;
         runningProcesses.full = null;
+        
+        // Invalidate stats cache to refresh counts
+        if (code === 0) {
+          statsService.invalidateCache();
+          logger.info('Stats cache invalidated after successful fix chapters');
+        }
         
         ScraperAdminController.saveState('fix-chapters', scraperOutput.full);
         logger.info(`Fix chapters finished with exit code ${code}`);

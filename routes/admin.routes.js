@@ -133,6 +133,21 @@ router.get('/scraper/progress', ScraperAdminController.getProgress.bind(ScraperA
  */
 router.post('/scraper/reset-progress', ScraperAdminController.resetProgress.bind(ScraperAdminController));
 
+/**
+ * POST /admin/stats/refresh
+ * Manually refresh statistics cache
+ */
+router.post('/stats/refresh', async (req, res) => {
+  try {
+    const statsService = require('../services/statsService');
+    statsService.invalidateCache();
+    await statsService.warmupCache();
+    res.json({ success: true, message: 'Statistics cache refreshed' });
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
 // ===========================================
 // Logs Routes
 // ===========================================

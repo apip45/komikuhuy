@@ -245,6 +245,12 @@ const initializeApp = async () => {
       logger.info(`🚀 AF-Komik V2 server running on port ${PORT}`);
       logger.info(`📖 Environment: ${process.env.NODE_ENV || 'development'}`);
       logger.info(`🌐 URL: http://localhost:${PORT}`);
+      
+      // Warmup stats cache in background
+      const statsService = require('./services/statsService');
+      statsService.warmupCache().catch(err => {
+        logger.warn(`Stats cache warmup failed: ${err.message}`);
+      });
     });
 
   } catch (error) {
