@@ -906,6 +906,16 @@ Fitur "Resume Reading" memungkinkan user melanjutkan membaca dari chapter terakh
 | DELETE | `/api/history/:comicParam` | Hapus riwayat tertentu |
 | GET | `/api/resume/:comicParam` | Data resume untuk komik |
 
+#### Read Chapter Tracking API
+
+| Method | Endpoint | Deskripsi |
+|--------|----------|-----------|
+| POST | `/api/read-chapters/mark` | Tandai chapter sebagai sudah dibaca |
+| DELETE | `/api/read-chapters/unmark` | Hapus status sudah dibaca |
+| GET | `/api/read-chapters/status/:chapterId` | Cek status baca chapter |
+| GET | `/api/read-chapters/comic/:comicId` | List chapter yang sudah dibaca untuk comic |
+| GET | `/api/read-chapters/stats` | Statistik baca user |
+
 ### Contoh Response API
 
 #### GET /api/bookmarks

@@ -57,6 +57,7 @@ const comicRoutes = require('./routes/comic.routes');
 const comicApiRoutes = require('./routes/api/comic.api.routes');
 const userRoutes = require('./routes/user.routes');
 const userApiRoutes = require('./routes/api/user.api.routes');
+const readChapterApiRoutes = require('./routes/api/readChapter.api.routes');
 const adminRoutes = require('./routes/admin.routes');
 const adminApiRoutes = require('./routes/api/admin.api.routes');
 
@@ -183,6 +184,10 @@ const initializeApp = async () => {
     // User API routes (bookmarks, history, resume)
     app.use('/api', userApiRoutes);
     console.log('[ROUTES] ✓ User API routes registered at /api (bookmarks, history, resume)');
+    
+    // Read chapter API routes
+    app.use('/api/read-chapters', readChapterApiRoutes);
+    console.log('[ROUTES] ✓ Read chapter API routes registered at /api/read-chapters');
 
     // Admin routes (requires authentication + admin role)
     app.use('/admin', adminRoutes);

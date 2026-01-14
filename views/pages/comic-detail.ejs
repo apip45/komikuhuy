@@ -187,21 +187,36 @@
         <!-- Chapter Items -->
         <div class="divide-y divide-dark-100">
           <% chapters.forEach(function(chapter) { %>
+          <% 
+            // Check if chapter is read
+            const isRead = readChapterIds && readChapterIds.includes(chapter.id);
+          %>
           <a 
             href="/comics/<%= comic.param %>/<%= chapter.param %>" 
-            class="flex items-center justify-between p-4 hover:bg-dark-300 transition-colors group">
+            class="flex items-center justify-between p-4 <%= isRead ? 'bg-dark-300/30' : '' %> hover:bg-dark-300 transition-colors group">
             <div class="flex items-center gap-3">
               <!-- Chapter Icon -->
-              <div class="w-10 h-10 rounded-lg bg-dark-300 flex items-center justify-center group-hover:bg-neon-600/20 transition-colors">
+              <div class="w-10 h-10 rounded-lg <%= isRead ? 'bg-green-600/20' : 'bg-dark-300' %> flex items-center justify-center group-hover:bg-neon-600/20 transition-colors">
+                <% if (isRead) { %>
+                <!-- Check icon for read chapters -->
+                <svg class="w-5 h-5 text-green-400 group-hover:text-neon-400 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                </svg>
+                <% } else { %>
+                <!-- Book icon for unread chapters -->
                 <svg class="w-5 h-5 text-gray-400 group-hover:text-neon-400 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z"></path>
                 </svg>
+                <% } %>
               </div>
               
               <!-- Chapter Info -->
               <div>
-                <h3 class="text-white font-medium group-hover:text-neon-400 transition-colors">
+                <h3 class="text-white font-medium group-hover:text-neon-400 transition-colors <%= isRead ? 'opacity-70' : '' %>">
                   <%= chapter.chapter_label %>
+                  <% if (isRead) { %>
+                  <span class="ml-2 text-xs text-green-400 font-normal">✓ Sudah dibaca</span>
+                  <% } %>
                 </h3>
                 <% if (chapter.release_date) { %>
                 <p class="text-xs text-gray-500">

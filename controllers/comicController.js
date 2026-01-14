@@ -21,6 +21,7 @@
 const logger = require('../config/logger');
 const ComicModel = require('../models/mysql/comic.model');
 const ChapterModel = require('../models/mysql/chapter.model');
+const { ReadChapter } = require('../models/mongo');
 const { successResponse, errorResponse, badRequest, serverError } = require('../utils/apiResponse');
 
 /**
@@ -162,6 +163,19 @@ const ComicController = {
       // Get user from request (if logged in)
       const user = req.user ? req.user.getPublicProfile() : null;
       
+      // Fetch read chapters for logged-in users
+      let readChapterIds = [];
+      if (req.user) {
+        try {
+          readChapterIds = await ReadChapter.getReadChapterIds(req.user._id, comic.id);
+          console.log(`[COMIC_CTRL] User has read ${readChapterIds.length} chapters`);
+        } catch (error) {
+          console.error(`[COMIC_CTRL] Failed to fetch read chapters: ${error.message}`);
+          logger.error(`Failed to fetch read chapters: ${error.message}`);
+          // Continue without read status
+        }
+      }
+      
       // Render EJS template
       res.render('pages/comic-detail', {
         title: `${comic.title} - AF-Komik`,
@@ -170,7 +184,8 @@ const ComicController = {
         comic,
         chapters,
         firstChapter,
-        chapterCount: chapters.length
+        chapterCount: chapters.length,
+        readChapterIds
       });
       
     } catch (error) {

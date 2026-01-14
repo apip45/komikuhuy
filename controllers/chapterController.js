@@ -25,6 +25,7 @@ const logger = require('../config/logger');
 const ComicModel = require('../models/mysql/comic.model');
 const ChapterModel = require('../models/mysql/chapter.model');
 const ImageModel = require('../models/mysql/image.model');
+const { ReadChapter } = require('../models/mongo');
 const HistoryController = require('./historyController');
 const { successResponse, errorResponse, badRequest, serverError } = require('../utils/apiResponse');
 
@@ -125,6 +126,18 @@ const ChapterController = {
           console.error(`[CHAPTER_CTRL] Failed to save reading history: ${err.message}`);
           logger.error(`Failed to save reading history: ${err.message}`);
         });
+
+        // Mark chapter as read in background (don't await)
+        ReadChapter.markAsRead(req.user._id, chapter.id, chapter.komik_id)
+          .then(() => {
+            console.log(`[CHAPTER_CTRL] Marked chapter ${chapter.id} as read for user ${req.user.username}`);
+            logger.info(`Chapter ${chapter.id} marked as read for user ${req.user._id}`);
+          })
+          .catch(err => {
+            // Log error but don't fail the request
+            console.error(`[CHAPTER_CTRL] Failed to mark chapter as read: ${err.message}`);
+            logger.error(`Failed to mark chapter as read: ${err.message}`);
+          });
       }
       
       // Render EJS template
