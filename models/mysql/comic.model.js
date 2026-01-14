@@ -301,6 +301,168 @@ const ComicModel = {
       throw error;
     }
   },
+
+  /**
+   * Search and filter comics with pagination
+   * 
+   * Advanced search supporting:
+   * - Title search (fuzzy/partial matching)
+   * - Genre filtering
+   * - Pagination
+   * 
+   * @param {Object} options - Search options
+   * @param {string} options.keyword - Search keyword (optional)
+   * @param {string} options.genre - Genre filter (optional)
+   * @param {number} options.limit - Results per page (default: 20)
+   * @param {number} options.offset - Results to skip (default: 0)
+   * @returns {Promise<Array>} Array of matching comics
+   */
+  async searchAndFilter({ keyword = '', genre = '', limit = 20, offset = 0 } = {}) {
+    const startTime = Date.now();
+    
+    console.log(`[COMIC_MODEL] searchAndFilter() - keyword: "${keyword}", genre: "${genre}"`);
+    logger.debug(`Comic.searchAndFilter: keyword="${keyword}", genre="${genre}", limit=${limit}`);
+    
+    try {
+      // Build dynamic SQL query
+      let sql = `
+        SELECT 
+          id, 
+          param, 
+          title, 
+          thumbnail, 
+          description, 
+          genres, 
+          latest_chapter, 
+          updated_at
+        FROM komik
+        WHERE 1=1
+      `;
+      
+      const params = [];
+      
+      // Add title search condition
+      if (keyword && keyword.trim()) {
+        sql += ` AND title LIKE ?`;
+        params.push(`%${keyword.trim()}%`);
+      }
+      
+      // Add genre filter condition
+      // Using JSON_CONTAINS for MySQL JSON field
+      if (genre && genre.trim()) {
+        sql += ` AND JSON_CONTAINS(genres, ?)`;
+        params.push(JSON.stringify(genre.trim()));
+      }
+      
+      sql += ` ORDER BY updated_at DESC LIMIT ? OFFSET ?`;
+      params.push(limit, offset);
+      
+      const results = await query(sql, params);
+      const duration = Date.now() - startTime;
+      
+      console.log(`[COMIC_MODEL] searchAndFilter() - Found ${results.length} results (${duration}ms)`);
+      logger.info(`Comic.searchAndFilter: ${results.length} results in ${duration}ms`);
+      
+      return results.map(comic => ({
+        ...comic,
+        genres: ComicModel._parseGenres(comic.genres)
+      }));
+      
+    } catch (error) {
+      console.error(`[COMIC_MODEL] searchAndFilter() - Error: ${error.message}`);
+      logger.error(`Comic.searchAndFilter error: ${error.message}`);
+      throw error;
+    }
+  },
+
+  /**
+   * Count comics matching search/filter criteria
+   * 
+   * Used for pagination with search and filters.
+   * 
+   * @param {Object} options - Search options
+   * @param {string} options.keyword - Search keyword (optional)
+   * @param {string} options.genre - Genre filter (optional)
+   * @returns {Promise<number>} Total matching comics count
+   */
+  async countSearchResults({ keyword = '', genre = '' } = {}) {
+    const startTime = Date.now();
+    
+    console.log(`[COMIC_MODEL] countSearchResults() - keyword: "${keyword}", genre: "${genre}"`);
+    logger.debug(`Comic.countSearchResults: keyword="${keyword}", genre="${genre}"`);
+    
+    try {
+      let sql = `SELECT COUNT(*) as total FROM komik WHERE 1=1`;
+      const params = [];
+      
+      // Add title search condition
+      if (keyword && keyword.trim()) {
+        sql += ` AND title LIKE ?`;
+        params.push(`%${keyword.trim()}%`);
+      }
+      
+      // Add genre filter condition
+      if (genre && genre.trim()) {
+        sql += ` AND JSON_CONTAINS(genres, ?)`;
+        params.push(JSON.stringify(genre.trim()));
+      }
+      
+      const results = await query(sql, params);
+      const duration = Date.now() - startTime;
+      
+      const total = results[0].total;
+      console.log(`[COMIC_MODEL] countSearchResults() - Total: ${total} (${duration}ms)`);
+      logger.info(`Comic.countSearchResults: ${total} results in ${duration}ms`);
+      
+      return total;
+      
+    } catch (error) {
+      console.error(`[COMIC_MODEL] countSearchResults() - Error: ${error.message}`);
+      logger.error(`Comic.countSearchResults error: ${error.message}`);
+      throw error;
+    }
+  },
+
+  /**
+   * Get all unique genres from database
+   * 
+   * Extracts and returns a list of all unique genres
+   * across all comics for filter dropdown.
+   * 
+   * @returns {Promise<Array<string>>} Array of unique genre names
+   */
+  async getAllGenres() {
+    const startTime = Date.now();
+    
+    console.log(`[COMIC_MODEL] getAllGenres() - Fetching unique genres`);
+    logger.debug(`Comic.getAllGenres: fetching`);
+    
+    try {
+      // Get all genres (JSON field)
+      const sql = `SELECT DISTINCT genres FROM komik WHERE genres IS NOT NULL`;
+      const results = await query(sql);
+      const duration = Date.now() - startTime;
+      
+      // Extract and flatten all genres
+      const genreSet = new Set();
+      results.forEach(row => {
+        const genres = ComicModel._parseGenres(row.genres);
+        genres.forEach(genre => genreSet.add(genre));
+      });
+      
+      const uniqueGenres = Array.from(genreSet).sort();
+      
+      console.log(`[COMIC_MODEL] getAllGenres() - Found ${uniqueGenres.length} unique genres (${duration}ms)`);
+      logger.info(`Comic.getAllGenres: ${uniqueGenres.length} genres in ${duration}ms`);
+      
+      return uniqueGenres;
+      
+    } catch (error) {
+      console.error(`[COMIC_MODEL] getAllGenres() - Error: ${error.message}`);
+      logger.error(`Comic.getAllGenres error: ${error.message}`);
+      throw error;
+    }
+  },
   
   /**
    * Parse genres from JSON string to array

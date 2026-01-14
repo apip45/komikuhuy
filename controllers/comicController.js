@@ -58,12 +58,17 @@ const ComicController = {
       const limit = Math.min(50, Math.max(1, parseInt(req.query.limit) || 20));
       const offset = (page - 1) * limit;
       
-      console.log(`[COMIC_CTRL] Pagination: page=${page}, limit=${limit}, offset=${offset}`);
+      // Parse search and filter parameters
+      const keyword = req.query.search || req.query.q || '';
+      const genre = req.query.genre || '';
       
-      // Fetch comics from database
-      const [comics, total] = await Promise.all([
-        ComicModel.findAll({ limit, offset }),
-        ComicModel.count()
+      console.log(`[COMIC_CTRL] Params: page=${page}, keyword="${keyword}", genre="${genre}"`);
+      
+      // Fetch comics with search and filter
+      const [comics, total, allGenres] = await Promise.all([
+        ComicModel.searchAndFilter({ keyword, genre, limit, offset }),
+        ComicModel.countSearchResults({ keyword, genre }),
+        ComicModel.getAllGenres()
       ]);
       
       // Calculate pagination metadata
@@ -77,10 +82,15 @@ const ComicController = {
       
       // Render EJS template
       res.render('pages/comics', {
-        title: 'Daftar Komik - AF-Komik',
+        title: keyword ? `Search: ${keyword} - AF-Komik` : 'Daftar Komik - AF-Komik',
         currentPage: 'comics',
         user,
         comics,
+        allGenres,
+        search: {
+          keyword,
+          genre
+        },
         pagination: {
           current: page,
           total: totalPages,
@@ -372,6 +382,125 @@ const ComicController = {
       console.error(`[COMIC_CTRL] getChaptersAPI() - Error: ${error.message}`);
       logger.error(`API: Chapters error: ${error.message}`);
       return serverError(res, 'Failed to retrieve chapters');
+    }
+  },
+
+  /**
+   * API: Search and filter comics
+   * 
+   * GET /api/comics/search
+   * 
+   * Search comics by title and filter by genre with pagination.
+   * 
+   * Query Parameters:
+   * - q or search: Search keyword
+   * - genre: Genre filter
+   * - page: Page number (default: 1)
+   * - limit: Items per page (default: 20, max: 50)
+   * 
+   * Response:
+   * {
+   *   status: "success",
+   *   message: "Search results retrieved",
+   *   data: {
+   *     comics: [...],
+   *     search: { keyword, genre },
+   *     pagination: {...}
+   *   }
+   * }
+   * 
+   * @param {Object} req - Express request object
+   * @param {Object} res - Express response object
+   */
+  async searchComicsAPI(req, res) {
+    console.log('[COMIC_CTRL] searchComicsAPI() - API search request');
+    logger.info(`API: Comic search requested`);
+    
+    try {
+      // Parse parameters
+      const page = Math.max(1, parseInt(req.query.page) || 1);
+      const limit = Math.min(50, Math.max(1, parseInt(req.query.limit) || 20));
+      const offset = (page - 1) * limit;
+      
+      const keyword = req.query.search || req.query.q || '';
+      const genre = req.query.genre || '';
+      
+      console.log(`[COMIC_CTRL] API Search: keyword="${keyword}", genre="${genre}", page=${page}`);
+      
+      // Search and filter
+      const [comics, total] = await Promise.all([
+        ComicModel.searchAndFilter({ keyword, genre, limit, offset }),
+        ComicModel.countSearchResults({ keyword, genre })
+      ]);
+      
+      const totalPages = Math.ceil(total / limit);
+      
+      console.log(`[COMIC_CTRL] API Search: Found ${comics.length} of ${total} results`);
+      logger.info(`API: Search results - ${comics.length} of ${total} comics`);
+      
+      // Return JSON response
+      return successResponse(res, 'Search results retrieved', {
+        comics,
+        search: {
+          keyword,
+          genre
+        },
+        pagination: {
+          current: page,
+          total: totalPages,
+          limit,
+          totalItems: total,
+          hasNext: page < totalPages,
+          hasPrev: page > 1
+        }
+      });
+      
+    } catch (error) {
+      console.error(`[COMIC_CTRL] searchComicsAPI() - Error: ${error.message}`);
+      logger.error(`API: Search error: ${error.message}`);
+      return serverError(res, 'Failed to search comics');
+    }
+  },
+
+  /**
+   * API: Get all genres
+   * 
+   * GET /api/comics/genres
+   * 
+   * Returns list of all unique genres.
+   * 
+   * Response:
+   * {
+   *   status: "success",
+   *   message: "Genres retrieved",
+   *   data: {
+   *     genres: ["Action", "Adventure", ...],
+   *     total: number
+   *   }
+   * }
+   * 
+   * @param {Object} req - Express request object
+   * @param {Object} res - Express response object
+   */
+  async getGenresAPI(req, res) {
+    console.log('[COMIC_CTRL] getGenresAPI() - API genres request');
+    logger.info(`API: Genres list requested`);
+    
+    try {
+      const genres = await ComicModel.getAllGenres();
+      
+      console.log(`[COMIC_CTRL] API: Found ${genres.length} unique genres`);
+      logger.info(`API: ${genres.length} genres retrieved`);
+      
+      return successResponse(res, 'Genres retrieved', {
+        genres,
+        total: genres.length
+      });
+      
+    } catch (error) {
+      console.error(`[COMIC_CTRL] getGenresAPI() - Error: ${error.message}`);
+      logger.error(`API: Genres error: ${error.message}`);
+      return serverError(res, 'Failed to retrieve genres');
     }
   }
 };

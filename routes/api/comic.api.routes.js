@@ -37,6 +37,49 @@ console.log('[ROUTES] Registering comic API routes...');
 // ===========================================
 
 /**
+ * GET /api/comics/search
+ * 
+ * Search and filter comics.
+ * 
+ * Query Parameters:
+ * - q or search: Search keyword
+ * - genre: Genre filter
+ * - page: Page number (default: 1)
+ * - limit: Items per page (default: 20, max: 50)
+ * 
+ * Response:
+ * {
+ *   status: "success",
+ *   message: "Search results retrieved",
+ *   data: {
+ *     comics: [...],
+ *     search: { keyword, genre },
+ *     pagination: {...}
+ *   }
+ * }
+ */
+router.get('/search', ComicController.searchComicsAPI);
+console.log('[ROUTES] Registered: GET /api/comics/search');
+
+/**
+ * GET /api/comics/genres
+ * 
+ * Get all unique genres.
+ * 
+ * Response:
+ * {
+ *   status: "success",
+ *   message: "Genres retrieved",
+ *   data: {
+ *     genres: ["Action", ...],
+ *     total: number
+ *   }
+ * }
+ */
+router.get('/genres', ComicController.getGenresAPI);
+console.log('[ROUTES] Registered: GET /api/comics/genres');
+
+/**
  * GET /api/comics
  * 
  * Get paginated list of all comics.
