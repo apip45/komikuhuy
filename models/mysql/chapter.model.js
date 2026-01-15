@@ -200,12 +200,8 @@ const ChapterModel = {
   /**
    * Get previous and next chapter for navigation
    * 
-   * Finds the adjacent chapters based on ID ordering.
-   * Previous = lower ID, Next = higher ID.
-   * 
-   * SQL Queries:
-   * - Previous: SELECT * FROM chapter WHERE komik_id = ? AND id < ? ORDER BY id DESC LIMIT 1
-   * - Next: SELECT * FROM chapter WHERE komik_id = ? AND id > ? ORDER BY id ASC LIMIT 1
+   * Finds the adjacent chapters based on chapter number ordering (not ID).
+   * This properly handles cases like Chapter 1, 1.1, 1.2, 2, etc.
    * 
    * @param {number} comicId - Comic ID
    * @param {number} currentChapterId - Current chapter ID
@@ -218,36 +214,51 @@ const ChapterModel = {
     logger.debug(`Chapter.getNavigation: comicId=${comicId}, chapterId=${currentChapterId}`);
     
     try {
-      // SQL: Get previous chapter (lower ID within same comic)
-      const prevSql = `
+      // Get ALL chapters for this comic
+      const sql = `
         SELECT id, param, chapter_label
         FROM chapter
-        WHERE komik_id = ? AND id < ?
-        ORDER BY id DESC
-        LIMIT 1
-      `;
-      
-      // SQL: Get next chapter (higher ID within same comic)
-      const nextSql = `
-        SELECT id, param, chapter_label
-        FROM chapter
-        WHERE komik_id = ? AND id > ?
+        WHERE komik_id = ?
         ORDER BY id ASC
-        LIMIT 1
       `;
       
-      // Execute both queries in parallel for better performance
-      const [prevResults, nextResults] = await Promise.all([
-        query(prevSql, [comicId, currentChapterId]),
-        query(nextSql, [comicId, currentChapterId])
-      ]);
+      const allChapters = await query(sql, [comicId]);
+      
+      if (allChapters.length === 0) {
+        return { prev: null, next: null };
+      }
+      
+      // Extract chapter number from label for proper sorting
+      const extractChapterNumber = (chapterLabel) => {
+        if (!chapterLabel) return 0;
+        const match = chapterLabel.match(/(\d+(?:\.\d+)?)/); 
+        return match ? parseFloat(match[1]) : 0;
+      };
+      
+      // Sort chapters by chapter number (ascending)
+      allChapters.sort((a, b) => {
+        const numA = extractChapterNumber(a.chapter_label);
+        const numB = extractChapterNumber(b.chapter_label);
+        return numA - numB;
+      });
+      
+      // Find current chapter index
+      const currentIndex = allChapters.findIndex(ch => ch.id === currentChapterId);
+      
+      if (currentIndex === -1) {
+        console.log(`[CHAPTER_MODEL] Current chapter not found in list`);
+        return { prev: null, next: null };
+      }
+      
+      const prev = currentIndex > 0 ? allChapters[currentIndex - 1] : null;
+      const next = currentIndex < allChapters.length - 1 ? allChapters[currentIndex + 1] : null;
       
       const duration = Date.now() - startTime;
       
-      const prev = prevResults.length > 0 ? prevResults[0] : null;
-      const next = nextResults.length > 0 ? nextResults[0] : null;
-      
       console.log(`[CHAPTER_MODEL] getNavigation() - Prev: ${prev ? prev.param : 'none'}, Next: ${next ? next.param : 'none'} (${duration}ms)`);
+      logger.info(`Chapter.getNavigation: prev=${prev?.param || 'none'}, next=${next?.param || 'none'} in ${duration}ms`);
+      
+      return { prev, next };
       logger.info(`Chapter.getNavigation: prev=${prev?.param || 'none'}, next=${next?.param || 'none'} in ${duration}ms`);
       
       return { prev, next };

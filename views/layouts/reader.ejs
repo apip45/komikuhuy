@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="id" class="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="description" content="AF-Komik - Platform baca komik online terlengkap">
+  <meta name="theme-color" content="#000000">
+  
+  <title><%= typeof title !== 'undefined' ? title : 'AF-Komik' %></title>
+  
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  
+  <!-- Tailwind Configuration -->
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            'neon': {
+              50: '#eef9ff',
+              100: '#d8f1ff',
+              200: '#b9e8ff',
+              300: '#89dbff',
+              400: '#52c5ff',
+              500: '#29a6ff',
+              600: '#0d87ff',
+              700: '#0070f3',
+              800: '#085ac5',
+              900: '#0d4d9b',
+              950: '#0e305d',
+            },
+            'dark': {
+              100: '#1e293b',
+              200: '#1a2234',
+              300: '#151c2c',
+              400: '#111827',
+              500: '#0f172a',
+              600: '#0c1322',
+              700: '#090f1a',
+              800: '#060a12',
+              900: '#03050a',
+            }
+          }
+        }
+      }
+    }
+  </script>
+  
+  <style>
+    html, body {
+      background: #000;
+      overflow-x: hidden;
+    }
+    ::-webkit-scrollbar {
+      width: 6px;
+    }
+    ::-webkit-scrollbar-track {
+      background: #000;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: #333;
+      border-radius: 3px;
+    }
+  </style>
+  <%- typeof style !== 'undefined' ? style : '' %>
+</head>
+<body class="bg-black text-gray-100 min-h-screen">
+  <%- body %>
+  <%- typeof script !== 'undefined' ? script : '' %>
+</body>
+</html>

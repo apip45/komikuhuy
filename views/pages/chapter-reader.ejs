@@ -23,7 +23,7 @@
 -->
 
 <!-- Fixed Top Navigation -->
-<div class="fixed top-0 left-0 right-0 z-50 bg-dark-500/95 backdrop-blur-sm border-b border-dark-100">
+<div id="top-nav" class="fixed top-0 left-0 right-0 z-50 bg-dark-500/95 backdrop-blur-sm border-b border-dark-100" style="transition: transform 0.3s ease-in-out; transform: translateY(0);">
   <div class="container mx-auto px-4">
     <div class="flex items-center justify-between h-14">
       
@@ -135,7 +135,7 @@
 </div>
 
 <!-- Fixed Bottom Navigation -->
-<div class="fixed bottom-0 left-0 right-0 z-50 bg-dark-500/95 backdrop-blur-sm border-t border-dark-100">
+<div id="bottom-nav" class="fixed bottom-0 left-0 right-0 z-50 bg-dark-500/95 backdrop-blur-sm border-t border-dark-100" style="transition: transform 0.3s ease-in-out; transform: translateY(0);">
   <div class="container mx-auto px-4">
     <div class="flex items-center justify-between h-16">
       
@@ -202,60 +202,136 @@
 
 <!-- Reader Scripts -->
 <script>
-  document.addEventListener('DOMContentLoaded', function() {
-    // Scroll to top button visibility
-    const scrollBtn = document.getElementById('scroll-top-btn');
+document.addEventListener('DOMContentLoaded', function() {
+  var topNav = document.getElementById('top-nav');
+  var bottomNav = document.getElementById('bottom-nav');
+  var scrollBtn = document.getElementById('scroll-top-btn');
+  
+  console.log('[READER] Top nav found:', !!topNav);
+  console.log('[READER] Bottom nav found:', !!bottomNav);
+  
+  if (!topNav || !bottomNav) {
+    console.error('[READER] Navigation elements not found!');
+    return;
+  }
+  
+  var scrollTimer = null;
+  var hideTimer = null;
+  var isHidden = false;
+  var lastScrollY = window.scrollY || window.pageYOffset || 0;
+  
+  // Function to show navigation
+  function showNav() {
+    console.log('[READER] Showing nav');
+    topNav.style.transform = 'translateY(0)';
+    bottomNav.style.transform = 'translateY(0)';
+    isHidden = false;
+  }
+  
+  // Function to hide navigation  
+  function hideNav() {
+    console.log('[READER] Hiding nav');
+    topNav.style.transform = 'translateY(-100%)';
+    bottomNav.style.transform = 'translateY(100%)';
+    isHidden = true;
+  }
+  
+  // Scroll handler
+  function handleScroll() {
+    var currentScrollY = window.scrollY || window.pageYOffset || 0;
     
-    if (scrollBtn) {
-      window.addEventListener('scroll', function() {
-        if (window.scrollY > 500) {
-          scrollBtn.classList.remove('opacity-0', 'pointer-events-none');
-          scrollBtn.classList.add('opacity-100', 'pointer-events-auto');
-        } else {
-          scrollBtn.classList.add('opacity-0', 'pointer-events-none');
-          scrollBtn.classList.remove('opacity-100', 'pointer-events-auto');
-        }
-      });
-      
-      scrollBtn.addEventListener('click', function() {
-        window.scrollTo({ top: 0, behavior: 'smooth' });
-      });
+    // Clear existing timers
+    if (scrollTimer) {
+      clearTimeout(scrollTimer);
+      scrollTimer = null;
+    }
+    if (hideTimer) {
+      clearTimeout(hideTimer);
+      hideTimer = null;
     }
     
-    // Keyboard navigation
-    document.addEventListener('keydown', function(e) {
-      // Left arrow or A key - Previous chapter
-      if (e.key === 'ArrowLeft' || e.key === 'a' || e.key === 'A') {
-        const prevLink = document.querySelector('a[title^="<%= navigation.prev ? navigation.prev.label : "" %>"]');
-        if (prevLink && '<%= navigation.prev ? "true" : "false" %>' === 'true') {
-          window.location.href = '/comics/<%= comic.param %>/<%= navigation.prev ? navigation.prev.param : "" %>';
-        }
-      }
-      
-      // Right arrow or D key - Next chapter
-      if (e.key === 'ArrowRight' || e.key === 'd' || e.key === 'D') {
-        if ('<%= navigation.next ? "true" : "false" %>' === 'true') {
-          window.location.href = '/comics/<%= comic.param %>/<%= navigation.next ? navigation.next.param : "" %>';
-        }
-      }
-      
-      // Home key - Scroll to top
-      if (e.key === 'Home') {
-        window.scrollTo({ top: 0, behavior: 'smooth' });
-      }
-      
-      // End key - Scroll to bottom
-      if (e.key === 'End') {
-        window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' });
-      }
-    });
+    // Scrolling down - hide
+    if (currentScrollY > lastScrollY && currentScrollY > 60) {
+      hideNav();
+    } 
+    // Scrolling up - show temporarily
+    else if (currentScrollY < lastScrollY) {
+      showNav();
+      scrollTimer = setTimeout(function() {
+        hideNav();
+      }, 2000);
+    }
     
-    // Console log for debugging
-    console.log('[READER] Chapter loaded: <%= chapter.label %>');
-    console.log('[READER] Total pages: <%= pageCount %>');
-    console.log('[READER] Navigation:', {
-      prev: '<%= navigation.prev ? navigation.prev.param : "none" %>',
-      next: '<%= navigation.next ? navigation.next.param : "none" %>'
-    });
+    lastScrollY = currentScrollY <= 0 ? 0 : currentScrollY;
+    
+    // Scroll to top button
+    if (scrollBtn) {
+      if (currentScrollY > 400) {
+        scrollBtn.style.opacity = '1';
+        scrollBtn.style.pointerEvents = 'auto';
+      } else {
+        scrollBtn.style.opacity = '0';
+        scrollBtn.style.pointerEvents = 'none';
+      }
+    }
+  }
+  
+  // Add scroll listener
+  window.addEventListener('scroll', handleScroll, { passive: true });
+  
+  // Click to show nav when hidden
+  document.addEventListener('click', function(e) {
+    if (topNav.contains(e.target) || bottomNav.contains(e.target)) {
+      return;
+    }
+    if (scrollBtn && scrollBtn.contains(e.target)) {
+      return;
+    }
+    
+    if (isHidden) {
+      showNav();
+      hideTimer = setTimeout(function() {
+        hideNav();
+      }, 3000);
+    }
   });
+  
+  // Initial auto-hide after 2 seconds
+  hideTimer = setTimeout(function() {
+    hideNav();
+  }, 2000);
+  
+  // Scroll to top button click
+  if (scrollBtn) {
+    scrollBtn.addEventListener('click', function(e) {
+      e.stopPropagation();
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    });
+  }
+  
+  // Keyboard navigation
+  document.addEventListener('keydown', function(e) {
+    if (e.key === 'ArrowLeft') {
+      <% if (navigation.prev) { %>
+      window.location.href = '/comics/<%= comic.param %>/<%= navigation.prev.param %>';
+      <% } %>
+    }
+    if (e.key === 'ArrowRight') {
+      <% if (navigation.next) { %>
+      window.location.href = '/comics/<%= comic.param %>/<%= navigation.next.param %>';
+      <% } %>
+    }
+    if (e.key === ' ' && e.target === document.body) {
+      e.preventDefault();
+      if (isHidden) {
+        showNav();
+        hideTimer = setTimeout(hideNav, 3000);
+      } else {
+        hideNav();
+      }
+    }
+  });
+  
+  console.log('[READER] Auto-hide navigation initialized successfully');
+});
 </script>

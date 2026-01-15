@@ -140,8 +140,9 @@ const ChapterController = {
           });
       }
       
-      // Render EJS template
+      // Render EJS template with reader layout (no navbar/footer)
       res.render('pages/chapter-reader', {
+        layout: 'layouts/reader',
         title: `${chapter.chapter_label} - ${chapter.comic_title} - AF-Komik`,
         currentPage: 'reader',
         user,
