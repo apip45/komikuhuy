@@ -207,11 +207,7 @@ document.addEventListener('DOMContentLoaded', function() {
   var bottomNav = document.getElementById('bottom-nav');
   var scrollBtn = document.getElementById('scroll-top-btn');
   
-  console.log('[READER] Top nav found:', !!topNav);
-  console.log('[READER] Bottom nav found:', !!bottomNav);
-  
   if (!topNav || !bottomNav) {
-    console.error('[READER] Navigation elements not found!');
     return;
   }
   
@@ -222,17 +218,23 @@ document.addEventListener('DOMContentLoaded', function() {
   
   // Function to show navigation
   function showNav() {
-    console.log('[READER] Showing nav');
     topNav.style.transform = 'translateY(0)';
     bottomNav.style.transform = 'translateY(0)';
+    if (scrollBtn) {
+      scrollBtn.style.opacity = '1';
+      scrollBtn.style.pointerEvents = 'auto';
+    }
     isHidden = false;
   }
   
   // Function to hide navigation  
   function hideNav() {
-    console.log('[READER] Hiding nav');
     topNav.style.transform = 'translateY(-100%)';
     bottomNav.style.transform = 'translateY(100%)';
+    if (scrollBtn) {
+      scrollBtn.style.opacity = '0';
+      scrollBtn.style.pointerEvents = 'none';
+    }
     isHidden = true;
   }
   
@@ -263,17 +265,6 @@ document.addEventListener('DOMContentLoaded', function() {
     }
     
     lastScrollY = currentScrollY <= 0 ? 0 : currentScrollY;
-    
-    // Scroll to top button
-    if (scrollBtn) {
-      if (currentScrollY > 400) {
-        scrollBtn.style.opacity = '1';
-        scrollBtn.style.pointerEvents = 'auto';
-      } else {
-        scrollBtn.style.opacity = '0';
-        scrollBtn.style.pointerEvents = 'none';
-      }
-    }
   }
   
   // Add scroll listener
@@ -331,7 +322,5 @@ document.addEventListener('DOMContentLoaded', function() {
       }
     }
   });
-  
-  console.log('[READER] Auto-hide navigation initialized successfully');
 });
 </script>
