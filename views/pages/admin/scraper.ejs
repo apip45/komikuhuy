@@ -30,6 +30,8 @@
       Full scraper started successfully!
     <% } else if (query.success === 'latest_started') { %>
       Latest scraper started successfully!
+    <% } else if (query.success === 'single_started') { %>
+      Single comic scraper started successfully!
     <% } else if (query.success === 'stopped') { %>
       Scraper stopped successfully!
     <% } else { %>
@@ -43,6 +45,8 @@
       A scraper is already running!
     <% } else if (query.error === 'no_scraper_running') { %>
       No scraper is currently running.
+    <% } else if (query.error === 'invalid_param') { %>
+      Invalid comic parameter. Please provide a valid comic URL parameter.
     <% } else { %>
       An error occurred. Please try again.
     <% } %>
@@ -129,6 +133,35 @@
             <span>Fix Missing Chapters</span>
           </button>
         </form>
+        
+        <!-- Single Comic Scraper -->
+        <div class="border-t border-dark-300 pt-3 mt-3">
+          <h4 class="text-sm font-medium text-white mb-2">Scrape Specific Comic</h4>
+          <form id="single-scraper-form" action="/api/admin/scraper/single" method="POST" class="space-y-2">
+            <input 
+              type="text" 
+              name="comicParam" 
+              id="comicParam"
+              placeholder="e.g., one-piece, naruto"
+              <%= isRunning ? 'disabled' : '' %>
+              class="w-full px-3 py-2 bg-dark-400 border border-dark-300 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:border-neon-500 disabled:opacity-50"
+              required
+            />
+            <button 
+              type="submit" 
+              <%= isRunning ? 'disabled' : '' %>
+              class="w-full px-4 py-2 bg-purple-600 hover:bg-purple-700 disabled:bg-gray-600 disabled:cursor-not-allowed text-white rounded-lg transition-colors flex items-center justify-center gap-2"
+            >
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M9 19l3 3m0 0l3-3m-3 3V10"/>
+              </svg>
+              <span>Scrape Single Comic</span>
+            </button>
+            <p class="text-xs text-gray-500 mt-1">
+              Enter the comic parameter from Komiku URL (e.g., "one-piece" from komiku.org/manga/one-piece/)
+            </p>
+          </form>
+        </div>
         
         <form action="/api/admin/scraper/stop" method="POST">
           <button 

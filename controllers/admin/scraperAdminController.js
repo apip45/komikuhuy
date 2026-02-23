@@ -650,6 +650,160 @@ const ScraperAdminController = {
   },
   
   /**
+   * Run single comic scraper
+   * POST /api/admin/scraper/single
+   */
+  async runSingleScraper(req, res) {
+    console.log('[SCRAPER_CTRL] =========================================');
+    console.log('[SCRAPER_CTRL] runSingleScraper() CALLED');
+    console.log('[SCRAPER_CTRL] Request method:', req.method);
+    console.log('[SCRAPER_CTRL] Request URL:', req.originalUrl);
+    console.log('[SCRAPER_CTRL] =========================================');
+    
+    try {
+      const adminId = req.session.userId;
+      const { comicParam } = req.body;
+      
+      // Validate comic parameter
+      if (!comicParam || !comicParam.trim()) {
+        const message = 'Comic parameter is required';
+        logger.warn(message);
+        
+        if (req.xhr || req.headers.accept?.includes('application/json')) {
+          return res.status(400).json({
+            success: false,
+            error: message
+          });
+        }
+        return res.redirect('/admin/scraper?error=invalid_param');
+      }
+      
+      logger.info(`Single comic scraper triggered by admin ${adminId} for comic: ${comicParam}`);
+      
+      // Check if any scraper is already running
+      if (runningProcesses.full || runningProcesses.latest) {
+        const message = 'Another scraper is already running';
+        logger.warn(message);
+        
+        if (req.xhr || req.headers.accept?.includes('application/json')) {
+          return res.status(409).json({
+            success: false,
+            error: message
+          });
+        }
+        return res.redirect('/admin/scraper?error=already_running');
+      }
+      
+      // Get options from request
+      const options = {
+        comicParam: comicParam.trim(),
+        skipChapters: req.body.skipChapters === 'true' || req.body.skipChapters === true,
+        skipImages: req.body.skipImages === 'true' || req.body.skipImages === true
+      };
+      
+      // Build command arguments
+      const args = ['scrap-single.js', options.comicParam];
+      if (options.skipChapters) args.push('--skip-chapters');
+      if (options.skipImages) args.push('--skip-images');
+      
+      // Start the scraper process
+      const scraperPath = path.join(__dirname, '../../scraper');
+      
+      scraperOutput.full = {
+        stdout: [],
+        stderr: [],
+        startTime: new Date(),
+        endTime: null,
+        status: 'running',
+        options,
+        triggeredBy: adminId,
+        type: 'single-comic'
+      };
+      
+      // Clear log file for fresh output
+      clearLogFile();
+      appendToLogFile('[SINGLE-COMIC] Starting at ' + new Date().toISOString());
+      appendToLogFile('[SINGLE-COMIC] Comic: ' + options.comicParam);
+      appendToLogFile('[SINGLE-COMIC] Args: ' + args.join(' '));
+      
+      runningProcesses.full = spawn('node', args, {
+        cwd: scraperPath,
+        env: { ...process.env }
+      });
+      
+      // Capture stdout
+      runningProcesses.full.stdout.on('data', (data) => {
+        const lines = data.toString().split('\n').filter(l => l.trim());
+        scraperOutput.full.stdout.push(...lines);
+        lines.forEach(line => appendToLogFile(line));
+        if (scraperOutput.full.stdout.length > 500) {
+          scraperOutput.full.stdout = scraperOutput.full.stdout.slice(-500);
+        }
+      });
+      
+      // Capture stderr
+      runningProcesses.full.stderr.on('data', (data) => {
+        const lines = data.toString().split('\n').filter(l => l.trim());
+        scraperOutput.full.stderr.push(...lines);
+        lines.forEach(line => appendToLogFile('[STDERR] ' + line));
+      });
+      
+      // Handle process exit
+      runningProcesses.full.on('close', (code) => {
+        scraperOutput.full.endTime = new Date();
+        scraperOutput.full.status = code === 0 ? 'completed' : 'failed';
+        scraperOutput.full.exitCode = code;
+        runningProcesses.full = null;
+        
+        // Invalidate stats cache to refresh counts
+        if (code === 0) {
+          statsService.invalidateCache();
+          logger.info('Stats cache invalidated after successful single comic scrape');
+        }
+        
+        ScraperAdminController.saveState('single-comic', scraperOutput.full);
+        logger.info(`Single comic scraper finished with exit code ${code} for: ${options.comicParam}`);
+      });
+      
+      // Handle process error
+      runningProcesses.full.on('error', (error) => {
+        scraperOutput.full.status = 'error';
+        scraperOutput.full.error = error.message;
+        runningProcesses.full = null;
+        logger.error(`Single comic scraper error: ${error.message}`);
+      });
+      
+      const response = {
+        success: true,
+        message: `Single comic scraper started for: ${options.comicParam}`,
+        data: {
+          status: 'running',
+          startTime: scraperOutput.full.startTime,
+          options
+        }
+      };
+      
+      if (req.xhr || req.headers.accept?.includes('application/json')) {
+        return res.json(response);
+      }
+      
+      res.redirect('/admin/scraper?success=single_started');
+      
+    } catch (error) {
+      logger.error(`Run single comic scraper error: ${error.message}`);
+      
+      if (req.xhr || req.headers.accept?.includes('application/json')) {
+        return res.status(500).json({
+          success: false,
+          error: error.message
+        });
+      }
+      
+      res.redirect('/admin/scraper?error=start_failed');
+    }
+  },
+
+  /**
    * Stop running scraper
    * POST /admin/scraper/:type/stop
    */

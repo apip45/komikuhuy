@@ -80,7 +80,43 @@ Mode untuk update berkala database.
 - Memperbaiki chapter yang hilang
 - Sinkronisasi dengan website
 
-### 3. FIX CHAPTERS (`fix-chapters.js`)
+### 3. SINGLE COMIC SCRAPE (`scrap-single.js`) ⭐ NEW
+
+Mode untuk scraping komik spesifik berdasarkan parameter.
+
+**Karakteristik:**
+- Mengambil data untuk 1 komik saja (berdasarkan parameter URL)
+- Mengambil detail komik dan semua chapter
+- Ideal untuk komik yang terlewat atau perlu di-update
+- Waktu eksekusi: 1-10 menit (tergantung jumlah chapter)
+- Dapat dijalankan via admin dashboard atau command line
+
+**Kapan Digunakan:**
+- Komik tertentu tidak ter-scrape dari full/periodic scraper
+- Update manual untuk komik tertentu
+- Menambahkan komik baru yang baru muncul di Komiku
+- Perbedaan data antara API Komiku dan web Komiku asli
+
+**Cara Menggunakan:**
+```bash
+# Via command line
+node scrap-single.js one-piece
+node scrap-single.js naruto --skip-images
+node scrap-single.js bleach --skip-chapters
+
+# Via Admin Dashboard
+# 1. Masuk ke menu Admin > Scraper
+# 2. Scroll ke bagian "Scrape Specific Comic"
+# 3. Masukkan parameter komik (contoh: one-piece)
+# 4. Klik tombol "Scrape Single Comic"
+```
+
+**Contoh Parameter:**
+- URL: `https://komiku.org/manga/one-piece/` → Parameter: `one-piece`
+- URL: `https://komiku.org/manga/detective-conan/` → Parameter: `detective-conan`
+- URL: `https://komiku.org/manga/black-clover/` → Parameter: `black-clover`
+
+### 4. FIX CHAPTERS (`fix-chapters.js`)
 
 Mode khusus untuk memperbaiki chapter yang tidak lengkap.
 

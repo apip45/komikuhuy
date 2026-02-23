@@ -99,6 +99,12 @@ router.post('/scraper/full', ScraperAdminController.runFullScraper.bind(ScraperA
 router.post('/scraper/latest', ScraperAdminController.runLatestScraper.bind(ScraperAdminController));
 
 /**
+ * POST /api/admin/scraper/single
+ * Trigger single comic scraper by parameter
+ */
+router.post('/scraper/single', ScraperAdminController.runSingleScraper.bind(ScraperAdminController));
+
+/**
  * POST /api/admin/scraper/:type/stop
  * Stop running scraper
  */
