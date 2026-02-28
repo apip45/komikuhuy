@@ -340,6 +340,10 @@ const ScraperAdminController = {
           // Clear homepage cache (featured comics and stats changed)
           cacheService.invalidateHomepage();
           logger.info('Homepage cache cleared (full scrape)');
+          
+          // Clear genres cache (new genres might be discovered)
+          cacheService.delete(cacheService.genresKey());
+          logger.info('Genres cache cleared (full scrape)');
         }
         
         // Save state
@@ -496,6 +500,10 @@ const ScraperAdminController = {
           // Also clear homepage cache (featured comics might change)
           cacheService.invalidateHomepage();
           logger.info('Homepage cache cleared (latest scrape)');
+          
+          // Clear genres cache (new genres might be discovered)
+          cacheService.delete(cacheService.genresKey());
+          logger.info('Genres cache cleared (latest scrape)');
         }
         
         // Save state

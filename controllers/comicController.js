@@ -66,11 +66,21 @@ const ComicController = {
       
       console.log(`[COMIC_CTRL] Params: page=${page}, keyword="${keyword}", genre="${genre}"`);
       
+      // Fetch genres from cache (HOT tier, rarely changes)
+      const allGenres = await cacheService.getOrFetch(
+        cacheService.genresKey(),
+        async () => {
+          console.log('[COMIC_CTRL] Cache MISS: Fetching genres from database');
+          return await ComicModel.getAllGenres();
+        },
+        'hot',
+        86400 // 24 hours - genres rarely change
+      );
+      
       // Fetch comics with search and filter
-      const [comics, total, allGenres] = await Promise.all([
+      const [comics, total] = await Promise.all([
         ComicModel.searchAndFilter({ keyword, genre, limit, offset }),
-        ComicModel.countSearchResults({ keyword, genre }),
-        ComicModel.getAllGenres()
+        ComicModel.countSearchResults({ keyword, genre })
       ]);
       
       // Calculate pagination metadata
@@ -609,7 +619,17 @@ const ComicController = {
     logger.info(`API: Genres list requested`);
     
     try {
-      const genres = await ComicModel.getAllGenres();
+      // Get genres from cache (HOT tier, 24h TTL)
+      const genres = await cacheService.getOrFetch(
+        cacheService.genresKey(),
+        async () => {
+          console.log('[COMIC_CTRL] API: Cache MISS - Fetching genres from database');
+          logger.info('Genres cache MISS - fetching from database');
+          return await ComicModel.getAllGenres();
+        },
+        'hot',
+        86400 // 24 hours - genres are almost static
+      );
       
       console.log(`[COMIC_CTRL] API: Found ${genres.length} unique genres`);
       logger.info(`API: ${genres.length} genres retrieved`);
@@ -658,6 +678,21 @@ const ComicController = {
     console.log(`[COMIC_CTRL] Invalidated ALL comic caches (${count} entries)`);
     logger.info(`All comic caches invalidated: ${count} entries`);
     return count;
+  },
+  
+  /**
+   * Invalidate genres cache
+   * 
+   * Call this when genres are updated (new genre added, genre removed, etc.).
+   * Since genres are cached for 24 hours, call this after genre changes.
+   * 
+   * @returns {number} Number of cache entries cleared
+   */
+  invalidateGenresCache() {
+    const deleted = cacheService.delete(cacheService.genresKey());
+    console.log(`[COMIC_CTRL] Invalidated genres cache (${deleted} entries)`);
+    logger.info('Genres cache invalidated');
+    return deleted;
   }
 };
 
