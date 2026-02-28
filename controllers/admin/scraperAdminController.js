@@ -16,6 +16,7 @@ const fs = require('fs');
 const logger = require('../../config/logger');
 const { getMySQLPool } = require('../../config/mysql');
 const statsService = require('../../services/statsService');
+const { cacheService } = require('../../services/cacheService');
 
 // Track running scraper processes to prevent concurrent runs
 const runningProcesses = {
@@ -322,10 +323,19 @@ const ScraperAdminController = {
         scraperOutput.full.exitCode = code;
         runningProcesses.full = null;
         
-        // Invalidate stats cache to refresh counts
+        // Invalidate caches to refresh counts and data
         if (code === 0) {
+          // Invalidate stats cache
           statsService.invalidateCache();
           logger.info('Stats cache invalidated after successful full scrape');
+          
+          // Invalidate ALL chapter caches (full scrape updates everything)
+          const cleared = cacheService.clearByPattern('chapter:*');
+          logger.info(`Chapter cache cleared: ${cleared} entries (full scrape)`);
+          
+          // Also clear comic detail caches (chapter lists changed)
+          const comicCleared = cacheService.clearByPattern('comic:*');
+          logger.info(`Comic cache cleared: ${comicCleared} entries (full scrape)`);
         }
         
         // Save state
@@ -465,10 +475,23 @@ const ScraperAdminController = {
         scraperOutput.latest.exitCode = code;
         runningProcesses.latest = null;
         
-        // Invalidate stats cache to refresh counts
+        // Invalidate caches to refresh counts and data
         if (code === 0) {
+          // Invalidate stats cache
           statsService.invalidateCache();
           logger.info('Stats cache invalidated after successful latest scrape');
+          
+          // Invalidate chapter/comic caches (latest comics might have new chapters)
+          // Note: We clear all because we don't know which comics were updated
+          const chapterCleared = cacheService.clearByPattern('chapter:*');
+          logger.info(`Chapter cache cleared: ${chapterCleared} entries (latest scrape)`);
+          
+          const comicCleared = cacheService.clearByPattern('comic:*');
+          logger.info(`Comic cache cleared: ${comicCleared} entries (latest scrape)`);
+          
+          // Also clear homepage cache (featured comics might change)
+          cacheService.invalidateHomepage();
+          logger.info('Homepage cache cleared (latest scrape)');
         }
         
         // Save state

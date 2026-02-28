@@ -28,6 +28,7 @@ const ImageModel = require('../models/mysql/image.model');
 const { ReadChapter } = require('../models/mongo');
 const HistoryController = require('./historyController');
 const { successResponse, errorResponse, badRequest, serverError } = require('../utils/apiResponse');
+const { cacheService } = require('../services/cacheService');
 
 /**
  * Chapter controller with web and API handlers
@@ -76,8 +77,27 @@ const ChapterController = {
         });
       }
       
-      // Fetch chapter with comic info using JOIN
-      const chapter = await ChapterModel.findByParams(param, chapterParam);
+      // Try to get from cache first
+      const cacheKey = cacheService.chapterKey(param, chapterParam);
+      const cachedData = cacheService.get(cacheKey, 'cold');
+      
+      let chapter, images, navigation;
+      
+      if (cachedData) {
+        // Cache HIT - use cached data
+        console.log(`[CHAPTER_CTRL] Cache HIT for ${param}/${chapterParam}`);
+        logger.info(`Cache HIT: ${param}/${chapterParam}`);
+        
+        chapter = cachedData.chapter;
+        images = cachedData.images;
+        navigation = cachedData.navigation;
+      } else {
+        // Cache MISS - fetch from database
+        console.log(`[CHAPTER_CTRL] Cache MISS for ${param}/${chapterParam}`);
+        logger.info(`Cache MISS: ${param}/${chapterParam}`);
+        
+        // Fetch chapter with comic info using JOIN
+        chapter = await ChapterModel.findByParams(param, chapterParam);
       
       // Handle chapter not found
       if (!chapter) {
@@ -89,14 +109,25 @@ const ChapterController = {
         });
       }
       
-      // Fetch all images for this chapter
-      const images = await ImageModel.findByChapterId(chapter.id);
-      
-      // Fetch navigation (prev/next chapter)
-      const navigation = await ChapterModel.getNavigation(chapter.komik_id, chapter.id);
-      
-      console.log(`[CHAPTER_CTRL] Found ${images.length} images for "${chapter.chapter_label}"`);
-      logger.info(`Chapter reader: "${chapter.chapter_label}" - ${images.length} pages`);
+        // Fetch all images for this chapter
+        images = await ImageModel.findByChapterId(chapter.id);
+        
+        // Fetch navigation (prev/next chapter)
+        navigation = await ChapterModel.getNavigation(chapter.komik_id, chapter.id);
+        
+        console.log(`[CHAPTER_CTRL] Found ${images.length} images for "${chapter.chapter_label}"`);
+        logger.info(`Chapter reader: "${chapter.chapter_label}" - ${images.length} pages`);
+        
+        // Cache the data
+        // Use 24 hour TTL for published chapters (immutable)
+        // Use 30 min TTL for new chapters (might be updated)
+        const ttl = 86400; // 24 hours for all chapters
+        cacheService.set(cacheKey, { chapter, images, navigation }, 'cold', ttl);
+        console.log(`[CHAPTER_CTRL] Cached chapter data with ${ttl}s TTL`);
+        
+        // Prefetch adjacent chapters in background (non-blocking)
+        this.prefetchAdjacentChapters(param, navigation);
+      }
       
       // Get user from request (if logged in)
       const user = req.user ? req.user.getPublicProfile() : null;
@@ -224,24 +255,48 @@ const ChapterController = {
         return badRequest(res, 'Missing comic or chapter parameter');
       }
       
-      // Fetch chapter with comic info
-      const chapter = await ChapterModel.findByParams(param, chapterParam);
+      // Try cache first
+      const cacheKey = cacheService.chapterKey(param, chapterParam);
+      
+      const data = await cacheService.getOrFetch(
+        cacheKey,
+        async () => {
+          // Cache MISS - fetch from database
+          console.log(`[CHAPTER_CTRL] API: Cache MISS for ${param}/${chapterParam}`);
+          
+          const chapter = await ChapterModel.findByParams(param, chapterParam);
+      
+          // Handle not found
+          if (!chapter) {
+            return null; // Will be handled after getOrFetch
+          }
+          
+          // Fetch images and navigation in parallel
+          const [images, navigation] = await Promise.all([
+            ImageModel.findByChapterId(chapter.id),
+            ChapterModel.getNavigation(chapter.komik_id, chapter.id)
+          ]);
+          
+          console.log(`[CHAPTER_CTRL] API: Found ${images.length} images`);
+          logger.info(`API: Chapter "${chapter.chapter_label}" - ${images.length} pages`);
+          
+          // Prefetch adjacent chapters
+          this.prefetchAdjacentChapters(param, navigation);
+          
+          return { chapter, images, navigation };
+        },
+        'cold',
+        86400 // 24 hours
+      );
       
       // Handle not found
-      if (!chapter) {
+      if (!data || !data.chapter) {
         console.log(`[CHAPTER_CTRL] API: Chapter not found: ${param}/${chapterParam}`);
         logger.warn(`API: Chapter not found: ${param}/${chapterParam}`);
         return errorResponse(res, 'Chapter not found', null, 404);
       }
       
-      // Fetch images and navigation in parallel
-      const [images, navigation] = await Promise.all([
-        ImageModel.findByChapterId(chapter.id),
-        ChapterModel.getNavigation(chapter.komik_id, chapter.id)
-      ]);
-      
-      console.log(`[CHAPTER_CTRL] API: Found ${images.length} images`);
-      logger.info(`API: Chapter "${chapter.chapter_label}" - ${images.length} pages`);
+      const { chapter, images, navigation } = data;
       
       // Return JSON response
       return successResponse(res, 'Chapter retrieved successfully', {
@@ -304,15 +359,28 @@ const ChapterController = {
         return badRequest(res, 'Missing comic or chapter parameter');
       }
       
-      // Fetch chapter to get ID
-      const chapter = await ChapterModel.findByParams(param, chapterParam);
+      // Use cache for images too
+      const cacheKey = cacheService.chapterKey(param, chapterParam);
+      const cachedData = cacheService.get(cacheKey, 'cold');
       
-      if (!chapter) {
-        return errorResponse(res, 'Chapter not found', null, 404);
+      let images, chapter;
+      
+      if (cachedData && cachedData.images) {
+        // Use cached images
+        images = cachedData.images;
+        chapter = cachedData.chapter;
+        console.log(`[CHAPTER_CTRL] API: Using cached images (${images.length})`);
+      } else {
+        // Fetch chapter to get ID
+        chapter = await ChapterModel.findByParams(param, chapterParam);
+        
+        if (!chapter) {
+          return errorResponse(res, 'Chapter not found', null, 404);
+        }
+        
+        // Fetch images
+        images = await ImageModel.findByChapterId(chapter.id);
       }
-      
-      // Fetch images
-      const images = await ImageModel.findByChapterId(chapter.id);
       
       console.log(`[CHAPTER_CTRL] API: Found ${images.length} images`);
       logger.info(`API: Images for ${chapterParam}: ${images.length}`);
@@ -331,6 +399,78 @@ const ChapterController = {
       logger.error(`API: Images error: ${error.message}`);
       return serverError(res, 'Failed to retrieve images');
     }
+  },
+  
+  // ===========================================
+  // CACHE HELPERS
+  // ===========================================
+  
+  /**
+   * Prefetch adjacent chapters in background
+   * 
+   * This improves user experience by caching next/prev chapters
+   * before user navigates to them.
+   * 
+   * @param {string} comicParam - Comic URL param
+   * @param {Object} navigation - Navigation object with prev/next
+   */
+  prefetchAdjacentChapters(comicParam, navigation) {
+    // Run in background, don't block the response
+    setImmediate(async () => {
+      try {
+        const chaptersToPrefetch = [];
+        
+        if (navigation.prev) {
+          chaptersToPrefetch.push(navigation.prev.param);
+        }
+        if (navigation.next) {
+          chaptersToPrefetch.push(navigation.next.param);
+        }
+        
+        for (const chapterParam of chaptersToPrefetch) {
+          const cacheKey = cacheService.chapterKey(comicParam, chapterParam);
+          
+          // Skip if already cached
+          if (cacheService.get(cacheKey, 'cold')) {
+            continue;
+          }
+          
+          console.log(`[CHAPTER_CTRL] Prefetching: ${comicParam}/${chapterParam}`);
+          
+          // Fetch and cache
+          const chapter = await ChapterModel.findByParams(comicParam, chapterParam);
+          if (!chapter) continue;
+          
+          const [images, nav] = await Promise.all([
+            ImageModel.findByChapterId(chapter.id),
+            ChapterModel.getNavigation(chapter.komik_id, chapter.id)
+          ]);
+          
+          cacheService.set(cacheKey, { chapter, images, navigation: nav }, 'cold', 86400);
+          console.log(`[CHAPTER_CTRL] Prefetched: ${comicParam}/${chapterParam} (${images.length} images)`);
+          logger.info(`Prefetched chapter: ${comicParam}/${chapterParam}`);
+        }
+      } catch (error) {
+        // Silent fail - prefetching is not critical
+        console.error(`[CHAPTER_CTRL] Prefetch error: ${error.message}`);
+        logger.error(`Prefetch error: ${error.message}`);
+      }
+    });
+  },
+  
+  /**
+   * Invalidate chapter cache
+   * 
+   * Call this when a chapter is updated (e.g., images changed)
+   * 
+   * @param {string} comicParam - Comic URL param
+   * @param {string} chapterParam - Chapter URL param
+   */
+  invalidateChapterCache(comicParam, chapterParam) {
+    const count = cacheService.invalidateChapter(comicParam, chapterParam);
+    console.log(`[CHAPTER_CTRL] Invalidated cache for ${comicParam}/${chapterParam} (${count} entries)`);
+    logger.info(`Cache invalidated: ${comicParam}/${chapterParam}`);
+    return count;
   }
 };
 
