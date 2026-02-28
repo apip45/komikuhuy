@@ -77,11 +77,33 @@ const ComicController = {
         86400 // 24 hours - genres rarely change
       );
       
-      // Fetch comics with search and filter
-      const [comics, total] = await Promise.all([
-        ComicModel.searchAndFilter({ keyword, genre, limit, offset }),
-        ComicModel.countSearchResults({ keyword, genre })
-      ]);
+      // Build cache key for comic list with filters
+      const filters = {};
+      if (keyword) filters.keyword = keyword;
+      if (genre) filters.genre = genre;
+      
+      const cacheKey = cacheService.comicListKey(page, limit, filters);
+      
+      // Try to get comic list and total from cache
+      const cachedData = await cacheService.getOrFetch(
+        cacheKey,
+        async () => {
+          console.log(`[COMIC_CTRL] Cache MISS: ${cacheKey}`);
+          logger.info(`Comic list cache MISS - fetching from database`);
+          
+          // Fetch comics with search and filter
+          const [comics, total] = await Promise.all([
+            ComicModel.searchAndFilter({ keyword, genre, limit, offset }),
+            ComicModel.countSearchResults({ keyword, genre })
+          ]);
+          
+          return { comics, total };
+        },
+        'warm',
+        600 // 10 minutes - longer TTL for list pages
+      );
+      
+      const { comics, total } = cachedData;
       
       // Calculate pagination metadata
       const totalPages = Math.ceil(total / limit);
@@ -308,11 +330,29 @@ const ComicController = {
       
       console.log(`[COMIC_CTRL] API Pagination: page=${page}, limit=${limit}`);
       
-      // Fetch comics from database
-      const [comics, total] = await Promise.all([
-        ComicModel.findAll({ limit, offset }),
-        ComicModel.count()
-      ]);
+      // Build cache key for simple comic list (no filters)
+      const cacheKey = cacheService.comicListKey(page, limit, {});
+      
+      // Try to get from cache
+      const cachedData = await cacheService.getOrFetch(
+        cacheKey,
+        async () => {
+          console.log(`[COMIC_CTRL] API: Cache MISS: ${cacheKey}`);
+          logger.info(`Comic list API cache MISS`);
+          
+          // Fetch comics from database
+          const [comics, total] = await Promise.all([
+            ComicModel.findAll({ limit, offset }),
+            ComicModel.count()
+          ]);
+          
+          return { comics, total };
+        },
+        'warm',
+        600 // 10 minutes
+      );
+      
+      const { comics, total } = cachedData;
       
       const totalPages = Math.ceil(total / limit);
       
@@ -559,11 +599,33 @@ const ComicController = {
       
       console.log(`[COMIC_CTRL] API Search: keyword="${keyword}", genre="${genre}", page=${page}`);
       
-      // Search and filter
-      const [comics, total] = await Promise.all([
-        ComicModel.searchAndFilter({ keyword, genre, limit, offset }),
-        ComicModel.countSearchResults({ keyword, genre })
-      ]);
+      // Build cache key with filters
+      const filters = {};
+      if (keyword) filters.keyword = keyword;
+      if (genre) filters.genre = genre;
+      
+      const cacheKey = cacheService.comicListKey(page, limit, filters);
+      
+      // Try to get from cache
+      const cachedData = await cacheService.getOrFetch(
+        cacheKey,
+        async () => {
+          console.log(`[COMIC_CTRL] API Search: Cache MISS: ${cacheKey}`);
+          logger.info(`Comic search cache MISS - keyword: ${keyword}, genre: ${genre}`);
+          
+          // Search and filter
+          const [comics, total] = await Promise.all([
+            ComicModel.searchAndFilter({ keyword, genre, limit, offset }),
+            ComicModel.countSearchResults({ keyword, genre })
+          ]);
+          
+          return { comics, total };
+        },
+        'warm',
+        600 // 10 minutes
+      );
+      
+      const { comics, total } = cachedData;
       
       const totalPages = Math.ceil(total / limit);
       
@@ -674,9 +736,31 @@ const ComicController = {
    * @returns {number} Number of cache entries cleared
    */
   invalidateAllComicCaches() {
-    const count = cacheService.clearByPattern('comic:*');
+    let count = 0;
+    
+    // Clear comic detail caches
+    count += cacheService.clearByPattern('comic:');
+    
+    // Clear comic list caches (pagination + search + filters)
+    count += cacheService.clearByPattern('comics:list');
+    
     console.log(`[COMIC_CTRL] Invalidated ALL comic caches (${count} entries)`);
     logger.info(`All comic caches invalidated: ${count} entries`);
+    return count;
+  },
+  
+  /**
+   * Invalidate comic list cache
+   * 
+   * Call this when comic list needs refresh (new comic added, comic removed, etc.).
+   * Clears all paginated list caches including search and filter results.
+   * 
+   * @returns {number} Number of cache entries cleared
+   */
+  invalidateComicListCache() {
+    const count = cacheService.clearByPattern('comics:list');
+    console.log(`[COMIC_CTRL] Invalidated comic list cache (${count} entries)`);
+    logger.info(`Comic list cache invalidated: ${count} entries`);
     return count;
   },
   
