@@ -29,6 +29,7 @@
     "express-session": "^1.17.3",
     "mongoose": "^8.0.3",
     "mysql2": "^3.6.5",
+    "node-cache": "^5.1.2",
     "winston": "^3.11.0"
   },
   "devDependencies": {

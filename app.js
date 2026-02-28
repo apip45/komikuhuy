@@ -60,6 +60,7 @@ const userApiRoutes = require('./routes/api/user.api.routes');
 const readChapterApiRoutes = require('./routes/api/readChapter.api.routes');
 const adminRoutes = require('./routes/admin.routes');
 const adminApiRoutes = require('./routes/api/admin.api.routes');
+const healthApiRoutes = require('./routes/api/health.api.routes');
 
 console.log('[APP] Route modules loaded');
 
@@ -177,6 +178,9 @@ const initializeApp = async () => {
     // API routes
     app.use('/api/auth', authApiRoutes);
     console.log('[ROUTES] ✓ Auth API routes registered at /api/auth');
+    
+    app.use('/api/health', healthApiRoutes);
+    console.log('[ROUTES] ✓ Health API routes registered at /api/health');
     
     app.use('/api/comics', comicApiRoutes);
     console.log('[ROUTES] ✓ Comic API routes registered at /api/comics');
