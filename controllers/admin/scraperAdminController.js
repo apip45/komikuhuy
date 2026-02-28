@@ -336,6 +336,10 @@ const ScraperAdminController = {
           // Also clear comic detail caches (chapter lists changed)
           const comicCleared = cacheService.clearByPattern('comic:*');
           logger.info(`Comic cache cleared: ${comicCleared} entries (full scrape)`);
+          
+          // Clear homepage cache (featured comics and stats changed)
+          cacheService.invalidateHomepage();
+          logger.info('Homepage cache cleared (full scrape)');
         }
         
         // Save state

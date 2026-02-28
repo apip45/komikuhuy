@@ -211,6 +211,44 @@ class CacheManager extends EventEmitter {
     }
 
     /**
+     * Get TTL (time to live) for a cache key
+     * 
+     * @param {string} key - Cache key
+     * @param {string} tier - Cache tier: 'hot', 'warm', 'cold'
+     * @returns {number|undefined} TTL in seconds, or undefined if not found
+     */
+    getTTL(key, tier = 'warm') {
+        const cacheMap = {
+            hot: this.hotCache,
+            warm: this.warmCache,
+            cold: this.coldCache
+        };
+
+        try {
+            const cache = cacheMap[tier];
+            if (!cache) {
+                logger.warn(`Invalid cache tier: ${tier}`);
+                return undefined;
+            }
+
+            const ttl = cache.getTtl(key);
+            
+            if (!ttl) {
+                return undefined;
+            }
+            
+            // Convert from milliseconds to seconds and get remaining time
+            const now = Date.now();
+            const remaining = Math.max(0, Math.floor((ttl - now) / 1000));
+            
+            return remaining;
+        } catch (error) {
+            logger.error(`Cache getTTL error [${tier}/${key}]:`, error);
+            return undefined;
+        }
+    }
+
+    /**
      * Flush all caches
      */
     flushAll() {

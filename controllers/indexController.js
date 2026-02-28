@@ -13,6 +13,7 @@ const logger = require('../config/logger');
 const ComicModel = require('../models/mysql/comic.model');
 const statsService = require('../services/statsService');
 const User = require('../models/mongo/User');
+const { cacheService } = require('../services/cacheService');
 
 /**
  * Render the homepage
@@ -31,33 +32,62 @@ const getHomePage = async (req, res, next) => {
     // Get user from request if logged in (attached by attachUser middleware)
     const user = req.user ? req.user.getPublicProfile() : null;
     
-    // Fetch featured comics (random selection from popular/recent)
-    const featuredComics = await ComicModel.findAll({ limit: 12, offset: 0 });
+    // Try to get homepage data from cache
+    const cacheKey = 'homepage:data';
     
-    // Fetch latest updates
-    const latestUpdates = await ComicModel.findAll({ limit: 10, offset: 0 });
+    const homepageData = await cacheService.getOrFetch(
+      cacheKey,
+      async () => {
+        console.log('[INDEX] Cache MISS: Fetching homepage data from database');
+        logger.info('Homepage cache MISS - fetching from database');
+        
+        // Fetch featured comics and latest updates in parallel
+        const [featuredComics, latestUpdates] = await Promise.all([
+          ComicModel.findAll({ limit: 12, offset: 0 }),
+          ComicModel.findAll({ limit: 10, offset: 0 })
+        ]);
+        
+        // Get database stats for homepage statistics
+        const stats = {
+          totalComics: 0,
+          totalChapters: 0,
+          totalUsers: 0
+        };
+        
+        try {
+          const dbStats = await statsService.getDatabaseStats();
+          stats.totalComics = dbStats.comics.total;
+          stats.totalChapters = dbStats.chapters.total;
+          
+          // Get user count from MongoDB
+          try {
+            stats.totalUsers = await User.countDocuments();
+          } catch (userError) {
+            logger.warn(`Failed to fetch user count: ${userError.message}`);
+          }
+        } catch (statError) {
+          logger.warn(`Failed to fetch stats: ${statError.message}`);
+        }
+        
+        console.log(`[INDEX] Fetched: ${featuredComics.length} featured, ${latestUpdates.length} latest, stats: ${JSON.stringify(stats)}`);
+        
+        return {
+          featuredComics,
+          latestUpdates,
+          stats
+        };
+      },
+      'warm',
+      300 // 5 minutes TTL - balance between freshness and performance
+    );
     
-    // Get database stats for homepage statistics
-    let stats = {
-      totalComics: 0,
-      totalChapters: 0,
-      totalUsers: 0
-    };
-    
-    try {
-      const dbStats = await statsService.getDatabaseStats();
-      stats.totalComics = dbStats.comics.total;
-      stats.totalChapters = dbStats.chapters.total;
-      
-      // Get user count from MongoDB
-      try {
-        stats.totalUsers = await User.countDocuments();
-      } catch (userError) {
-        logger.warn(`Failed to fetch user count: ${userError.message}`);
-      }
-    } catch (statError) {
-      logger.warn(`Failed to fetch stats: ${statError.message}`);
+    // Check if we got data from cache
+    if (cacheService.get(cacheKey, 'warm')) {
+      console.log('[INDEX] Cache HIT: Using cached homepage data');
+      logger.info('Homepage cache HIT');
     }
+    
+    const { featuredComics, latestUpdates, stats } = homepageData;
     
     res.render('pages/home', {
       title: 'AF-Komik - Baca Komik Online',
@@ -74,6 +104,22 @@ const getHomePage = async (req, res, next) => {
   }
 };
 
+/**
+ * Invalidate homepage cache
+ * 
+ * Call this when homepage data changes (new comics, stats update, etc.)
+ * Typically called after scraper runs or when featured comics are updated.
+ * 
+ * @returns {boolean} True if cache was invalidated
+ */
+const invalidateHomepageCache = () => {
+  const count = cacheService.invalidateHomepage();
+  console.log(`[INDEX] Homepage cache invalidated (${count} entries)`);
+  logger.info('Homepage cache invalidated');
+  return count > 0;
+};
+
 module.exports = {
-  getHomePage
+  getHomePage,
+  invalidateHomepageCache
 };

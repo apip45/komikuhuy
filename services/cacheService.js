@@ -355,6 +355,28 @@ class CacheService {
         cacheManager.flushAll();
         logger.info('All caches flushed via CacheService');
     }
+
+    /**
+     * Get TTL (time to live) for a cache key
+     * 
+     * @param {string} key - Cache key
+     * @param {string} tier - Cache tier (default: 'warm')
+     * @returns {number|undefined} TTL in seconds, or undefined if not found
+     */
+    getTTL(key, tier = 'warm') {
+        if (!this.enabled) return undefined;
+        return cacheManager.getTTL(key, tier);
+    }
+
+    /**
+     * Clear cache entries by pattern (alias for clearPattern)
+     * 
+     * @param {string} pattern - Pattern to match
+     * @returns {number} Number of cleared entries
+     */
+    clearByPattern(pattern) {
+        return this.clearPattern(pattern);
+    }
 }
 
 // Singleton instance
