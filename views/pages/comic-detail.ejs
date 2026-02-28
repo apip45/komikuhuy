@@ -293,50 +293,95 @@
   </div>
 </section>
 
-<% if (user) { %>
 <!-- Bookmark Toggle Script -->
 <script>
 (function() {
+  'use strict';
+  
+  console.log('[BOOKMARK] Script loaded - v2');
+  console.log('[BOOKMARK] User logged in:', <%= JSON.stringify(user !== null && user !== undefined) %>);
+  
   const bookmarkBtn = document.getElementById('bookmark-btn');
-  if (!bookmarkBtn) return;
+  
+  console.log('[BOOKMARK] Looking for button...');
+  console.log('[BOOKMARK] Button found:', bookmarkBtn !== null);
+  
+  if (!bookmarkBtn) {
+    console.log('[BOOKMARK] Button not found - user might not be logged in or button missing');
+    return;
+  }
+  
+  console.log('[BOOKMARK] System initialized successfully');
+  console.log('[BOOKMARK] Button data:', {
+    comicParam: bookmarkBtn.dataset.comicParam,
+    isBookmarked: bookmarkBtn.dataset.bookmarked
+  });
   
   const bookmarkText = document.getElementById('bookmark-text');
   const bookmarkIcon = bookmarkBtn.querySelector('svg');
   
-  bookmarkBtn.addEventListener('click', async function() {
+  bookmarkBtn.addEventListener('click', async function(e) {
+    e.preventDefault();
+    e.stopPropagation();
+    
     const comicParam = this.dataset.comicParam;
     const isBookmarked = this.dataset.bookmarked === 'true';
     
+    console.log('[BOOKMARK] ===== BUTTON CLICKED =====');
+    console.log('[BOOKMARK] Comic:', comicParam);
+    console.log('[BOOKMARK] Currently bookmarked:', isBookmarked);
+    
     // Disable button during request
     this.disabled = true;
+    this.style.opacity = '0.6';
+    this.style.cursor = 'wait';
     
     try {
       let response;
+      const apiUrl = `/api/bookmarks/${comicParam}`;
       
       if (isBookmarked) {
         // Remove bookmark
-        response = await fetch(`/api/bookmarks/${comicParam}`, {
+        console.log('[BOOKMARK] Sending DELETE request to:', apiUrl);
+        response = await fetch(apiUrl, {
           method: 'DELETE',
           headers: {
-            'Content-Type': 'application/json'
-          }
+            'Content-Type': 'application/json',
+            'Accept': 'application/json'
+          },
+          credentials: 'same-origin'
         });
       } else {
         // Add bookmark
-        response = await fetch(`/api/bookmarks/${comicParam}`, {
+        console.log('[BOOKMARK] Sending POST request to:', apiUrl);
+        response = await fetch(apiUrl, {
           method: 'POST',
           headers: {
-            'Content-Type': 'application/json'
-          }
+            'Content-Type': 'application/json',
+            'Accept': 'application/json'
+          },
+          credentials: 'same-origin'
         });
       }
       
+      console.log('[BOOKMARK] Response status:', response.status);
+      console.log('[BOOKMARK] Response ok:', response.ok);
+      
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error('[BOOKMARK] Error response:', errorText);
+        throw new Error(`HTTP ${response.status}: ${errorText}`);
+      }
+      
       const data = await response.json();
+      console.log('[BOOKMARK] Response data:', data);
       
       if (data.status === 'success') {
         // Toggle state
         const newIsBookmarked = !isBookmarked;
         this.dataset.bookmarked = newIsBookmarked.toString();
+        
+        console.log('[BOOKMARK] Updating UI, new state:', newIsBookmarked);
         
         // Update UI
         if (newIsBookmarked) {
@@ -346,7 +391,6 @@
           bookmarkIcon.setAttribute('fill', 'currentColor');
           this.title = 'Hapus dari bookmark';
           
-          // Show success message
           showMessage('✓ Ditambahkan ke bookmark', 'success');
         } else {
           this.classList.remove('bg-neon-600', 'text-white');
@@ -355,41 +399,56 @@
           bookmarkIcon.setAttribute('fill', 'none');
           this.title = 'Tambahkan ke bookmark';
           
-          // Show success message
           showMessage('Dihapus dari bookmark', 'info');
         }
+        
+        console.log('[BOOKMARK] UI updated successfully');
       } else {
-        // Show error message
+        console.error('[BOOKMARK] API returned error:', data.message);
         showMessage(data.message || 'Terjadi kesalahan', 'error');
       }
       
     } catch (error) {
-      console.error('Bookmark error:', error);
-      showMessage('Gagal memproses bookmark', 'error');
+      console.error('[BOOKMARK] Exception caught:', error);
+      console.error('[BOOKMARK] Error stack:', error.stack);
+      showMessage('Gagal memproses bookmark: ' + error.message, 'error');
     } finally {
       // Re-enable button
       this.disabled = false;
+      this.style.opacity = '1';
+      this.style.cursor = 'pointer';
+      console.log('[BOOKMARK] Request completed');
     }
   });
   
   // Show message function
   function showMessage(text, type = 'info') {
+    console.log('[BOOKMARK] Showing message:', text, type);
     const messageEl = document.createElement('div');
-    messageEl.className = `fixed top-4 right-4 z-50 px-6 py-3 rounded-lg shadow-lg ${
-      type === 'success' ? 'bg-green-600 text-white' :
-      type === 'error' ? 'bg-red-600 text-white' :
-      'bg-blue-600 text-white'
-    } animate-fade-in`;
+    messageEl.style.cssText = `
+      position: fixed;
+      top: 1rem;
+      right: 1rem;
+      z-index: 9999;
+      padding: 1rem 1.5rem;
+      border-radius: 0.5rem;
+      box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
+      font-weight: 500;
+      transition: opacity 0.3s ease;
+      ${type === 'success' ? 'background-color: #16a34a; color: white;' :
+        type === 'error' ? 'background-color: #dc2626; color: white;' :
+        'background-color: #2563eb; color: white;'}
+    `;
     messageEl.textContent = text;
     
     document.body.appendChild(messageEl);
     
     setTimeout(() => {
       messageEl.style.opacity = '0';
-      messageEl.style.transition = 'opacity 0.3s';
       setTimeout(() => messageEl.remove(), 300);
     }, 3000);
   }
+  
+  console.log('[BOOKMARK] Event listener attached to button');
 })();
 </script>
-<% } %>
