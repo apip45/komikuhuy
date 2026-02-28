@@ -60,7 +60,7 @@ const BookmarkController = {
     
     try {
       // Check if comic exists in MySQL
-      const comic = await ComicModel.getByParam(comicParam);
+      const comic = await ComicModel.findByParam(comicParam);
       if (!comic) {
         logger.warn(`[Bookmark] Comic not found: ${comicParam}`);
         return res.redirect(referer + '?error=' + encodeURIComponent('Komik tidak ditemukan'));
@@ -81,7 +81,7 @@ const BookmarkController = {
           title: comic.title,
           thumbnail: comic.thumbnail,
           latestChapter: comic.latest_chapter || null,
-          genres: comic.genres ? comic.genres.split(',').map(g => g.trim()) : []
+          genres: Array.isArray(comic.genres) ? comic.genres : []
         }
       });
       
@@ -200,32 +200,49 @@ const BookmarkController = {
     const { comicParam } = req.params;
     const userId = req.user._id;
     
+    console.log('[Bookmark API] ===== ADD BOOKMARK REQUEST =====');
+    console.log('[Bookmark API] Comic param:', comicParam);
+    console.log('[Bookmark API] User ID:', userId);
+    
     try {
       // Check if comic exists in MySQL
-      const comic = await ComicModel.getByParam(comicParam);
+      console.log('[Bookmark API] Checking comic in MySQL...');
+      const comic = await ComicModel.findByParam(comicParam);
+      console.log('[Bookmark API] Comic found:', comic ? comic.title : 'NOT FOUND');
+      
       if (!comic) {
         logger.warn(`[Bookmark API] Comic not found: ${comicParam}`);
+        console.log('[Bookmark API] Returning 404 - Comic not found');
         return notFound(res, 'Comic not found');
       }
       
       // Check if already bookmarked
+      console.log('[Bookmark API] Checking if already bookmarked...');
       const isBookmarked = await Bookmark.isBookmarked(userId, comicParam);
+      console.log('[Bookmark API] Already bookmarked?', isBookmarked);
+      
       if (isBookmarked) {
         logger.info(`[Bookmark API] Already bookmarked: ${comicParam}`);
+        console.log('[Bookmark API] Returning 409 - Already bookmarked');
         return conflict(res, 'Already bookmarked');
       }
       
       // Create bookmark
-      const bookmark = await Bookmark.create({
+      console.log('[Bookmark API] Creating bookmark in MongoDB...');
+      const bookmarkData = {
         userId,
         comicParam: comicParam.toLowerCase(),
         cachedComic: {
           title: comic.title,
           thumbnail: comic.thumbnail,
           latestChapter: comic.latest_chapter || null,
-          genres: comic.genres ? comic.genres.split(',').map(g => g.trim()) : []
+          genres: Array.isArray(comic.genres) ? comic.genres : []
         }
-      });
+      };
+      console.log('[Bookmark API] Bookmark data:', JSON.stringify(bookmarkData, null, 2));
+      
+      const bookmark = await Bookmark.create(bookmarkData);
+      console.log('[Bookmark API] Bookmark created successfully:', bookmark._id);
       
       logger.info(`[Bookmark API] Added: ${comicParam} by user ${userId}`);
       
@@ -242,7 +259,15 @@ const BookmarkController = {
       });
       
     } catch (error) {
+      console.error('[Bookmark API] ===== ERROR CAUGHT =====');
+      console.error('[Bookmark API] Error message:', error.message);
+      console.error('[Bookmark API] Error stack:', error.stack);
+      console.error('[Bookmark API] Error name:', error.name);
+      console.error('[Bookmark API] Full error:', error);
+      
       logger.error(`[Bookmark API] Error adding: ${error.message}`);
+      logger.error(`[Bookmark API] Stack: ${error.stack}`);
+      
       return serverError(res, 'Failed to add bookmark');
     }
   },
@@ -371,7 +396,7 @@ const BookmarkController = {
     
     try {
       // Check if comic exists in MySQL
-      const comic = await ComicModel.getByParam(comicParam);
+      const comic = await ComicModel.findByParam(comicParam);
       if (!comic) {
         logger.warn(`[Bookmark API] Comic not found: ${comicParam}`);
         return notFound(res, 'Comic not found');
@@ -382,7 +407,7 @@ const BookmarkController = {
         title: comic.title,
         thumbnail: comic.thumbnail,
         latestChapter: comic.latest_chapter || null,
-        genres: comic.genres ? comic.genres.split(',').map(g => g.trim()) : []
+        genres: Array.isArray(comic.genres) ? comic.genres : []
       };
       
       // Toggle
