@@ -6,8 +6,7 @@
  * Middleware to verify user authentication status.
  * Protects routes that require a logged-in user.
  * 
- * STRUCTURE ONLY - Authentication logic not implemented yet.
- * This will be completed in Phase 2 with full auth implementation.
+ * Uses session-based authentication with MongoDB session store.
  */
 
 const logger = require('../config/logger');
@@ -21,13 +20,8 @@ const logger = require('../config/logger');
  * @param {Function} next - Express next middleware function
  */
 const isAuthenticated = (req, res, next) => {
-  // TODO: Implement actual authentication check
-  // This will verify:
-  // 1. Session exists and is valid
-  // 2. User ID is stored in session
-  // 3. User exists in MongoDB database
-  
-  // Placeholder: Check if user exists in session
+  // Check if user exists in session
+  // Session is managed by express-session with MongoDB store
   if (req.session && req.session.userId) {
     // User is authenticated, proceed to next middleware
     logger.info(`User ${req.session.userId} authenticated successfully`);
@@ -53,12 +47,7 @@ const isAuthenticated = (req, res, next) => {
  * @param {Function} next - Express next middleware function
  */
 const isAuthenticatedAPI = (req, res, next) => {
-  // TODO: Implement actual authentication check for API
-  // This will verify:
-  // 1. Session or token exists
-  // 2. User is valid
-  
-  // Placeholder: Check if user exists in session
+  // Check if user exists in session for API routes
   if (req.session && req.session.userId) {
     return next();
   }

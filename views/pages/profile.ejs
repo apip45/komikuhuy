@@ -139,7 +139,7 @@
           </div>
         </div>
         
-        <!-- Reading Stats Section (Placeholder for future) -->
+        <!-- Reading Stats Section -->
         <div>
           <h3 class="text-lg font-semibold text-white mb-4 flex items-center gap-2">
             <svg class="w-5 h-5 text-neon-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -150,22 +150,18 @@
           
           <div class="grid grid-cols-3 gap-4">
             <div class="bg-dark-300 rounded-lg p-4 text-center">
-              <p class="text-2xl font-bold text-neon-400">0</p>
+              <p class="text-2xl font-bold text-neon-400" id="stats-comics">-</p>
               <p class="text-xs text-gray-500 mt-1">Komik Dibaca</p>
             </div>
             <div class="bg-dark-300 rounded-lg p-4 text-center">
-              <p class="text-2xl font-bold text-neon-400">0</p>
+              <p class="text-2xl font-bold text-neon-400" id="stats-chapters">-</p>
               <p class="text-xs text-gray-500 mt-1">Chapter Selesai</p>
             </div>
             <div class="bg-dark-300 rounded-lg p-4 text-center">
-              <p class="text-2xl font-bold text-neon-400">0</p>
+              <p class="text-2xl font-bold text-neon-400" id="stats-bookmarks">-</p>
               <p class="text-xs text-gray-500 mt-1">Favorit</p>
             </div>
           </div>
-          
-          <p class="text-xs text-gray-500 mt-3 text-center italic">
-            * Fitur statistik akan tersedia pada update mendatang
-          </p>
         </div>
         
         <!-- Actions Section -->
@@ -179,24 +175,22 @@
           </h3>
           
           <div class="flex flex-wrap gap-3">
-            <!-- Edit Profile Button (placeholder) -->
+            <!-- Edit Profile Button -->
             <button 
               type="button" 
-              disabled
-              class="px-4 py-2 bg-dark-300 text-gray-400 rounded-lg text-sm cursor-not-allowed"
-              title="Segera hadir">
+              onclick="openEditProfileModal()"
+              class="px-4 py-2 bg-neon-600 text-white hover:bg-neon-700 rounded-lg text-sm transition-default">
               <svg class="w-4 h-4 inline mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path>
               </svg>
               Edit Profil
             </button>
             
-            <!-- Change Password Button (placeholder) -->
+            <!-- Change Password Button -->
             <button 
               type="button" 
-              disabled
-              class="px-4 py-2 bg-dark-300 text-gray-400 rounded-lg text-sm cursor-not-allowed"
-              title="Segera hadir">
+              onclick="openChangePasswordModal()"
+              class="px-4 py-2 bg-blue-600 text-white hover:bg-blue-700 rounded-lg text-sm transition-default">
               <svg class="w-4 h-4 inline mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z"></path>
               </svg>
@@ -242,3 +236,180 @@
     </div>
   </div>
 </section>
+
+<!-- Edit Profile Modal -->
+<div id="editProfileModal" class="fixed inset-0 bg-black/80 hidden items-center justify-center z-50 p-4">
+  <div class="bg-dark-400 rounded-xl border border-dark-100 max-w-md w-full p-6">
+    <div class="flex items-center justify-between mb-6">
+      <h3 class="text-xl font-bold text-white">Edit Profil</h3>
+      <button onclick="closeEditProfileModal()" class="text-gray-400 hover:text-white">
+        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+        </svg>
+      </button>
+    </div>
+    
+    <!-- Error Message -->
+    <div id="editProfileError" class="hidden mb-4 p-3 bg-red-500/10 border border-red-500/30 rounded-lg">
+      <p class="text-red-400 text-sm"></p>
+    </div>
+    
+    <!-- Success Message -->
+    <div id="editProfileSuccess" class="hidden mb-4 p-3 bg-green-500/10 border border-green-500/30 rounded-lg">
+      <p class="text-green-400 text-sm"></p>
+    </div>
+    
+    <form id="editProfileForm" class="space-y-4">
+      <!-- Username -->
+      <div>
+        <label for="editUsername" class="block text-sm font-medium text-gray-300 mb-2">Username</label>
+        <input 
+          type="text" 
+          id="editUsername" 
+          name="username"
+          value="<%= user.username %>"
+          class="w-full px-4 py-2 bg-dark-300 text-white rounded-lg border border-dark-100 focus:border-neon-500 focus:outline-none"
+          minlength="3"
+          maxlength="20"
+          pattern="[a-zA-Z0-9_]+"
+          required
+        />
+      </div>
+      
+      <!-- Email -->
+      <div>
+        <label for="editEmail" class="block text-sm font-medium text-gray-300 mb-2">Email</label>
+        <input 
+          type="email" 
+          id="editEmail" 
+          name="email"
+          value="<%= user.email %>"
+          class="w-full px-4 py-2 bg-dark-300 text-white rounded-lg border border-dark-100 focus:border-neon-500 focus:outline-none"
+          required
+        />
+      </div>
+      
+      <!-- Display Name -->
+      <div>
+        <label for="editDisplayName" class="block text-sm font-medium text-gray-300 mb-2">Nama Tampilan (Opsional)</label>
+        <input 
+          type="text" 
+          id="editDisplayName" 
+          name="displayName"
+          value="<%= user.profile.displayName || '' %>"
+          class="w-full px-4 py-2 bg-dark-300 text-white rounded-lg border border-dark-100 focus:border-neon-500 focus:outline-none"
+          maxlength="50"
+        />
+      </div>
+      
+      <!-- Buttons -->
+      <div class="flex gap-3 pt-4">
+        <button 
+          type="submit" 
+          class="flex-1 px-4 py-2 bg-neon-600 text-white hover:bg-neon-700 rounded-lg transition-default">
+          <span class="button-text">Simpan Perubahan</span>
+          <span class="button-loader hidden">
+            <svg class="animate-spin h-5 w-5 mx-auto" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+              <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+              <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+            </svg>
+          </span>
+        </button>
+        <button 
+          type="button" 
+          onclick="closeEditProfileModal()"
+          class="px-4 py-2 bg-dark-300 text-gray-400 hover:text-white rounded-lg transition-default">
+          Batal
+        </button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Change Password Modal -->
+<div id="changePasswordModal" class="fixed inset-0 bg-black/80 hidden items-center justify-center z-50 p-4">
+  <div class="bg-dark-400 rounded-xl border border-dark-100 max-w-md w-full p-6">
+    <div class="flex items-center justify-between mb-6">
+      <h3 class="text-xl font-bold text-white">Ganti Password</h3>
+      <button onclick="closeChangePasswordModal()" class="text-gray-400 hover:text-white">
+        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+        </svg>
+      </button>
+    </div>
+    
+    <!-- Error Message -->
+    <div id="changePasswordError" class="hidden mb-4 p-3 bg-red-500/10 border border-red-500/30 rounded-lg">
+      <p class="text-red-400 text-sm"></p>
+    </div>
+    
+    <!-- Success Message -->
+    <div id="changePasswordSuccess" class="hidden mb-4 p-3 bg-green-500/10 border border-green-500/30 rounded-lg">
+      <p class="text-green-400 text-sm"></p>
+    </div>
+    
+    <form id="changePasswordForm" class="space-y-4">
+      <!-- Current Password -->
+      <div>
+        <label for="currentPassword" class="block text-sm font-medium text-gray-300 mb-2">Password Saat Ini</label>
+        <input 
+          type="password" 
+          id="currentPassword" 
+          name="currentPassword"
+          class="w-full px-4 py-2 bg-dark-300 text-white rounded-lg border border-dark-100 focus:border-neon-500 focus:outline-none"
+          required
+        />
+      </div>
+      
+      <!-- New Password -->
+      <div>
+        <label for="newPassword" class="block text-sm font-medium text-gray-300 mb-2">Password Baru</label>
+        <input 
+          type="password" 
+          id="newPassword" 
+          name="newPassword"
+          class="w-full px-4 py-2 bg-dark-300 text-white rounded-lg border border-dark-100 focus:border-neon-500 focus:outline-none"
+          minlength="8"
+          required
+        />
+        <p class="text-xs text-gray-500 mt-1">Minimal 8 karakter</p>
+      </div>
+      
+      <!-- Confirm New Password -->
+      <div>
+        <label for="confirmPassword" class="block text-sm font-medium text-gray-300 mb-2">Konfirmasi Password Baru</label>
+        <input 
+          type="password" 
+          id="confirmPassword" 
+          name="confirmPassword"
+          class="w-full px-4 py-2 bg-dark-300 text-white rounded-lg border border-dark-100 focus:border-neon-500 focus:outline-none"
+          minlength="8"
+          required
+        />
+      </div>
+      
+      <!-- Buttons -->
+      <div class="flex gap-3 pt-4">
+        <button 
+          type="submit" 
+          class="flex-1 px-4 py-2 bg-blue-600 text-white hover:bg-blue-700 rounded-lg transition-default">
+          <span class="button-text">Ganti Password</span>
+          <span class="button-loader hidden">
+            <svg class="animate-spin h-5 w-5 mx-auto" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+              <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+              <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+            </svg>
+          </span>
+        </button>
+        <button 
+          type="button" 
+          onclick="closeChangePasswordModal()"
+          class="px-4 py-2 bg-dark-300 text-gray-400 hover:text-white rounded-lg transition-default">
+          Batal
+        </button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<script src="/js/profile.js"></script>

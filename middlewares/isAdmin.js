@@ -6,8 +6,7 @@
  * Middleware to verify admin privileges.
  * Protects admin-only routes and functionality.
  * 
- * STRUCTURE ONLY - Authorization logic not implemented yet.
- * This will be completed in Phase 2 with full auth implementation.
+ * Uses role-based access control with session data.
  */
 
 const logger = require('../config/logger');
@@ -21,13 +20,8 @@ const logger = require('../config/logger');
  * @param {Function} next - Express next middleware function
  */
 const isAdmin = (req, res, next) => {
-  // TODO: Implement actual admin check
-  // This will verify:
-  // 1. User is authenticated (should be done by isAuthenticated middleware)
-  // 2. User has admin role in MongoDB database
-  // 3. Admin privileges are still valid
-  
-  // Placeholder: Check if user has admin role in session
+  // Check if user has admin role in session
+  // Must be used AFTER isAuthenticated middleware
   if (req.session && req.session.userRole === 'admin') {
     // User is admin, proceed to next middleware
     logger.info(`Admin access granted for user ${req.session.userId}`);
@@ -54,10 +48,7 @@ const isAdmin = (req, res, next) => {
  * @param {Function} next - Express next middleware function
  */
 const isAdminAPI = (req, res, next) => {
-  // TODO: Implement actual admin check for API
-  // This will verify admin role from session or token
-  
-  // Placeholder: Check if user has admin role in session
+  // Check if user has admin role in session for API routes
   if (req.session && req.session.userRole === 'admin') {
     return next();
   }

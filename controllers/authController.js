@@ -617,6 +617,194 @@ const getCurrentUser = async (req, res) => {
   }
 };
 
+/**
+ * Update user profile (API)
+ * 
+ * @route PUT /api/auth/profile
+ * @access Private (requires authentication)
+ * @returns {Object} JSON response with updated user data
+ */
+const updateProfile = async (req, res) => {
+  console.log('[AUTH-API] Processing profile update...');
+  
+  try {
+    const { username, email, displayName } = req.body;
+    
+    // Get user from database
+    const user = await User.findById(req.session.userId);
+    
+    if (!user) {
+      console.log('[AUTH-API] ✗ User not found');
+      return unauthorized(res, 'User not found');
+    }
+    
+    // Validate input
+    if (!username && !email && displayName === undefined) {
+      console.log('[AUTH-API] ✗ No update fields provided');
+      return badRequest(res, 'At least one field must be provided for update');
+    }
+    
+    // Update profile
+    try {
+      await user.updateProfile({ username, email, displayName });
+      
+      // Update session if username changed
+      if (username && username !== req.session.username) {
+        req.session.username = username;
+      }
+      
+      console.log(`[AUTH-API] ✓ Profile updated for: ${user.username}`);
+      logger.info(`Profile updated: ${user.username}`);
+      
+      return successResponse(res, 200, 'Profile updated successfully', {
+        user: user.getPublicProfile()
+      });
+      
+    } catch (error) {
+      if (error.code === 'USERNAME_TAKEN') {
+        console.log('[AUTH-API] ✗ Username already taken');
+        return conflict(res, 'Username is already taken', { username: 'Username is already taken' });
+      }
+      
+      if (error.code === 'EMAIL_TAKEN') {
+        console.log('[AUTH-API] ✗ Email already registered');
+        return conflict(res, 'Email is already registered', { email: 'Email is already registered' });
+      }
+      
+      throw error;
+    }
+    
+  } catch (error) {
+    console.error('[AUTH-API] ✗ Profile update error:', error.message);
+    logger.error('API Profile update error:', error);
+    
+    if (error.name === 'ValidationError') {
+      const errors = {};
+      Object.keys(error.errors).forEach(key => {
+        errors[key] = error.errors[key].message;
+      });
+      return badRequest(res, 'Validation failed', errors);
+    }
+    
+    return serverError(res, 'Failed to update profile');
+  }
+};
+
+/**
+ * Change user password (API)
+ * 
+ * @route PUT /api/auth/password
+ * @access Private (requires authentication)
+ * @returns {Object} JSON response
+ */
+const changePassword = async (req, res) => {
+  console.log('[AUTH-API] Processing password change...');
+  
+  try {
+    const { currentPassword, newPassword, confirmPassword } = req.body;
+    
+    // Validate input
+    if (!currentPassword || !newPassword || !confirmPassword) {
+      console.log('[AUTH-API] ✗ Missing password fields');
+      return badRequest(res, 'All password fields are required', {
+        currentPassword: !currentPassword ? 'Current password is required' : null,
+        newPassword: !newPassword ? 'New password is required' : null,
+        confirmPassword: !confirmPassword ? 'Confirm password is required' : null
+      });
+    }
+    
+    // Validate new password length
+    if (newPassword.length < 8) {
+      console.log('[AUTH-API] ✗ New password too short');
+      return badRequest(res, 'New password must be at least 8 characters');
+    }
+    
+    // Validate password confirmation
+    if (newPassword !== confirmPassword) {
+      console.log('[AUTH-API] ✗ Passwords do not match');
+      return badRequest(res, 'New passwords do not match', {
+        confirmPassword: 'Passwords do not match'
+      });
+    }
+    
+    // Get user from database
+    const user = await User.findById(req.session.userId);
+    
+    if (!user) {
+      console.log('[AUTH-API] ✗ User not found');
+      return unauthorized(res, 'User not found');
+    }
+    
+    // Change password
+    try {
+      await user.changePassword(currentPassword, newPassword);
+      
+      console.log(`[AUTH-API] ✓ Password changed for: ${user.username}`);
+      logger.info(`Password changed: ${user.username}`);
+      
+      return successResponse(res, 200, 'Password changed successfully', null);
+      
+    } catch (error) {
+      if (error.code === 'INVALID_PASSWORD') {
+        console.log('[AUTH-API] ✗ Current password incorrect');
+        return badRequest(res, 'Current password is incorrect', {
+          currentPassword: 'Current password is incorrect'
+        });
+      }
+      throw error;
+    }
+    
+  } catch (error) {
+    console.error('[AUTH-API] ✗ Password change error:', error.message);
+    logger.error('API Password change error:', error);
+    return serverError(res, 'Failed to change password');
+  }
+};
+
+/**
+ * Get user statistics
+ * 
+ * @route GET /api/auth/stats
+ * @access Private (requires authentication)
+ * @returns {Object} JSON response with user statistics
+ */
+const getUserStats = async (req, res) => {
+  console.log('[AUTH-API] Fetching user statistics...');
+  
+  try {
+    const userId = req.session.userId;
+    
+    // Import models
+    const { Bookmark, ReadChapter, ReadingHistory } = require('../models/mongo');
+    
+    // Get statistics
+    const [
+      bookmarksCount,
+      uniqueComicsRead,
+      chaptersRead
+    ] = await Promise.all([
+      Bookmark.countDocuments({ userId }),
+      ReadingHistory.distinct('comicId', { userId }).then(arr => arr.length),
+      ReadChapter.countDocuments({ userId })
+    ]);
+    
+    console.log(`[AUTH-API] ✓ Stats fetched for user ${userId}`);
+    
+    return successResponse(res, 200, 'Statistics retrieved successfully', {
+      stats: {
+        bookmarks: bookmarksCount,
+        comicsRead: uniqueComicsRead,
+        chaptersRead: chaptersRead
+      }
+    });
+    
+  } catch (error) {
+    console.error('[AUTH-API] ✗ Get stats error:', error.message);
+    logger.error('API Get stats error:', error);
+    return serverError(res, 'Failed to get statistics');
+  }
+};
+
 // ===========================================
 // Export Controllers
 // ===========================================
@@ -634,5 +822,8 @@ module.exports = {
   registerAPI,
   loginAPI,
   logoutAPI,
-  getCurrentUser
+  getCurrentUser,
+  updateProfile,
+  changePassword,
+  getUserStats
 };

@@ -372,6 +372,81 @@ userSchema.methods.getPublicProfile = function() {
   };
 };
 
+/**
+ * Update user profile information
+ * 
+ * Updates username, email, and/or display name.
+ * Validates that new username/email are not already taken.
+ * 
+ * @param {Object} updates - Profile updates
+ * @param {string} updates.username - New username (optional)
+ * @param {string} updates.email - New email (optional)
+ * @param {string} updates.displayName - New display name (optional)
+ * @returns {Promise<User>} - Updated user document
+ * @throws {Error} - If username/email already taken
+ */
+userSchema.methods.updateProfile = async function(updates) {
+  const { username, email, displayName } = updates;
+  
+  // Check if username is being changed and if it's already taken
+  if (username && username !== this.username) {
+    const usernameExists = await this.constructor.usernameExists(username);
+    if (usernameExists) {
+      const error = new Error('Username is already taken');
+      error.code = 'USERNAME_TAKEN';
+      throw error;
+    }
+    this.username = username.trim();
+  }
+  
+  // Check if email is being changed and if it's already taken
+  if (email && email.toLowerCase() !== this.email) {
+    const emailExists = await this.constructor.emailExists(email);
+    if (emailExists) {
+      const error = new Error('Email is already registered');
+      error.code = 'EMAIL_TAKEN';
+      throw error;
+    }
+    this.email = email.trim().toLowerCase();
+    this.isEmailVerified = false; // Reset verification if email changes
+  }
+  
+  // Update display name
+  if (displayName !== undefined) {
+    this.profile.displayName = displayName ? displayName.trim() : null;
+  }
+  
+  return this.save();
+};
+
+/**
+ * Change user password
+ * 
+ * Updates user's password after verifying current password.
+ * Password will be automatically hashed by pre-save middleware.
+ * 
+ * @param {string} currentPassword - Current password for verification
+ * @param {string} newPassword - New password to set
+ * @returns {Promise<User>} - Updated user document
+ * @throws {Error} - If current password is incorrect
+ */
+userSchema.methods.changePassword = async function(currentPassword, newPassword) {
+  // Get user with password field
+  const user = await this.constructor.findById(this._id).select('+password');
+  
+  // Verify current password
+  const isMatch = await user.comparePassword(currentPassword);
+  if (!isMatch) {
+    const error = new Error('Current password is incorrect');
+    error.code = 'INVALID_PASSWORD';
+    throw error;
+  }
+  
+  // Set new password (will be hashed by pre-save middleware)
+  user.password = newPassword;
+  return user.save();
+};
+
 // ===========================================
 // Static Methods
 // ===========================================
