@@ -23,6 +23,7 @@ const ComicModel = require('../models/mysql/comic.model');
 const ChapterModel = require('../models/mysql/chapter.model');
 const { ReadChapter, Bookmark } = require('../models/mongo');
 const { successResponse, errorResponse, badRequest, serverError } = require('../utils/apiResponse');
+const { cacheService } = require('../services/cacheService');
 
 /**
  * Comic controller with web and API handlers
@@ -141,21 +142,46 @@ const ComicController = {
         });
       }
       
-      // Fetch comic from database
-      const comic = await ComicModel.findByParam(param);
+      // Try to get comic and chapters from cache
+      const comicCacheKey = cacheService.comicKey(param);
+      const chaptersCacheKey = `comic:chapters:${param}`;
       
-      // Handle not found
+      let comic = cacheService.get(comicCacheKey, 'warm');
+      let chapters = cacheService.get(chaptersCacheKey, 'warm');
+      
       if (!comic) {
-        console.log(`[COMIC_CTRL] Comic not found: ${param}`);
-        logger.warn(`Comic not found: ${param}`);
-        return res.status(404).render('errors/404', {
-          title: '404 - Komik Tidak Ditemukan',
-          message: `Komik dengan param "${param}" tidak ditemukan.`
-        });
+        // Cache MISS - fetch comic from database
+        console.log(`[COMIC_CTRL] Cache MISS: ${comicCacheKey}`);
+        comic = await ComicModel.findByParam(param);
+        
+        // Handle not found
+        if (!comic) {
+          console.log(`[COMIC_CTRL] Comic not found: ${param}`);
+          logger.warn(`Comic not found: ${param}`);
+          return res.status(404).render('errors/404', {
+            title: '404 - Komik Tidak Ditemukan',
+            message: `Komik dengan param "${param}" tidak ditemukan.`
+          });
+        }
+        
+        // Cache comic data (30 min)
+        cacheService.set(comicCacheKey, comic, 'warm', 1800);
+        console.log(`[COMIC_CTRL] Cached comic: ${comicCacheKey}`);
+      } else {
+        console.log(`[COMIC_CTRL] Cache HIT: ${comicCacheKey}`);
       }
       
-      // Fetch chapters for this comic (always get all chapters first)
-      const chapters = await ChapterModel.findByComicId(comic.id, 'asc'); // Get in any order
+      if (!chapters) {
+        // Cache MISS - fetch chapters from database  
+        console.log(`[COMIC_CTRL] Cache MISS: ${chaptersCacheKey}`);
+        chapters = await ChapterModel.findByComicId(comic.id, 'asc');
+        
+        // Cache chapters list (30 min)
+        cacheService.set(chaptersCacheKey, chapters, 'warm', 1800);
+        console.log(`[COMIC_CTRL] Cached chapters: ${chaptersCacheKey} (${chapters.length} items)`);
+      } else {
+        console.log(`[COMIC_CTRL] Cache HIT: ${chaptersCacheKey} (${chapters.length} items)`);
+      }
       
       // Extract chapter number from label for proper sorting
       // Supports formats like: "Chapter 1", "Chapter 1.1", "Chapter 1.5", etc.
@@ -339,18 +365,38 @@ const ComicController = {
         return badRequest(res, 'Invalid comic parameter');
       }
       
-      // Fetch comic from database
-      const comic = await ComicModel.findByParam(param);
+      // Use cache for comic detail API
+      const cacheKey = `comic:detail:${param}`;
+      
+      const data = await cacheService.getOrFetch(
+        cacheKey,
+        async () => {
+          console.log(`[COMIC_CTRL] API: Cache MISS: ${cacheKey}`);
+          
+          // Fetch comic from database
+          const comic = await ComicModel.findByParam(param);
+          
+          if (!comic) {
+            return null; // Will be handled after getOrFetch
+          }
+          
+          // Get chapter count
+          const chapterCount = await ChapterModel.countByComicId(comic.id);
+          
+          return { comic, chapterCount };
+        },
+        'warm',
+        1800 // 30 minutes
+      );
       
       // Handle not found
-      if (!comic) {
+      if (!data || !data.comic) {
         console.log(`[COMIC_CTRL] API: Comic not found: ${param}`);
         logger.warn(`API: Comic not found: ${param}`);
         return errorResponse(res, 'Comic not found', null, 404);
       }
       
-      // Get chapter count
-      const chapterCount = await ChapterModel.countByComicId(comic.id);
+      const { comic, chapterCount } = data;
       
       console.log(`[COMIC_CTRL] API: Found comic "${comic.title}"`);
       logger.info(`API: Comic detail: "${comic.title}"`);
@@ -405,17 +451,41 @@ const ComicController = {
         return badRequest(res, 'Invalid comic parameter');
       }
       
-      // Fetch comic first to validate it exists
-      const comic = await ComicModel.findByParam(param);
+      // Use cache for chapters API
+      const cacheKey = `comic:chapters:${param}`;
       
-      if (!comic) {
+      const data = await cacheService.getOrFetch(
+        cacheKey,
+        async () => {
+          console.log(`[COMIC_CTRL] API: Cache MISS: ${cacheKey}`);
+          
+          // Fetch comic first to validate it exists
+          const comic = await ComicModel.findByParam(param);
+          
+          if (!comic) {
+            return null; // Will be handled after getOrFetch
+          }
+          
+          // Fetch chapters
+          const chapters = await ChapterModel.findByComicId(comic.id);
+          
+          return { 
+            comic: { param: comic.param, title: comic.title },
+            chapters 
+          };
+        },
+        'warm',
+        1800 // 30 minutes
+      );
+      
+      // Handle not found
+      if (!data || !data.comic) {
         console.log(`[COMIC_CTRL] API: Comic not found: ${param}`);
         logger.warn(`API: Comic not found: ${param}`);
         return errorResponse(res, 'Comic not found', null, 404);
       }
       
-      // Fetch chapters
-      const chapters = await ChapterModel.findByComicId(comic.id);
+      const { comic, chapters } = data;
       
       console.log(`[COMIC_CTRL] API: Found ${chapters.length} chapters`);
       logger.info(`API: Chapters for "${comic.title}": ${chapters.length}`);
@@ -554,6 +624,40 @@ const ComicController = {
       logger.error(`API: Genres error: ${error.message}`);
       return serverError(res, 'Failed to retrieve genres');
     }
+  },
+  
+  // ===========================================
+  // CACHE HELPERS
+  // ===========================================
+  
+  /**
+   * Invalidate comic cache
+   * 
+   * Call this when a comic is updated (metadata or chapters changed).
+   * Clears all cached data for a specific comic.
+   * 
+   * @param {string} comicParam - Comic URL param
+   * @returns {number} Number of cache entries cleared
+   */
+  invalidateComicCache(comicParam) {
+    const count = cacheService.invalidateComic(comicParam);
+    console.log(`[COMIC_CTRL] Invalidated cache for comic: ${comicParam} (${count} entries)`);
+    logger.info(`Cache invalidated: comic ${comicParam}`);
+    return count;
+  },
+  
+  /**
+   * Invalidate all comic caches
+   * 
+   * Use when multiple comics are updated (e.g., after scraper run).
+   * 
+   * @returns {number} Number of cache entries cleared
+   */
+  invalidateAllComicCaches() {
+    const count = cacheService.clearByPattern('comic:*');
+    console.log(`[COMIC_CTRL] Invalidated ALL comic caches (${count} entries)`);
+    logger.info(`All comic caches invalidated: ${count} entries`);
+    return count;
   }
 };
 
