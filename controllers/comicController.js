@@ -21,7 +21,7 @@
 const logger = require('../config/logger');
 const ComicModel = require('../models/mysql/comic.model');
 const ChapterModel = require('../models/mysql/chapter.model');
-const { ReadChapter } = require('../models/mongo');
+const { ReadChapter, Bookmark } = require('../models/mongo');
 const { successResponse, errorResponse, badRequest, serverError } = require('../utils/apiResponse');
 
 /**
@@ -192,16 +192,21 @@ const ComicController = {
       // Get user from request (if logged in)
       const user = req.user ? req.user.getPublicProfile() : null;
       
-      // Fetch read chapters for logged-in users
+      // Fetch read chapters and bookmark status for logged-in users
       let readChapterIds = [];
+      let isBookmarked = false;
+      
       if (req.user) {
         try {
-          readChapterIds = await ReadChapter.getReadChapterIds(req.user._id, comic.id);
-          console.log(`[COMIC_CTRL] User has read ${readChapterIds.length} chapters`);
+          [readChapterIds, isBookmarked] = await Promise.all([
+            ReadChapter.getReadChapterIds(req.user._id, comic.id),
+            Bookmark.isBookmarked(req.user._id, param)
+          ]);
+          console.log(`[COMIC_CTRL] User has read ${readChapterIds.length} chapters, bookmarked: ${isBookmarked}`);
         } catch (error) {
-          console.error(`[COMIC_CTRL] Failed to fetch read chapters: ${error.message}`);
-          logger.error(`Failed to fetch read chapters: ${error.message}`);
-          // Continue without read status
+          console.error(`[COMIC_CTRL] Failed to fetch read chapters or bookmark status: ${error.message}`);
+          logger.error(`Failed to fetch read chapters or bookmark status: ${error.message}`);
+          // Continue without read status (defaults remain: [], false)
         }
       }
       
@@ -215,7 +220,9 @@ const ComicController = {
         firstChapter,
         chapterCount: chapters.length,
         readChapterIds,
-        currentSort: sort
+        currentSort: sort,
+        isBookmarked,
+        query: req.query
       });
       
     } catch (error) {

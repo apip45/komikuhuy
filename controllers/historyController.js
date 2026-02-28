@@ -138,7 +138,8 @@ const HistoryController = {
           totalItems: totalHistory,
           hasNext: page < totalPages,
           hasPrev: page > 1
-        }
+        },
+        query: req.query
       });
       
     } catch (error) {

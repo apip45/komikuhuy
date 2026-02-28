@@ -63,16 +63,14 @@ const BookmarkController = {
       const comic = await ComicModel.getByParam(comicParam);
       if (!comic) {
         logger.warn(`[Bookmark] Comic not found: ${comicParam}`);
-        req.flash('error', 'Komik tidak ditemukan');
-        return res.redirect(referer);
+        return res.redirect(referer + '?error=' + encodeURIComponent('Komik tidak ditemukan'));
       }
       
       // Check if already bookmarked
       const isBookmarked = await Bookmark.isBookmarked(userId, comicParam);
       if (isBookmarked) {
         logger.info(`[Bookmark] Already bookmarked: ${comicParam} by user ${userId}`);
-        req.flash('info', 'Komik sudah ada di bookmark');
-        return res.redirect(referer);
+        return res.redirect(referer + '?info=' + encodeURIComponent('Komik sudah ada di bookmark'));
       }
       
       // Create bookmark with cached data
@@ -88,13 +86,11 @@ const BookmarkController = {
       });
       
       logger.info(`[Bookmark] Added: ${comicParam} by user ${userId}`);
-      req.flash('success', 'Berhasil ditambahkan ke bookmark');
-      return res.redirect(referer);
+      return res.redirect(referer + '?success=' + encodeURIComponent('Berhasil ditambahkan ke bookmark'));
       
     } catch (error) {
       logger.error(`[Bookmark] Error adding bookmark: ${error.message}`);
-      req.flash('error', 'Gagal menambahkan bookmark');
-      return res.redirect(referer);
+      return res.redirect(referer + '?error=' + encodeURIComponent('Gagal menambahkan bookmark'));
     }
   },
   
@@ -118,18 +114,15 @@ const BookmarkController = {
       
       if (result.deletedCount > 0) {
         logger.info(`[Bookmark] Removed: ${comicParam} by user ${userId}`);
-        req.flash('success', 'Bookmark dihapus');
+        return res.redirect(referer + '?success=' + encodeURIComponent('Bookmark dihapus'));
       } else {
         logger.warn(`[Bookmark] Not found for removal: ${comicParam}`);
-        req.flash('info', 'Bookmark tidak ditemukan');
+        return res.redirect(referer + '?info=' + encodeURIComponent('Bookmark tidak ditemukan'));
       }
-      
-      return res.redirect(referer);
       
     } catch (error) {
       logger.error(`[Bookmark] Error removing bookmark: ${error.message}`);
-      req.flash('error', 'Gagal menghapus bookmark');
-      return res.redirect(referer);
+      return res.redirect(referer + '?error=' + encodeURIComponent('Gagal menghapus bookmark'));
     }
   },
   
@@ -170,6 +163,8 @@ const BookmarkController = {
       
       return res.render('pages/bookmarks', {
         title: 'Bookmark Saya',
+        currentPage: 'bookmarks',
+        user: req.user.getPublicProfile(),
         bookmarks: formattedBookmarks,
         pagination: {
           current: page,
@@ -177,7 +172,8 @@ const BookmarkController = {
           hasNext: page < totalPages,
           hasPrev: page > 1,
           totalItems
-        }
+        },
+        query: req.query
       });
       
     } catch (error) {
