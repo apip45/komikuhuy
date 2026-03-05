@@ -126,7 +126,7 @@ const ChapterController = {
         console.log(`[CHAPTER_CTRL] Cached chapter data with ${ttl}s TTL`);
         
         // Prefetch adjacent chapters in background (non-blocking)
-        this.prefetchAdjacentChapters(param, navigation);
+        ChapterController.prefetchAdjacentChapters(param, navigation);
       }
       
       // Get user from request (if logged in)
@@ -281,7 +281,7 @@ const ChapterController = {
           logger.info(`API: Chapter "${chapter.chapter_label}" - ${images.length} pages`);
           
           // Prefetch adjacent chapters
-          this.prefetchAdjacentChapters(param, navigation);
+          ChapterController.prefetchAdjacentChapters(param, navigation);
           
           return { chapter, images, navigation };
         },
