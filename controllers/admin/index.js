@@ -9,9 +9,11 @@
 const AdminController = require('./adminController');
 const UserAdminController = require('./userAdminController');
 const ScraperAdminController = require('./scraperAdminController');
+const CacheAdminController = require('./cacheAdminController');
 
 module.exports = {
   AdminController,
   UserAdminController,
-  ScraperAdminController
+  ScraperAdminController,
+  CacheAdminController
 };

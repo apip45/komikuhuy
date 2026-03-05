@@ -1,0 +1,551 @@
+<%# Admin Cache Monitor Page %>
+
+<%
+  // Pre-compute health badge classes to avoid whitespace bugs from EJS inside class=""
+  const hStatus = healthInfo.status || 'healthy';
+  const badgeClass = hStatus === 'healthy'
+    ? 'bg-green-500/20 text-green-400 border-green-500/30'
+    : hStatus === 'warning'
+    ? 'bg-yellow-500/20 text-yellow-400 border-yellow-500/30'
+    : 'bg-red-500/20 text-red-400 border-red-500/30';
+  const dotClass = hStatus === 'healthy' ? 'bg-green-400'
+    : hStatus === 'warning' ? 'bg-yellow-400' : 'bg-red-400';
+  const badgeLabel = hStatus.charAt(0).toUpperCase() + hStatus.slice(1);
+
+  const tiers  = (cacheStats && cacheStats.tiers)   ? cacheStats.tiers   : null;
+  const overall= (cacheStats && cacheStats.overall)  ? cacheStats.overall : null;
+  const mem    = (cacheStats && cacheStats.memory)   ? cacheStats.memory  : null;
+
+  function tierRate(t) {
+    if (!tiers || !tiers[t]) return '0.0';
+    const h = tiers[t].hits, m = tiers[t].misses;
+    return (h + m) > 0 ? ((h / (h + m)) * 100).toFixed(1) : '0.0';
+  }
+  const memPct      = mem ? Math.min(Math.round((mem.heapUsed / mem.heapTotal) * 100), 100) : 0;
+  const memBarColor = memPct > 80 ? '#ef4444' : memPct > 60 ? '#f59e0b' : '#0d87ff';
+%>
+
+<style>
+  /* Spin animation – Tailwind CDN's JIT won't catch dynamically-added animate-spin */
+  @keyframes cache-spin { to { transform: rotate(360deg); } }
+  .is-spinning { animation: cache-spin 0.7s linear infinite; }
+  /* Smooth bar transitions */
+  .hit-bar { transition: width 0.4s ease; }
+  /* Key-list scrollbar */
+  .key-list::-webkit-scrollbar { width: 4px; }
+  .key-list::-webkit-scrollbar-thumb { background: #1e3a5f; border-radius: 2px; }
+</style>
+
+<!-- ============================================================
+     Header
+     ============================================================ -->
+<div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
+  <div>
+    <h2 class="text-2xl font-bold text-white flex items-center gap-2">
+      <svg class="w-7 h-7 text-neon-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 12h14M5 12a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v4a2 2 0 01-2 2M5 12a2 2 0 00-2 2v4a2 2 0 002 2h14a2 2 0 002-2v-4a2 2 0 00-2-2m-2-4h.01M17 16h.01"/>
+      </svg>
+      Cache Monitor
+    </h2>
+    <p class="text-gray-400 text-sm mt-1">Real-time statistics and cache management</p>
+  </div>
+  <div class="flex items-center gap-3 flex-wrap">
+    <!-- Health Badge: uses pre-computed variable to avoid EJS-in-class whitespace bugs -->
+    <span id="healthBadge" class="px-3 py-1 rounded-full text-xs font-semibold border <%= badgeClass %>">
+      <span class="inline-block w-2 h-2 rounded-full mr-1 pulse-dot <%= dotClass %>"></span><%= badgeLabel %>
+    </span>
+    <!-- Auto-refresh toggle: controlled via JS (inline style avoids Tailwind CDN peer issues) -->
+    <label class="flex items-center gap-2 cursor-pointer select-none" title="Toggle auto-refresh">
+      <div class="relative w-10 h-5">
+        <input id="autoRefreshToggle" type="checkbox" class="sr-only" checked>
+        <div id="toggleTrack" class="absolute inset-0 rounded-full" style="background:#0d87ff;transition:background 0.2s"></div>
+        <div id="toggleThumb" class="absolute top-0.5 left-0.5 w-4 h-4 bg-white rounded-full" style="transform:translateX(20px);transition:transform 0.2s ease"></div>
+      </div>
+      <span class="text-gray-400 text-xs whitespace-nowrap">Auto refresh</span>
+    </label>
+    <!-- Manual refresh -->
+    <button onclick="refreshStats()" class="flex items-center gap-1.5 px-3 py-1.5 bg-neon-600/20 hover:bg-neon-600/30 border border-neon-600/40 rounded-lg text-neon-400 text-sm transition-all">
+      <svg id="refreshIcon" class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
+      </svg>
+      Refresh
+    </button>
+  </div>
+</div>
+
+<!-- Warnings (if any) -->
+<% if (healthInfo.warnings && healthInfo.warnings.length > 0) { %>
+<div class="mb-6 p-4 bg-yellow-900/30 border border-yellow-500/40 rounded-xl">
+  <div class="flex items-center gap-2 mb-2">
+    <svg class="w-5 h-5 text-yellow-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/>
+    </svg>
+    <span class="text-yellow-400 font-semibold text-sm">Cache Warnings</span>
+  </div>
+  <ul class="space-y-1">
+    <% healthInfo.warnings.forEach(w => { %>
+    <li class="text-yellow-300 text-sm">• <%= w %></li>
+    <% }) %>
+  </ul>
+</div>
+<% } %>
+
+<!-- Overview Stats -->
+<div class="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-5">
+
+  <div class="card rounded-xl p-5">
+    <p class="text-xs text-gray-500 uppercase tracking-wider mb-2">Total Keys</p>
+    <p class="text-3xl font-bold text-white leading-none" id="stat-totalKeys"><%= overall ? overall.totalKeys : 0 %></p>
+    <p class="text-xs text-gray-600 mt-1">across all tiers</p>
+  </div>
+
+  <div class="card rounded-xl p-5">
+    <p class="text-xs text-gray-500 uppercase tracking-wider mb-2">Hit Rate</p>
+    <%
+      const hrPct = overall ? parseFloat(overall.hitRate) : 0;
+      const hrColor = hrPct >= 70 ? '#4ade80' : hrPct >= 40 ? '#facc15' : '#f87171';
+    %>
+    <p class="text-3xl font-bold leading-none" id="stat-hitRate" style="color:<%= hrColor %>"><%= overall ? overall.hitRate : '0%' %></p>
+    <p class="text-xs text-gray-600 mt-1">overall efficiency</p>
+  </div>
+
+  <div class="card rounded-xl p-5">
+    <p class="text-xs text-gray-500 uppercase tracking-wider mb-2">Total Hits</p>
+    <p class="text-3xl font-bold text-neon-400 leading-none" id="stat-totalHits"><%= overall ? overall.totalHits.toLocaleString() : 0 %></p>
+    <p class="text-xs text-gray-600 mt-1">cache served</p>
+  </div>
+
+  <div class="card rounded-xl p-5">
+    <p class="text-xs text-gray-500 uppercase tracking-wider mb-2">Total Misses</p>
+    <p class="text-3xl font-bold text-red-400 leading-none" id="stat-totalMisses"><%= overall ? overall.totalMisses.toLocaleString() : 0 %></p>
+    <p class="text-xs text-gray-600 mt-1">db fetch required</p>
+  </div>
+
+</div>
+
+<!-- Memory -->
+<div class="card rounded-xl p-5 mb-5">
+  <div class="flex items-center justify-between mb-4">
+    <h3 class="text-sm font-semibold text-white flex items-center gap-2">
+      <svg class="w-4 h-4 text-neon-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 3H5a2 2 0 00-2 2v4m6-6h10a2 2 0 012 2v4M9 3v18m0 0h10a2 2 0 002-2V9M9 21H5a2 2 0 01-2-2V9m0 0h18"/>
+      </svg>
+      Server Memory
+    </h3>
+    <span class="text-xs text-gray-600">process.memoryUsage()</span>
+  </div>
+  <div class="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
+    <div class="bg-dark-300 rounded-lg p-3">
+      <p class="text-xs text-gray-500 mb-1">Heap Used</p>
+      <p class="text-lg font-bold text-white" id="mem-heapUsed"><%= mem ? mem.heapUsed + ' MB' : 'N/A' %></p>
+    </div>
+    <div class="bg-dark-300 rounded-lg p-3">
+      <p class="text-xs text-gray-500 mb-1">Heap Total</p>
+      <p class="text-lg font-bold text-gray-300" id="mem-heapTotal"><%= mem ? mem.heapTotal + ' MB' : 'N/A' %></p>
+    </div>
+    <div class="bg-dark-300 rounded-lg p-3">
+      <p class="text-xs text-gray-500 mb-1">RSS</p>
+      <p class="text-lg font-bold text-gray-300" id="mem-rss"><%= mem ? mem.rss + ' MB' : 'N/A' %></p>
+    </div>
+    <div class="bg-dark-300 rounded-lg p-3">
+      <p class="text-xs text-gray-500 mb-1">External</p>
+      <p class="text-lg font-bold text-gray-300" id="mem-external"><%= mem ? mem.external + ' MB' : 'N/A' %></p>
+    </div>
+  </div>
+  <!-- Memory bar (inline style avoids Tailwind CDN dynamic-class issues) -->
+  <div>
+    <div class="flex justify-between text-xs text-gray-500 mb-1">
+      <span>Heap utilization</span>
+      <span id="mem-pct"><%= memPct %>%</span>
+    </div>
+    <div class="h-2.5 bg-dark-100 rounded-full overflow-hidden">
+      <div id="mem-bar" class="h-full rounded-full" style="width:<%= memPct %>%;background-color:<%= memBarColor %>;transition:width 0.4s ease"></div>
+    </div>
+    <p class="text-xs text-gray-600 mt-1"><%= mem ? mem.heapUsed + ' MB used of ' + mem.heapTotal + ' MB total' : '' %></p>
+  </div>
+</div>
+
+<!-- Per-Tier Stats -->
+<div class="grid grid-cols-1 md:grid-cols-3 gap-5 mb-5">
+
+<% [
+  { id:'hot',  label:'HOT',  color:'#f87171', border:'border-red-500/30',    btnCls:'bg-red-500/10 hover:bg-red-500/20 border-red-500/30 text-red-400',     tag:'30 min TTL · 30 max',  max:30  },
+  { id:'warm', label:'WARM', color:'#facc15', border:'border-yellow-500/30', btnCls:'bg-yellow-500/10 hover:bg-yellow-500/20 border-yellow-500/30 text-yellow-400', tag:'30 min TTL · 100 max', max:100 },
+  { id:'cold', label:'COLD', color:'#60a5fa', border:'border-blue-500/30',   btnCls:'bg-blue-500/10 hover:bg-blue-500/20 border-blue-500/30 text-blue-400',   tag:'24 hr TTL · 100 max',  max:100 }
+].forEach(function(tc) {
+  const td = tiers ? tiers[tc.id] : { keys:0, hits:0, misses:0 };
+  const rate = parseFloat(tierRate(tc.id));
+  const fillPct = Math.min(Math.round((td.keys / tc.max) * 100), 100);
+  const fillColor = fillPct > 80 ? '#ef4444' : fillPct > 50 ? '#f59e0b' : '#0d87ff';
+%>
+  <div class="card rounded-xl p-5 border <%= tc.border %>">
+    <div class="flex items-center justify-between mb-4">
+      <div class="flex items-center gap-2">
+        <span class="w-3 h-3 rounded-full" style="background:<%= tc.color %>"></span>
+        <h3 class="font-bold text-white"><%= tc.label %> Cache</h3>
+      </div>
+      <span class="text-xs text-gray-500 bg-dark-300 px-2 py-0.5 rounded"><%= tc.tag %></span>
+    </div>
+    <div class="space-y-2.5 mb-4">
+      <div class="flex justify-between items-center text-sm">
+        <span class="text-gray-400">Keys stored</span>
+        <span class="font-semibold text-white" id="<%= tc.id %>-keys"><%= td.keys %> / <%= tc.max %></span>
+      </div>
+      <div class="flex justify-between items-center text-sm">
+        <span class="text-gray-400">Hits</span>
+        <span class="font-semibold text-green-400" id="<%= tc.id %>-hits"><%= td.hits.toLocaleString() %></span>
+      </div>
+      <div class="flex justify-between items-center text-sm">
+        <span class="text-gray-400">Misses</span>
+        <span class="font-semibold text-red-400" id="<%= tc.id %>-misses"><%= td.misses.toLocaleString() %></span>
+      </div>
+    </div>
+    <!-- Hit rate bar -->
+    <div class="mb-3">
+      <div class="flex justify-between text-xs text-gray-500 mb-1">
+        <span>Hit rate</span>
+        <span id="<%= tc.id %>-rate" class="font-semibold" style="color:<%= tc.color %>"><%= rate.toFixed(1) %>%</span>
+      </div>
+      <div class="h-1.5 bg-dark-100 rounded-full overflow-hidden">
+        <div id="<%= tc.id %>-ratebar" class="h-full rounded-full" style="width:<%= rate %>%;background-color:<%= tc.color %>;transition:width 0.4s ease"></div>
+      </div>
+    </div>
+    <!-- Capacity bar -->
+    <div class="mb-4">
+      <div class="flex justify-between text-xs text-gray-500 mb-1">
+        <span>Capacity</span>
+        <span id="<%= tc.id %>-fillpct"><%= fillPct %>%</span>
+      </div>
+      <div class="h-1.5 bg-dark-100 rounded-full overflow-hidden">
+        <div id="<%= tc.id %>-fillbar" class="h-full rounded-full" style="width:<%= fillPct %>%;background-color:<%= fillColor %>;transition:width 0.4s ease"></div>
+      </div>
+    </div>
+    <button onclick="clearTier('<%= tc.id %>')" class="w-full py-1.5 text-xs rounded-lg border transition-all <%= tc.btnCls %>">
+      Clear <%= tc.label %> Cache
+    </button>
+    <div class="mt-3">
+      <button id="keysToggleBtn-<%= tc.id %>" onclick="toggleKeys('<%= tc.id %>')" class="text-xs text-gray-500 hover:text-gray-300 transition-colors">▶ Show keys</button>
+      <ul id="keys-<%= tc.id %>" class="hidden mt-1.5 max-h-36 overflow-y-auto space-y-1 key-list"></ul>
+    </div>
+  </div>
+<% }) %>
+
+</div>
+
+<!-- Cache Management Tools -->
+<div class="grid grid-cols-1 md:grid-cols-2 gap-5 mb-5">
+
+  <!-- Clear by Pattern -->
+  <div class="card rounded-xl p-5">
+    <h3 class="font-semibold text-white mb-1 flex items-center gap-2">
+      <svg class="w-5 h-5 text-neon-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
+      </svg>
+      Clear by Pattern
+    </h3>
+    <p class="text-gray-500 text-xs mb-3">Clears all keys containing the given substring, across all tiers.</p>
+    <div class="flex gap-2 mb-3">
+      <input id="patternInput" type="text" placeholder="e.g. comic:123 or chapter:"
+        class="flex-1 bg-dark-300 border border-dark-100 focus:border-neon-600 text-gray-200 text-sm rounded-lg px-3 py-2 outline-none placeholder-gray-600 transition-colors">
+      <button onclick="clearPattern()" class="px-4 py-2 bg-neon-600/20 hover:bg-neon-600/30 border border-neon-600/40 text-neon-400 text-sm rounded-lg transition-all whitespace-nowrap font-medium">
+        Clear
+      </button>
+    </div>
+    <div class="flex flex-wrap items-center gap-2">
+      <span class="text-xs text-gray-600">Quick fill:</span>
+      <% ['comic:', 'comics:list', 'chapter:', 'homepage:', 'genres:'].forEach(function(p) { %>
+      <button onclick="setPattern('<%= p %>')" class="text-xs text-neon-400 hover:text-neon-300 bg-dark-300 hover:bg-dark-200 px-2 py-0.5 rounded transition-colors font-mono"><%= p %></button>
+      <% }) %>
+    </div>
+  </div>
+
+  <!-- Flush All -->
+  <div class="card rounded-xl p-5 border border-red-500/20">
+    <h3 class="font-semibold text-white mb-1 flex items-center gap-2">
+      <svg class="w-5 h-5 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
+      </svg>
+      Flush All Caches
+    </h3>
+    <p class="text-gray-500 text-xs mb-4">Removes every entry from HOT + WARM + COLD. Use with caution — site performance will temporarily drop until caches warm back up.</p>
+    <button onclick="flushAll()" class="w-full py-2.5 bg-red-500/10 hover:bg-red-500/20 border border-red-500/40 text-red-400 font-semibold text-sm rounded-lg transition-all">
+      ⚠ Flush All Caches
+    </button>
+  </div>
+
+</div>
+
+<!-- Toast -->
+<div id="toast" class="fixed bottom-6 right-6 z-50 hidden max-w-xs w-full">
+  <div id="toastInner" class="flex items-start gap-3 p-4 rounded-xl shadow-2xl border bg-dark-200">
+    <svg id="toastIcon" class="w-5 h-5 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"></svg>
+    <div class="flex-1 min-w-0">
+      <p id="toastTitle" class="text-sm font-semibold leading-tight"></p>
+      <p id="toastMsg" class="text-xs text-gray-400 mt-0.5 break-words"></p>
+    </div>
+    <button onclick="document.getElementById('toast').classList.add('hidden')" class="text-gray-600 hover:text-gray-400 flex-shrink-0">
+      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+    </button>
+  </div>
+</div>
+
+<!-- Footer status bar -->
+<div class="flex items-center justify-between text-xs text-gray-600 mt-2">
+  <span id="autoRefreshStatus" class="text-neon-400">Auto-refresh ON (5s)</span>
+  <span>Last updated: <span id="lastUpdated">just now</span></span>
+</div>
+
+<script>
+(function () {
+  'use strict';
+
+  // ─── Config ──────────────────────────────────────────
+  const INTERVAL = 5000;
+  const MAX_KEYS  = { hot: 30, warm: 100, cold: 100 };
+  const TIER_COLORS = { hot: '#f87171', warm: '#facc15', cold: '#60a5fa' };
+
+  // ─── State ───────────────────────────────────────────
+  let autoRefresh  = true;
+  let refreshTimer = null;
+  let toastTimeout = null;
+  const keysVisible  = { hot: false, warm: false, cold: false };
+  let tierKeys = { hot: [], warm: [], cold: [] };
+
+  // ─── Toggle ──────────────────────────────────────────
+  const togEl    = document.getElementById('autoRefreshToggle');
+  const togTrack = document.getElementById('toggleTrack');
+  const togThumb = document.getElementById('toggleThumb');
+
+  function setToggleUI(on) {
+    togTrack.style.background = on ? '#0d87ff' : '#1e293b';
+    togThumb.style.transform  = on ? 'translateX(20px)' : 'translateX(0px)';
+    const s = document.getElementById('autoRefreshStatus');
+    if (s) s.textContent = on ? 'Auto-refresh ON (5s)' : 'Auto-refresh OFF';
+  }
+
+  togEl.addEventListener('change', function () {
+    autoRefresh = this.checked;
+    setToggleUI(autoRefresh);
+    autoRefresh ? startTimer() : stopTimer();
+  });
+
+  // ─── Timer ───────────────────────────────────────────
+  function startTimer() { stopTimer(); refreshTimer = setInterval(refreshStats, INTERVAL); }
+  function stopTimer()  { if (refreshTimer) { clearInterval(refreshTimer); refreshTimer = null; } }
+
+  // ─── Fetch & Update ──────────────────────────────────
+  async function refreshStats() {
+    const icon = document.getElementById('refreshIcon');
+    icon.classList.add('is-spinning');
+    try {
+      const resp = await fetch('/admin/cache/stats');
+      if (!resp.ok) throw new Error('HTTP ' + resp.status);
+      const json = await resp.json();
+      if (!json.success) throw new Error(json.error || 'Unknown error');
+      applyStats(json.data);
+    } catch (err) {
+      console.error('[Cache Monitor]', err.message);
+    } finally {
+      icon.classList.remove('is-spinning');
+    }
+  }
+
+  function applyStats(d) {
+    // Overview
+    setText('stat-totalKeys',   d.overall.totalKeys);
+    setText('stat-totalHits',   d.overall.totalHits.toLocaleString());
+    setText('stat-totalMisses', d.overall.totalMisses.toLocaleString());
+    const hitEl = document.getElementById('stat-hitRate');
+    if (hitEl) {
+      hitEl.textContent  = d.overall.hitRate;
+      const p = parseFloat(d.overall.hitRate);
+      hitEl.style.color  = p >= 70 ? '#4ade80' : p >= 40 ? '#facc15' : '#f87171';
+    }
+
+    // Memory
+    if (d.memory) {
+      setText('mem-heapUsed',  d.memory.heapUsed  + ' MB');
+      setText('mem-heapTotal', d.memory.heapTotal + ' MB');
+      setText('mem-rss',       d.memory.rss       + ' MB');
+      setText('mem-external',  d.memory.external  + ' MB');
+      const pct = Math.min(Math.round((d.memory.heapUsed / d.memory.heapTotal) * 100), 100);
+      setText('mem-pct', pct + '%');
+      const bar = document.getElementById('mem-bar');
+      if (bar) {
+        bar.style.width           = pct + '%';
+        bar.style.backgroundColor = pct > 80 ? '#ef4444' : pct > 60 ? '#f59e0b' : '#0d87ff';
+      }
+    }
+
+    // Per-tier
+    ['hot', 'warm', 'cold'].forEach(function (t) {
+      const td  = d.tiers[t];
+      const max = MAX_KEYS[t];
+      const color = TIER_COLORS[t];
+      const rate  = (td.hits + td.misses) > 0
+        ? ((td.hits / (td.hits + td.misses)) * 100).toFixed(1) : '0.0';
+      const fillPct = Math.min(Math.round((td.keys / max) * 100), 100);
+
+      setText(t + '-keys',    td.keys + ' / ' + max);
+      setText(t + '-hits',    td.hits.toLocaleString());
+      setText(t + '-misses',  td.misses.toLocaleString());
+      setText(t + '-rate',    rate + '%');
+      setText(t + '-fillpct', fillPct + '%');
+
+      const rBar = document.getElementById(t + '-ratebar');
+      if (rBar) { rBar.style.width = rate + '%'; }
+
+      const fBar = document.getElementById(t + '-fillbar');
+      if (fBar) {
+        fBar.style.width           = fillPct + '%';
+        fBar.style.backgroundColor = fillPct > 80 ? '#ef4444' : fillPct > 50 ? '#f59e0b' : '#0d87ff';
+      }
+    });
+
+    // Health badge
+    updateHealthBadge(d.health);
+
+    // Keys
+    tierKeys = d.tierKeys || { hot: [], warm: [], cold: [] };
+    ['hot', 'warm', 'cold'].forEach(function (t) {
+      if (keysVisible[t]) renderKeys(t);
+    });
+
+    setText('lastUpdated', new Date().toLocaleTimeString());
+  }
+
+  // ─── Health Badge ────────────────────────────────────
+  function updateHealthBadge(status) {
+    const badge = document.getElementById('healthBadge');
+    if (!badge) return;
+    const map = {
+      healthy:  { cls: 'bg-green-500/20 text-green-400 border-green-500/30',   dot: 'bg-green-400'  },
+      warning:  { cls: 'bg-yellow-500/20 text-yellow-400 border-yellow-500/30', dot: 'bg-yellow-400' },
+      critical: { cls: 'bg-red-500/20 text-red-400 border-red-500/30',         dot: 'bg-red-400'    }
+    };
+    const s = map[status] || map.healthy;
+    const label = status.charAt(0).toUpperCase() + status.slice(1);
+    badge.className = 'px-3 py-1 rounded-full text-xs font-semibold border ' + s.cls;
+    badge.innerHTML = '<span class="inline-block w-2 h-2 rounded-full mr-1 pulse-dot ' + s.dot + '"></span>' + label;
+  }
+
+  // ─── Keys Toggle ─────────────────────────────────────
+  window.toggleKeys = function (tier) {
+    keysVisible[tier] = !keysVisible[tier];
+    const list = document.getElementById('keys-' + tier);
+    const btn  = document.getElementById('keysToggleBtn-' + tier);
+    if (keysVisible[tier]) {
+      list.classList.remove('hidden');
+      if (btn) btn.textContent = '▼ Hide keys';
+      renderKeys(tier);
+    } else {
+      list.classList.add('hidden');
+      if (btn) btn.textContent = '▶ Show keys';
+    }
+  };
+
+  function renderKeys(tier) {
+    const list = document.getElementById('keys-' + tier);
+    const keys = tierKeys[tier] || [];
+    if (!list) return;
+    if (keys.length === 0) {
+      list.innerHTML = '<li class="text-xs text-gray-600 italic px-1">No keys cached</li>';
+      return;
+    }
+    list.innerHTML = keys.map(function (k) {
+      const safe = k.replace(/&/g,'&amp;').replace(/</g,'&lt;');
+      return '<li title="' + safe + '" class="text-xs text-gray-400 font-mono px-2 py-0.5 bg-dark-300 rounded truncate">' + safe + '</li>';
+    }).join('');
+  }
+
+  // ─── Clear Tier ──────────────────────────────────────
+  window.clearTier = async function (tier) {
+    if (!confirm('Clear all entries in the ' + tier.toUpperCase() + ' cache tier?')) return;
+    try {
+      const resp = await fetch('/admin/cache/clear-tier', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ tier })
+      });
+      const json = await resp.json();
+      json.success
+        ? showToast('success', 'Cache Cleared', json.message)
+        : showToast('error',   'Error',         json.error || 'Failed');
+      if (json.success) refreshStats();
+    } catch (err) { showToast('error', 'Request Failed', err.message); }
+  };
+
+  // ─── Clear Pattern ────────────────────────────────────
+  window.clearPattern = async function () {
+    const pattern = document.getElementById('patternInput').value.trim();
+    if (!pattern) { showToast('warning', 'Input Required', 'Enter a pattern to clear'); return; }
+    try {
+      const resp = await fetch('/admin/cache/clear-pattern', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ pattern })
+      });
+      const json = await resp.json();
+      if (json.success) {
+        showToast('success', 'Pattern Cleared', json.message);
+        document.getElementById('patternInput').value = '';
+        refreshStats();
+      } else {
+        showToast('error', 'Error', json.error || 'Failed');
+      }
+    } catch (err) { showToast('error', 'Request Failed', err.message); }
+  };
+
+  window.setPattern = function (p) {
+    const el = document.getElementById('patternInput');
+    el.value = p; el.focus();
+  };
+
+  // ─── Flush All ───────────────────────────────────────
+  window.flushAll = async function () {
+    if (!confirm('⚠ Flush ALL cache tiers?\nSite performance will temporarily drop.')) return;
+    try {
+      const resp = await fetch('/admin/cache/flush-all', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' }
+      });
+      const json = await resp.json();
+      json.success
+        ? showToast('success', 'All Caches Flushed', json.message)
+        : showToast('error',   'Error',              json.error || 'Failed');
+      if (json.success) refreshStats();
+    } catch (err) { showToast('error', 'Request Failed', err.message); }
+  };
+
+  // ─── Toast ───────────────────────────────────────────
+  function showToast(type, title, msg) {
+    const map = {
+      success: { border: 'border-green-500/40', text: 'text-green-400',  d: 'M5 13l4 4L19 7' },
+      error:   { border: 'border-red-500/40',   text: 'text-red-400',    d: 'M6 18L18 6M6 6l12 12' },
+      warning: { border: 'border-yellow-500/40',text: 'text-yellow-400', d: 'M12 9v2m0 4h.01M12 5a7 7 0 100 14A7 7 0 0012 5z' }
+    };
+    const s = map[type] || map.error;
+    document.getElementById('toastInner').className =
+      'flex items-start gap-3 p-4 rounded-xl shadow-2xl border bg-dark-200 ' + s.border;
+    const icon = document.getElementById('toastIcon');
+    icon.className = 'w-5 h-5 flex-shrink-0 mt-0.5 ' + s.text;
+    icon.innerHTML = '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="' + s.d + '"/>';
+    const te = document.getElementById('toastTitle');
+    te.className = 'text-sm font-semibold ' + s.text;
+    te.textContent = title;
+    document.getElementById('toastMsg').textContent = msg;
+    document.getElementById('toast').classList.remove('hidden');
+    if (toastTimeout) clearTimeout(toastTimeout);
+    toastTimeout = setTimeout(function () {
+      document.getElementById('toast').classList.add('hidden');
+    }, 5000);
+  }
+
+  // ─── Helpers ─────────────────────────────────────────
+  function setText(id, val) {
+    const el = document.getElementById(id);
+    if (el) el.textContent = val;
+  }
+
+  // ─── Init ────────────────────────────────────────────
+  setToggleUI(true);
+  startTimer();
+}());
+</script>

@@ -30,7 +30,8 @@ const { isAdmin } = require('../middlewares/isAdmin');
 const { 
   AdminController, 
   UserAdminController, 
-  ScraperAdminController 
+  ScraperAdminController,
+  CacheAdminController
 } = require('../controllers/admin');
 
 // Apply authentication and admin check to all routes
@@ -157,5 +158,39 @@ router.post('/stats/refresh', async (req, res) => {
  * View scraper and system logs
  */
 router.get('/logs', ScraperAdminController.logsPage.bind(ScraperAdminController));
+
+// ===========================================
+// Cache Monitor Routes
+// ===========================================
+
+/**
+ * GET /admin/cache
+ * Cache monitoring dashboard
+ */
+router.get('/cache', CacheAdminController.cachePage.bind(CacheAdminController));
+
+/**
+ * GET /admin/cache/stats
+ * Get live cache statistics (JSON)
+ */
+router.get('/cache/stats', CacheAdminController.getStatsApi.bind(CacheAdminController));
+
+/**
+ * POST /admin/cache/clear-tier
+ * Clear a specific cache tier
+ */
+router.post('/cache/clear-tier', CacheAdminController.clearTier.bind(CacheAdminController));
+
+/**
+ * POST /admin/cache/clear-pattern
+ * Clear cache entries by pattern
+ */
+router.post('/cache/clear-pattern', CacheAdminController.clearPattern.bind(CacheAdminController));
+
+/**
+ * POST /admin/cache/flush-all
+ * Flush all cache tiers
+ */
+router.post('/cache/flush-all', CacheAdminController.flushAll.bind(CacheAdminController));
 
 module.exports = router;
