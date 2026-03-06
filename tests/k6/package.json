@@ -1,0 +1,38 @@
+{
+  "name": "af-komik-k6-tests",
+  "version": "1.0.0",
+  "description": "K6 Performance Testing Suite for AF-Komik V2",
+  "scripts": {
+    "test": "k6 run performance-test.js",
+    "test:quick": "k6 run quick-test.js",
+    "test:stress": "k6 run stress-test.js",
+    "test:spike": "k6 run spike-test.js",
+    "test:soak": "k6 run soak-test.js",
+    "test:soak:short": "k6 run -e DURATION=30m soak-test.js",
+    "test:production": "k6 run -e BASE_URL=https://comic.mikan.my.id performance-test.js",
+    "test:staging": "k6 run -e BASE_URL=https://staging.comic.mikan.my.id performance-test.js",
+    "test:local": "k6 run -e BASE_URL=http://localhost:3000 performance-test.js",
+    "test:light": "k6 run --vus 10 --duration 1m performance-test.js",
+    "test:medium": "k6 run --vus 50 --duration 5m performance-test.js",
+    "test:heavy": "k6 run --vus 200 --duration 10m performance-test.js",
+    "test:ci": "k6 run --vus 20 --duration 2m --quiet performance-test.js",
+    "test:with-report": "k6 run --out json=results/report.json performance-test.js",
+    "clean": "rm -rf results/*.json results/*.html",
+    "install:k6:mac": "brew install k6",
+    "install:k6:windows": "choco install k6",
+    "install:k6:linux": "echo 'See README.md for Linux installation instructions'"
+  },
+  "keywords": [
+    "k6",
+    "performance",
+    "load-testing",
+    "stress-testing",
+    "af-komik"
+  ],
+  "author": "AF-Komik Team",
+  "license": "MIT",
+  "devDependencies": {},
+  "engines": {
+    "k6": ">=0.45.0"
+  }
+}
