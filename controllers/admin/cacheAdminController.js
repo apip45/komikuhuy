@@ -31,6 +31,7 @@ const CacheAdminController = {
         layout: 'layouts/admin',
         title: 'Cache Monitor - AF-Komik Admin',
         page: 'cache',
+        pageScript: '/js/cache-admin.js',
         user: req.session,
         cacheStats,
         healthInfo

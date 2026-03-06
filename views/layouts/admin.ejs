@@ -348,7 +348,9 @@
     }
   </script>
   
-  <%- typeof scripts !== 'undefined' ? scripts : '' %>
-  
+  <%- typeof script !== 'undefined' ? script : '' %>
+  <% if (typeof pageScript !== 'undefined' && pageScript) { %>
+  <script src="<%= pageScript %>"></script>
+  <% } %>
 </body>
 </html>
