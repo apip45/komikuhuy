@@ -22,7 +22,7 @@
  */
 
 const { query } = require('../../config/mysql');
-const logger = require('../../config/logger');
+const logger = require('../../utils/smartLogger');
 
 /**
  * Comic model with database operations
@@ -49,8 +49,7 @@ const ComicModel = {
   async findAll({ limit = 20, offset = 0 } = {}) {
     const startTime = Date.now();
     
-    console.log(`[COMIC_MODEL] findAll() - Fetching comics (limit: ${limit}, offset: ${offset})`);
-    logger.debug(`Comic.findAll: limit=${limit}, offset=${offset}`);
+    logger.debug(`[COMIC_MODEL] findAll() - Fetching comics`, { limit, offset });
     
     try {
       // SQL: Select comics with essential fields for listing
@@ -73,8 +72,7 @@ const ComicModel = {
       const results = await query(sql, [limit, offset]);
       const duration = Date.now() - startTime;
       
-      console.log(`[COMIC_MODEL] findAll() - Found ${results.length} comics in ${duration}ms`);
-      logger.info(`Comic.findAll: ${results.length} results in ${duration}ms`);
+      logger.info(`[COMIC_MODEL] findAll() - Found ${results.length} comics in ${duration}ms`);
       
       // Parse genres JSON for each comic (stored as JSON string in DB)
       return results.map(comic => ({
@@ -83,8 +81,7 @@ const ComicModel = {
       }));
       
     } catch (error) {
-      console.error(`[COMIC_MODEL] findAll() - Error: ${error.message}`);
-      logger.error(`Comic.findAll error: ${error.message}`);
+      logger.error(`[COMIC_MODEL] findAll() - Error: ${error.message}`);
       throw error;
     }
   },
@@ -104,8 +101,7 @@ const ComicModel = {
   async findByParam(param) {
     const startTime = Date.now();
     
-    console.log(`[COMIC_MODEL] findByParam() - Looking for comic: "${param}"`);
-    logger.debug(`Comic.findByParam: param=${param}`);
+    logger.debug(`[COMIC_MODEL] findByParam() - Looking for comic: "${param}"`, { param });
     
     try {
       // SQL: Select all fields for detail page
@@ -131,14 +127,12 @@ const ComicModel = {
       const duration = Date.now() - startTime;
       
       if (results.length === 0) {
-        console.log(`[COMIC_MODEL] findByParam() - Comic not found: "${param}" (${duration}ms)`);
-        logger.warn(`Comic.findByParam: not found - ${param}`);
+        logger.warn(`[COMIC_MODEL] findByParam() - Comic not found: "${param}" (${duration}ms)`, { param, duration });
         return null;
       }
       
       const comic = results[0];
-      console.log(`[COMIC_MODEL] findByParam() - Found: "${comic.title}" (${duration}ms)`);
-      logger.info(`Comic.findByParam: found "${comic.title}" in ${duration}ms`);
+      logger.info(`[COMIC_MODEL] findByParam() - Found: "${comic.title}" in ${duration}ms`, { title: comic.title, duration });
       
       // Parse genres JSON
       return {
@@ -147,8 +141,7 @@ const ComicModel = {
       };
       
     } catch (error) {
-      console.error(`[COMIC_MODEL] findByParam() - Error: ${error.message}`);
-      logger.error(`Comic.findByParam error: ${error.message}`);
+      logger.error(`[COMIC_MODEL] findByParam() - Error: ${error.message}`);
       throw error;
     }
   },
@@ -167,8 +160,7 @@ const ComicModel = {
   async findById(id) {
     const startTime = Date.now();
     
-    console.log(`[COMIC_MODEL] findById() - Looking for comic ID: ${id}`);
-    logger.debug(`Comic.findById: id=${id}`);
+    logger.debug(`[COMIC_MODEL] findById() - Looking for comic ID: ${id}`, { id });
     
     try {
       const sql = `
@@ -192,14 +184,12 @@ const ComicModel = {
       const duration = Date.now() - startTime;
       
       if (results.length === 0) {
-        console.log(`[COMIC_MODEL] findById() - Comic ID ${id} not found (${duration}ms)`);
-        logger.warn(`Comic.findById: not found - id=${id}`);
+        logger.warn(`[COMIC_MODEL] findById() - Comic ID ${id} not found (${duration}ms)`, { id, duration });
         return null;
       }
       
       const comic = results[0];
-      console.log(`[COMIC_MODEL] findById() - Found: "${comic.title}" (${duration}ms)`);
-      logger.info(`Comic.findById: found "${comic.title}" in ${duration}ms`);
+      logger.info(`[COMIC_MODEL] findById() - Found: "${comic.title}" in ${duration}ms`, { title: comic.title, duration });
       
       return {
         ...comic,
@@ -207,8 +197,7 @@ const ComicModel = {
       };
       
     } catch (error) {
-      console.error(`[COMIC_MODEL] findById() - Error: ${error.message}`);
-      logger.error(`Comic.findById error: ${error.message}`);
+      logger.error(`[COMIC_MODEL] findById() - Error: ${error.message}`);
       throw error;
     }
   },
@@ -226,8 +215,7 @@ const ComicModel = {
   async count() {
     const startTime = Date.now();
     
-    console.log(`[COMIC_MODEL] count() - Counting total comics`);
-    logger.debug(`Comic.count: counting`);
+    logger.debug(`[COMIC_MODEL] count() - Counting total comics`);
     
     try {
       const sql = `SELECT COUNT(*) as total FROM komik`;
@@ -235,14 +223,12 @@ const ComicModel = {
       const duration = Date.now() - startTime;
       
       const total = results[0].total;
-      console.log(`[COMIC_MODEL] count() - Total: ${total} comics (${duration}ms)`);
-      logger.info(`Comic.count: ${total} total in ${duration}ms`);
+      logger.info(`[COMIC_MODEL] count() - Total: ${total} comics in ${duration}ms`, { total, duration });
       
       return total;
       
     } catch (error) {
-      console.error(`[COMIC_MODEL] count() - Error: ${error.message}`);
-      logger.error(`Comic.count error: ${error.message}`);
+      logger.error(`[COMIC_MODEL] count() - Error: ${error.message}`);
       throw error;
     }
   },

@@ -25,7 +25,7 @@
  */
 
 const { cacheManager } = require('../config/cache');
-const logger = require('../config/logger');
+const logger = require('../utils/smartLogger');
 
 class CacheService {
     constructor() {

@@ -32,7 +32,7 @@
  * router.get('/', attachUser, homeController.getHome);
  */
 
-const logger = require('../config/logger');
+const logger = require('../utils/smartLogger');
 const User = require('../models/mongo/User');
 const { unauthorized } = require('../utils/apiResponse');
 

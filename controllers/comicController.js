@@ -18,7 +18,7 @@
  * - Server error: 500 Internal Server Error
  */
 
-const logger = require('../config/logger');
+const logger = require('../utils/smartLogger');
 const ComicModel = require('../models/mysql/comic.model');
 const ChapterModel = require('../models/mysql/chapter.model');
 const { ReadChapter, Bookmark } = require('../models/mongo');

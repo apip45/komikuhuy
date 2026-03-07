@@ -22,7 +22,7 @@
  */
 
 const { query } = require('../../config/mysql');
-const logger = require('../../config/logger');
+const logger = require('../../utils/smartLogger');
 
 /**
  * Chapter model with database operations
@@ -47,7 +47,7 @@ const ChapterModel = {
   async findByComicId(comicId) {
     const startTime = Date.now();
     
-    console.log(`[CHAPTER_MODEL] findByComicId() - Fetching chapters for comic ID: ${comicId}`);
+    logger.debug(`[CHAPTER_MODEL] findByComicId() - Fetching chapters for comic ID: ${comicId}`, { comicId });
     logger.debug(`Chapter.findByComicId: comicId=${comicId}`);
     
     try {
