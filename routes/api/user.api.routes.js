@@ -20,6 +20,7 @@
 
 const express = require('express');
 const router = express.Router();
+const logger = require('../../utils/smartLogger');
 
 // Controllers
 const BookmarkController = require('../../controllers/bookmarkController');
@@ -28,7 +29,7 @@ const HistoryController = require('../../controllers/historyController');
 // Authentication middleware
 const { isAuthenticatedAPI } = require('../../middlewares/auth.middleware');
 
-console.log('[API_ROUTES] Loading user.api.routes.js...');
+logger.debug('[API_ROUTES] Loading user.api.routes.js...');
 
 // ===========================================
 // BOOKMARK API ROUTES
@@ -57,7 +58,7 @@ router.get(
   isAuthenticatedAPI,
   BookmarkController.listBookmarksAPI
 );
-console.log('[API_ROUTES] ✓ GET /api/bookmarks');
+logger.debug('[API_ROUTES] ✓ GET /api/bookmarks');
 
 /**
  * POST /api/bookmarks/:comicParam
@@ -78,7 +79,7 @@ router.post(
   isAuthenticatedAPI,
   BookmarkController.addBookmarkAPI
 );
-console.log('[API_ROUTES] ✓ POST /api/bookmarks/:comicParam');
+logger.debug('[API_ROUTES] ✓ POST /api/bookmarks/:comicParam');
 
 /**
  * DELETE /api/bookmarks/:comicParam
@@ -98,7 +99,7 @@ router.delete(
   isAuthenticatedAPI,
   BookmarkController.removeBookmarkAPI
 );
-console.log('[API_ROUTES] ✓ DELETE /api/bookmarks/:comicParam');
+logger.debug('[API_ROUTES] ✓ DELETE /api/bookmarks/:comicParam');
 
 /**
  * GET /api/bookmarks/:comicParam/status
@@ -116,7 +117,7 @@ router.get(
   isAuthenticatedAPI,
   BookmarkController.checkBookmarkStatusAPI
 );
-console.log('[API_ROUTES] ✓ GET /api/bookmarks/:comicParam/status');
+logger.debug('[API_ROUTES] ✓ GET /api/bookmarks/:comicParam/status');
 
 /**
  * POST /api/bookmarks/:comicParam/toggle
@@ -136,7 +137,7 @@ router.post(
   isAuthenticatedAPI,
   BookmarkController.toggleBookmarkAPI
 );
-console.log('[API_ROUTES] ✓ POST /api/bookmarks/:comicParam/toggle');
+logger.debug('[API_ROUTES] ✓ POST /api/bookmarks/:comicParam/toggle');
 
 // ===========================================
 // HISTORY API ROUTES
@@ -165,7 +166,7 @@ router.get(
   isAuthenticatedAPI,
   HistoryController.listHistoryAPI
 );
-console.log('[API_ROUTES] ✓ GET /api/history');
+logger.debug('[API_ROUTES] ✓ GET /api/history');
 
 /**
  * DELETE /api/history
@@ -183,7 +184,7 @@ router.delete(
   isAuthenticatedAPI,
   HistoryController.clearHistoryAPI
 );
-console.log('[API_ROUTES] ✓ DELETE /api/history');
+logger.debug('[API_ROUTES] ✓ DELETE /api/history');
 
 /**
  * DELETE /api/history/:comicParam
@@ -203,7 +204,7 @@ router.delete(
   isAuthenticatedAPI,
   HistoryController.removeHistoryAPI
 );
-console.log('[API_ROUTES] ✓ DELETE /api/history/:comicParam');
+logger.debug('[API_ROUTES] ✓ DELETE /api/history/:comicParam');
 
 // ===========================================
 // RESUME API ROUTES
@@ -243,8 +244,8 @@ router.get(
   isAuthenticatedAPI,
   HistoryController.getResumeAPI
 );
-console.log('[API_ROUTES] ✓ GET /api/resume/:comicParam');
+logger.debug('[API_ROUTES] ✓ GET /api/resume/:comicParam');
 
-console.log('[API_ROUTES] User API routes loaded successfully');
+logger.debug('[API_ROUTES] User API routes loaded successfully');
 
 module.exports = router;

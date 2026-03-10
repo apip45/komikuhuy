@@ -16,6 +16,7 @@
 
 const express = require('express');
 const router = express.Router();
+const logger = require('../../utils/smartLogger');
 
 // Import controller
 const ReadChapterController = require('../../controllers/readChapterController');
@@ -23,7 +24,7 @@ const ReadChapterController = require('../../controllers/readChapterController')
 // Import middleware
 const { isAuthenticatedAPI } = require('../../middlewares');
 
-console.log('[ROUTES] Registering read chapter API routes...');
+logger.debug('[ROUTES] Registering read chapter API routes...');
 
 // ===========================================
 // Mark/Unmark Chapter Routes
@@ -55,7 +56,7 @@ console.log('[ROUTES] Registering read chapter API routes...');
  * }
  */
 router.post('/mark', isAuthenticatedAPI, ReadChapterController.markAsRead);
-console.log('[ROUTES] Registered: POST /api/read-chapters/mark');
+logger.debug('[ROUTES] Registered: POST /api/read-chapters/mark');
 
 /**
  * DELETE /api/read-chapters/unmark
@@ -78,7 +79,7 @@ console.log('[ROUTES] Registered: POST /api/read-chapters/mark');
  * }
  */
 router.delete('/unmark', isAuthenticatedAPI, ReadChapterController.unmarkAsRead);
-console.log('[ROUTES] Registered: DELETE /api/read-chapters/unmark');
+logger.debug('[ROUTES] Registered: DELETE /api/read-chapters/unmark');
 
 // ===========================================
 // Read Status Query Routes
@@ -101,7 +102,7 @@ console.log('[ROUTES] Registered: DELETE /api/read-chapters/unmark');
  * }
  */
 router.get('/status/:chapterId', ReadChapterController.getReadStatus);
-console.log('[ROUTES] Registered: GET /api/read-chapters/status/:chapterId');
+logger.debug('[ROUTES] Registered: GET /api/read-chapters/status/:chapterId');
 
 /**
  * GET /api/read-chapters/comic/:comicId
@@ -121,7 +122,7 @@ console.log('[ROUTES] Registered: GET /api/read-chapters/status/:chapterId');
  * }
  */
 router.get('/comic/:comicId', ReadChapterController.getReadChaptersByComic);
-console.log('[ROUTES] Registered: GET /api/read-chapters/comic/:comicId');
+logger.debug('[ROUTES] Registered: GET /api/read-chapters/comic/:comicId');
 
 // ===========================================
 // User Statistics Route
@@ -144,8 +145,8 @@ console.log('[ROUTES] Registered: GET /api/read-chapters/comic/:comicId');
  * }
  */
 router.get('/stats', isAuthenticatedAPI, ReadChapterController.getUserStats);
-console.log('[ROUTES] Registered: GET /api/read-chapters/stats');
+logger.debug('[ROUTES] Registered: GET /api/read-chapters/stats');
 
-console.log('[ROUTES] Read chapter API routes registration complete');
+logger.debug('[ROUTES] Read chapter API routes registration complete');
 
 module.exports = router;

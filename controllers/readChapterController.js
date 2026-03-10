@@ -14,7 +14,7 @@
  * - Get user read statistics
  */
 
-const logger = require('../config/logger');
+const logger = require('../utils/smartLogger');
 const { ReadChapter } = require('../models/mongo');
 const ChapterModel = require('../models/mysql/chapter.model');
 const { successResponse, errorResponse, badRequest, unauthorized, serverError } = require('../utils/apiResponse');
@@ -66,7 +66,7 @@ const ReadChapterController = {
       });
       
     } catch (error) {
-      console.error(`[READ_CHAPTER_CTRL] markAsRead() - Error: ${error.message}`);
+      logger.error(`[READ_CHAPTER_CTRL] markAsRead() - Error: ${error.message}`);
       logger.error(`Mark as read error: ${error.message}`);
       return serverError(res, 'Failed to mark chapter as read');
     }
@@ -109,7 +109,7 @@ const ReadChapterController = {
       });
       
     } catch (error) {
-      console.error(`[READ_CHAPTER_CTRL] unmarkAsRead() - Error: ${error.message}`);
+      logger.error(`[READ_CHAPTER_CTRL] unmarkAsRead() - Error: ${error.message}`);
       logger.error(`Unmark as read error: ${error.message}`);
       return serverError(res, 'Failed to unmark chapter as read');
     }
@@ -148,7 +148,7 @@ const ReadChapterController = {
       });
       
     } catch (error) {
-      console.error(`[READ_CHAPTER_CTRL] getReadStatus() - Error: ${error.message}`);
+      logger.error(`[READ_CHAPTER_CTRL] getReadStatus() - Error: ${error.message}`);
       logger.error(`Get read status error: ${error.message}`);
       return serverError(res, 'Failed to get read status');
     }
@@ -188,7 +188,7 @@ const ReadChapterController = {
       });
       
     } catch (error) {
-      console.error(`[READ_CHAPTER_CTRL] getReadChaptersByComic() - Error: ${error.message}`);
+      logger.error(`[READ_CHAPTER_CTRL] getReadChaptersByComic() - Error: ${error.message}`);
       logger.error(`Get read chapters error: ${error.message}`);
       return serverError(res, 'Failed to get read chapters');
     }
@@ -215,7 +215,7 @@ const ReadChapterController = {
       return successResponse(res, 'User statistics retrieved', stats);
       
     } catch (error) {
-      console.error(`[READ_CHAPTER_CTRL] getUserStats() - Error: ${error.message}`);
+      logger.error(`[READ_CHAPTER_CTRL] getUserStats() - Error: ${error.message}`);
       logger.error(`Get user stats error: ${error.message}`);
       return serverError(res, 'Failed to get user statistics');
     }

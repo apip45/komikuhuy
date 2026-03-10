@@ -20,7 +20,7 @@
  */
 
 const { query } = require('../../config/mysql');
-const logger = require('../../config/logger');
+const logger = require('../../utils/smartLogger');
 
 /**
  * Image model with database operations
@@ -45,7 +45,7 @@ const ImageModel = {
   async findByChapterId(chapterId) {
     const startTime = Date.now();
     
-    console.log(`[IMAGE_MODEL] findByChapterId() - Fetching images for chapter ID: ${chapterId}`);
+    logger.debug(`[IMAGE_MODEL] findByChapterId() - Fetching images for chapter ID: ${chapterId}`);
     logger.debug(`Image.findByChapterId: chapterId=${chapterId}`);
     
     try {
@@ -65,19 +65,19 @@ const ImageModel = {
       const results = await query(sql, [chapterId]);
       const duration = Date.now() - startTime;
       
-      console.log(`[IMAGE_MODEL] findByChapterId() - Found ${results.length} images (${duration}ms)`);
+      logger.debug(`[IMAGE_MODEL] findByChapterId() - Found ${results.length} images (${duration}ms)`);
       logger.info(`Image.findByChapterId: ${results.length} images in ${duration}ms`);
       
       // Log warning if no images found (might indicate data issue)
       if (results.length === 0) {
-        console.warn(`[IMAGE_MODEL] findByChapterId() - No images found for chapter ${chapterId}`);
+        logger.warn(`[IMAGE_MODEL] findByChapterId() - No images found for chapter ${chapterId}`);
         logger.warn(`Image.findByChapterId: no images for chapterId=${chapterId}`);
       }
       
       return results;
       
     } catch (error) {
-      console.error(`[IMAGE_MODEL] findByChapterId() - Error: ${error.message}`);
+      logger.error(`[IMAGE_MODEL] findByChapterId() - Error: ${error.message}`);
       logger.error(`Image.findByChapterId error: ${error.message}`);
       throw error;
     }
@@ -97,7 +97,7 @@ const ImageModel = {
   async countByChapterId(chapterId) {
     const startTime = Date.now();
     
-    console.log(`[IMAGE_MODEL] countByChapterId() - Counting images for chapter ID: ${chapterId}`);
+    logger.debug(`[IMAGE_MODEL] countByChapterId() - Counting images for chapter ID: ${chapterId}`);
     logger.debug(`Image.countByChapterId: chapterId=${chapterId}`);
     
     try {
@@ -106,13 +106,13 @@ const ImageModel = {
       const duration = Date.now() - startTime;
       
       const total = results[0].total;
-      console.log(`[IMAGE_MODEL] countByChapterId() - Total: ${total} images (${duration}ms)`);
+      logger.debug(`[IMAGE_MODEL] countByChapterId() - Total: ${total} images (${duration}ms)`);
       logger.info(`Image.countByChapterId: ${total} images in ${duration}ms`);
       
       return total;
       
     } catch (error) {
-      console.error(`[IMAGE_MODEL] countByChapterId() - Error: ${error.message}`);
+      logger.error(`[IMAGE_MODEL] countByChapterId() - Error: ${error.message}`);
       logger.error(`Image.countByChapterId error: ${error.message}`);
       throw error;
     }
@@ -133,7 +133,7 @@ const ImageModel = {
   async findByChapterAndPage(chapterId, pageNumber) {
     const startTime = Date.now();
     
-    console.log(`[IMAGE_MODEL] findByChapterAndPage() - Chapter: ${chapterId}, Page: ${pageNumber}`);
+    logger.debug(`[IMAGE_MODEL] findByChapterAndPage() - Chapter: ${chapterId}, Page: ${pageNumber}`);
     logger.debug(`Image.findByChapterAndPage: chapterId=${chapterId}, page=${pageNumber}`);
     
     try {
@@ -148,18 +148,18 @@ const ImageModel = {
       const duration = Date.now() - startTime;
       
       if (results.length === 0) {
-        console.log(`[IMAGE_MODEL] findByChapterAndPage() - Not found (${duration}ms)`);
+        logger.debug(`[IMAGE_MODEL] findByChapterAndPage() - Not found (${duration}ms)`);
         logger.warn(`Image.findByChapterAndPage: not found - chapter=${chapterId}, page=${pageNumber}`);
         return null;
       }
       
-      console.log(`[IMAGE_MODEL] findByChapterAndPage() - Found image (${duration}ms)`);
+      logger.debug(`[IMAGE_MODEL] findByChapterAndPage() - Found image (${duration}ms)`);
       logger.info(`Image.findByChapterAndPage: found in ${duration}ms`);
       
       return results[0];
       
     } catch (error) {
-      console.error(`[IMAGE_MODEL] findByChapterAndPage() - Error: ${error.message}`);
+      logger.error(`[IMAGE_MODEL] findByChapterAndPage() - Error: ${error.message}`);
       logger.error(`Image.findByChapterAndPage error: ${error.message}`);
       throw error;
     }
@@ -180,7 +180,7 @@ const ImageModel = {
   async getPageRange(chapterId) {
     const startTime = Date.now();
     
-    console.log(`[IMAGE_MODEL] getPageRange() - Getting page range for chapter ID: ${chapterId}`);
+    logger.debug(`[IMAGE_MODEL] getPageRange() - Getting page range for chapter ID: ${chapterId}`);
     logger.debug(`Image.getPageRange: chapterId=${chapterId}`);
     
     try {
@@ -200,13 +200,13 @@ const ImageModel = {
         last: results[0].last_page || 0
       };
       
-      console.log(`[IMAGE_MODEL] getPageRange() - Pages ${range.first}-${range.last} (${duration}ms)`);
+      logger.debug(`[IMAGE_MODEL] getPageRange() - Pages ${range.first}-${range.last} (${duration}ms)`);
       logger.info(`Image.getPageRange: ${range.first}-${range.last} in ${duration}ms`);
       
       return range;
       
     } catch (error) {
-      console.error(`[IMAGE_MODEL] getPageRange() - Error: ${error.message}`);
+      logger.error(`[IMAGE_MODEL] getPageRange() - Error: ${error.message}`);
       logger.error(`Image.getPageRange error: ${error.message}`);
       throw error;
     }

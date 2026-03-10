@@ -25,12 +25,13 @@
 
 const express = require('express');
 const router = express.Router();
+const logger = require('../../utils/smartLogger');
 
 // Import controllers
 const ComicController = require('../../controllers/comicController');
 const ChapterController = require('../../controllers/chapterController');
 
-console.log('[ROUTES] Registering comic API routes...');
+logger.debug('[ROUTES] Registering comic API routes...');
 
 // ===========================================
 // Comic List API
@@ -59,7 +60,7 @@ console.log('[ROUTES] Registering comic API routes...');
  * }
  */
 router.get('/search', ComicController.searchComicsAPI);
-console.log('[ROUTES] Registered: GET /api/comics/search');
+logger.debug('[ROUTES] Registered: GET /api/comics/search');
 
 /**
  * GET /api/comics/genres
@@ -77,7 +78,7 @@ console.log('[ROUTES] Registered: GET /api/comics/search');
  * }
  */
 router.get('/genres', ComicController.getGenresAPI);
-console.log('[ROUTES] Registered: GET /api/comics/genres');
+logger.debug('[ROUTES] Registered: GET /api/comics/genres');
 
 /**
  * GET /api/comics
@@ -99,7 +100,7 @@ console.log('[ROUTES] Registered: GET /api/comics/genres');
  * }
  */
 router.get('/', ComicController.listComicsAPI);
-console.log('[ROUTES] Registered: GET /api/comics');
+logger.debug('[ROUTES] Registered: GET /api/comics');
 
 // ===========================================
 // Comic Detail API
@@ -131,7 +132,7 @@ console.log('[ROUTES] Registered: GET /api/comics');
  * }
  */
 router.get('/:param', ComicController.getComicDetailAPI);
-console.log('[ROUTES] Registered: GET /api/comics/:param');
+logger.debug('[ROUTES] Registered: GET /api/comics/:param');
 
 // ===========================================
 // Chapter List API
@@ -157,7 +158,7 @@ console.log('[ROUTES] Registered: GET /api/comics/:param');
  * }
  */
 router.get('/:param/chapters', ComicController.getChaptersAPI);
-console.log('[ROUTES] Registered: GET /api/comics/:param/chapters');
+logger.debug('[ROUTES] Registered: GET /api/comics/:param/chapters');
 
 // ===========================================
 // Chapter Reader API
@@ -189,8 +190,8 @@ console.log('[ROUTES] Registered: GET /api/comics/:param/chapters');
  * }
  */
 router.get('/:param/chapters/:chapterParam', ChapterController.readChapterAPI);
-console.log('[ROUTES] Registered: GET /api/comics/:param/chapters/:chapterParam');
+logger.debug('[ROUTES] Registered: GET /api/comics/:param/chapters/:chapterParam');
 
-console.log('[ROUTES] Comic API routes registration complete');
+logger.debug('[ROUTES] Comic API routes registration complete');
 
 module.exports = router;

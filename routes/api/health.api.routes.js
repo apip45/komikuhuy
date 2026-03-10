@@ -17,7 +17,7 @@ const { cacheService } = require('../../services/cacheService');
 const { isAdmin } = require('../../middlewares');
 const logger = require('../../config/logger');
 
-console.log('[ROUTES] Registering health check routes...');
+logger.debug('[ROUTES] Registering health check routes...');
 
 /**
  * GET /api/health
@@ -62,7 +62,7 @@ router.get('/', async (req, res) => {
     }
 });
 
-console.log('[ROUTES] Registered: GET /api/health');
+logger.debug('[ROUTES] Registered: GET /api/health');
 
 /**
  * GET /api/health/cache
@@ -88,7 +88,7 @@ router.get('/cache', (req, res) => {
     }
 });
 
-console.log('[ROUTES] Registered: GET /api/health/cache');
+logger.debug('[ROUTES] Registered: GET /api/health/cache');
 
 /**
  * POST /api/health/cache/clear
@@ -131,8 +131,8 @@ router.post('/cache/clear', isAdmin, (req, res) => {
     }
 });
 
-console.log('[ROUTES] Registered: POST /api/health/cache/clear');
+logger.debug('[ROUTES] Registered: POST /api/health/cache/clear');
 
-console.log('[ROUTES] Health check routes registration complete');
+logger.debug('[ROUTES] Health check routes registration complete');
 
 module.exports = router;

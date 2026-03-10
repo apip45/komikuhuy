@@ -24,7 +24,7 @@
  * - Comic/chapter existence validated against MySQL
  */
 
-const logger = require('../config/logger');
+const logger = require('../utils/smartLogger');
 const ReadingHistory = require('../models/mongo/ReadingHistory');
 const { ReadChapter } = require('../models/mongo');
 const ComicModel = require('../models/mysql/comic.model');
@@ -61,7 +61,7 @@ const HistoryController = {
     const comicParam = comicData.param;
     const chapterParam = chapterData.param;
     
-    console.log(`[HISTORY_CTRL] saveProgress() - User: ${userId}, Comic: ${comicParam}, Chapter: ${chapterParam}`);
+    logger.debug(`[HISTORY_CTRL] saveProgress() - User: ${userId}, Comic: ${comicParam}, Chapter: ${chapterParam}`);
     
     try {
       // Save or update history using upsert
@@ -77,15 +77,13 @@ const HistoryController = {
         }
       );
       
-      console.log(`[HISTORY_CTRL] ✓ Progress saved: ${comicParam}/${chapterParam}`);
       logger.info(`Reading progress saved: ${comicParam}/${chapterParam}`);
       
       return history;
       
     } catch (error) {
       // Log error but don't throw - history saving should not break reading experience
-      console.error(`[HISTORY_CTRL] saveProgress() - Error: ${error.message}`);
-      logger.error(`Reading progress save error: ${error.message}`);
+      logger.error(`Reading progress save error: ${error.message}`, { userId, comicParam, chapterParam, error: error.message });
       return null;
     }
   },
@@ -111,8 +109,7 @@ const HistoryController = {
     const limit = 20;
     const skip = (page - 1) * limit;
     
-    console.log(`[HISTORY_CTRL] listHistoryPage() - User: ${username}, Page: ${page}`);
-    logger.info(`History list view: ${username}, page ${page}`);
+    logger.debug(`[HISTORY_CTRL] listHistoryPage() - User: ${username}, Page: ${page}`);
     
     try {
       // Fetch history and count in parallel
@@ -124,7 +121,7 @@ const HistoryController = {
       // Calculate pagination
       const totalPages = Math.ceil(totalHistory / limit);
       
-      console.log(`[HISTORY_CTRL] Found ${history.length} history entries (total: ${totalHistory})`);
+      logger.info(`History list view: ${username}, page ${page}, found ${history.length}/${totalHistory}`);
       
       // Render history page
       res.render('pages/history', {
@@ -143,8 +140,7 @@ const HistoryController = {
       });
       
     } catch (error) {
-      console.error(`[HISTORY_CTRL] listHistoryPage() - Error: ${error.message}`);
-      logger.error(`History list error: ${error.message}`);
+      logger.error(`History list error: ${error.message}`, { username, page, error: error.message });
       res.status(500).render('errors/500', {
         title: 'Server Error',
         message: 'Gagal memuat riwayat bacaan'
@@ -168,8 +164,7 @@ const HistoryController = {
     const userId = req.user._id;
     const username = req.user.username;
     
-    console.log(`[HISTORY_CTRL] resumeReadingWeb() - User: ${username}, Comic: ${comicParam}`);
-    logger.info(`Resume request: ${username} -> ${comicParam}`);
+    logger.debug(`[HISTORY_CTRL] resumeReadingWeb() - User: ${username}, Comic: ${comicParam}`);
     
     try {
       // Get last read chapter from history
@@ -180,23 +175,21 @@ const HistoryController = {
         const chapter = await ChapterModel.findByParams(comicParam, history.chapterParam);
         
         if (chapter) {
-          console.log(`[HISTORY_CTRL] ✓ Resuming: ${comicParam}/${history.chapterParam}`);
           logger.info(`Resume successful: ${username} -> ${comicParam}/${history.chapterParam}`);
           return res.redirect(`/comics/${comicParam}/${history.chapterParam}`);
         } else {
-          console.log(`[HISTORY_CTRL] Chapter no longer exists: ${history.chapterParam}`);
           logger.warn(`Resume chapter missing: ${comicParam}/${history.chapterParam}`);
         }
       }
       
       // No history or chapter missing - try first chapter
-      console.log(`[HISTORY_CTRL] No history found, looking for first chapter`);
+      logger.debug(`[HISTORY_CTRL] No history found, looking for first chapter`);
       
       // Get comic first to validate it exists
       const comic = await ComicModel.findByParam(comicParam);
       
       if (!comic) {
-        console.log(`[HISTORY_CTRL] Comic not found: ${comicParam}`);
+        logger.warn(`Comic not found: ${comicParam}`);
         return res.redirect('/comics?error=' + encodeURIComponent('Komik tidak ditemukan'));
       }
       
@@ -204,17 +197,16 @@ const HistoryController = {
       const firstChapter = await ChapterModel.getFirstChapter(comic.id);
       
       if (firstChapter) {
-        console.log(`[HISTORY_CTRL] Redirecting to first chapter: ${firstChapter.param}`);
+        logger.info(`Redirecting to first chapter: ${comicParam}/${firstChapter.param}`);
         return res.redirect(`/comics/${comicParam}/${firstChapter.param}`);
       }
       
       // No chapters available
-      console.log(`[HISTORY_CTRL] No chapters available for: ${comicParam}`);
+      logger.info(`No chapters available for: ${comicParam}`);
       return res.redirect(`/comics/${comicParam}?info=${encodeURIComponent('Belum ada chapter tersedia')}`);
       
     } catch (error) {
-      console.error(`[HISTORY_CTRL] resumeReadingWeb() - Error: ${error.message}`);
-      logger.error(`Resume error: ${error.message}`);
+      logger.error(`Resume error: ${error.message}`, { username, comicParam, error: error.message });
       return res.redirect(`/comics/${comicParam}?error=${encodeURIComponent('Gagal melanjutkan bacaan')}`);
     }
   },
@@ -231,8 +223,7 @@ const HistoryController = {
     const userId = req.user._id;
     const username = req.user.username;
     
-    console.log(`[HISTORY_CTRL] clearHistoryWeb() - User: ${username}`);
-    logger.info(`History clear request: ${username}`);
+    logger.debug(`[HISTORY_CTRL] clearHistoryWeb() - User: ${username}`);
     
     try {
       // Clear history
@@ -241,14 +232,12 @@ const HistoryController = {
       // Also clear all read chapters for this user to maintain consistency
       const readChaptersDeleted = await ReadChapter.deleteMany({ userId });
       
-      console.log(`[HISTORY_CTRL] ✓ Cleared ${deletedCount} history entries and ${readChaptersDeleted.deletedCount} read chapters`);
       logger.info(`History cleared: ${username}, ${deletedCount} history entries, ${readChaptersDeleted.deletedCount} read chapters`);
       
       return res.redirect('/my/history?success=' + encodeURIComponent(`${deletedCount} riwayat berhasil dihapus`));
       
     } catch (error) {
-      console.error(`[HISTORY_CTRL] clearHistoryWeb() - Error: ${error.message}`);
-      logger.error(`History clear error: ${error.message}`);
+      logger.error(`History clear error: ${error.message}`, { username, error: error.message });
       return res.redirect('/my/history?error=' + encodeURIComponent('Gagal menghapus riwayat'));
     }
   },
@@ -266,8 +255,7 @@ const HistoryController = {
     const userId = req.user._id;
     const username = req.user.username;
     
-    console.log(`[HISTORY_CTRL] removeHistoryWeb() - User: ${username}, Comic: ${comicParam}`);
-    logger.info(`History remove request: ${username} -> ${comicParam}`);
+    logger.debug(`[HISTORY_CTRL] removeHistoryWeb() - User: ${username}, Comic: ${comicParam}`);
     
     try {
       // Get comic ID from param
@@ -280,22 +268,19 @@ const HistoryController = {
         // Also remove all read chapters for this comic to maintain consistency
         if (comic) {
           const readChaptersDeleted = await ReadChapter.deleteMany({ userId, comicId: comic.id });
-          console.log(`[HISTORY_CTRL] ✓ History removed: ${comicParam}, ${readChaptersDeleted.deletedCount} read chapters cleared`);
           logger.info(`History removed: ${username} -> ${comicParam}, ${readChaptersDeleted.deletedCount} read chapters`);
         } else {
-          console.log(`[HISTORY_CTRL] ✓ History removed: ${comicParam}`);
           logger.info(`History removed: ${username} -> ${comicParam}`);
         }
         
         return res.redirect('/my/history?success=' + encodeURIComponent('Riwayat berhasil dihapus'));
       } else {
-        console.log(`[HISTORY_CTRL] History not found: ${comicParam}`);
+        logger.warn(`History not found: ${comicParam}`);
         return res.redirect('/my/history?info=' + encodeURIComponent('Riwayat tidak ditemukan'));
       }
       
     } catch (error) {
-      console.error(`[HISTORY_CTRL] removeHistoryWeb() - Error: ${error.message}`);
-      logger.error(`History remove error: ${error.message}`);
+      logger.error(`History remove error: ${error.message}`, { username, comicParam, error: error.message });
       return res.redirect('/my/history?error=' + encodeURIComponent('Gagal menghapus riwayat'));
     }
   },
@@ -323,8 +308,7 @@ const HistoryController = {
     const limit = Math.min(parseInt(req.query.limit) || 20, 50);
     const skip = (page - 1) * limit;
     
-    console.log(`[HISTORY_API] listHistory() - User: ${username}, Page: ${page}`);
-    logger.info(`API History list: ${username}, page ${page}`);
+    logger.debug(`[HISTORY_API] listHistory() - User: ${username}, Page: ${page}`);
     
     try {
       const [history, totalHistory] = await Promise.all([
@@ -334,7 +318,7 @@ const HistoryController = {
       
       const totalPages = Math.ceil(totalHistory / limit);
       
-      console.log(`[HISTORY_API] Found ${history.length} history entries`);
+      logger.info(`API History list: ${username}, page ${page}, found ${history.length}/${totalHistory}`);
       
       return ok(res, 'Reading history retrieved successfully', {
         history: history.map(h => ({
@@ -363,8 +347,7 @@ const HistoryController = {
       });
       
     } catch (error) {
-      console.error(`[HISTORY_API] listHistory() - Error: ${error.message}`);
-      logger.error(`API History list error: ${error.message}`);
+      logger.error(`API History list error: ${error.message}`, { username, page, limit, error: error.message });
       return serverError(res, 'Failed to retrieve reading history');
     }
   },
@@ -385,8 +368,7 @@ const HistoryController = {
     const userId = req.user._id;
     const username = req.user.username;
     
-    console.log(`[HISTORY_API] getResume() - User: ${username}, Comic: ${comicParam}`);
-    logger.info(`API Resume request: ${username} -> ${comicParam}`);
+    logger.debug(`[HISTORY_API] getResume() - User: ${username}, Comic: ${comicParam}`);
     
     try {
       // Get last read from history
@@ -397,7 +379,7 @@ const HistoryController = {
         const chapter = await ChapterModel.findByParams(comicParam, history.chapterParam);
         
         if (chapter) {
-          console.log(`[HISTORY_API] ✓ Resume data found: ${history.chapterParam}`);
+          logger.info(`API Resume data found: ${username} -> ${comicParam}/${history.chapterParam}`);
           
           return ok(res, 'Resume data retrieved', {
             hasProgress: true,
@@ -415,7 +397,7 @@ const HistoryController = {
       }
       
       // No valid history - try to get first chapter
-      console.log(`[HISTORY_API] No history, checking first chapter`);
+      logger.debug(`[HISTORY_API] No history, checking first chapter`);
       
       const comic = await ComicModel.findByParam(comicParam);
       
@@ -449,8 +431,7 @@ const HistoryController = {
       });
       
     } catch (error) {
-      console.error(`[HISTORY_API] getResume() - Error: ${error.message}`);
-      logger.error(`API Resume error: ${error.message}`);
+      logger.error(`API Resume error: ${error.message}`, { username, comicParam, error: error.message });
       return serverError(res, 'Failed to get resume data');
     }
   },
@@ -467,8 +448,7 @@ const HistoryController = {
     const userId = req.user._id;
     const username = req.user.username;
     
-    console.log(`[HISTORY_API] clearHistory() - User: ${username}`);
-    logger.info(`API History clear: ${username}`);
+    logger.debug(`[HISTORY_API] clearHistory() - User: ${username}`);
     
     try {
       // Clear history
@@ -477,7 +457,6 @@ const HistoryController = {
       // Also clear all read chapters for this user to maintain consistency
       const readChaptersDeleted = await ReadChapter.deleteMany({ userId });
       
-      console.log(`[HISTORY_API] ✓ Cleared ${deletedCount} history entries and ${readChaptersDeleted.deletedCount} read chapters`);
       logger.info(`API History cleared: ${username}, ${deletedCount} history, ${readChaptersDeleted.deletedCount} read chapters`);
       
       return ok(res, 'Reading history cleared', {
@@ -486,8 +465,7 @@ const HistoryController = {
       });
       
     } catch (error) {
-      console.error(`[HISTORY_API] clearHistory() - Error: ${error.message}`);
-      logger.error(`API History clear error: ${error.message}`);
+      logger.error(`API History clear error: ${error.message}`, { username, error: error.message });
       return serverError(res, 'Failed to clear reading history');
     }
   },
@@ -505,8 +483,7 @@ const HistoryController = {
     const userId = req.user._id;
     const username = req.user.username;
     
-    console.log(`[HISTORY_API] removeHistory() - User: ${username}, Comic: ${comicParam}`);
-    logger.info(`API History remove: ${username} -> ${comicParam}`);
+    logger.debug(`[HISTORY_API] removeHistory() - User: ${username}, Comic: ${comicParam}`);
     
     try {
       // Get comic ID from param
@@ -521,10 +498,8 @@ const HistoryController = {
         if (comic) {
           const readChaptersDeleted = await ReadChapter.deleteMany({ userId, comicId: comic.id });
           readChaptersCleared = readChaptersDeleted.deletedCount;
-          console.log(`[HISTORY_API] ✓ History removed: ${comicParam}, ${readChaptersCleared} read chapters cleared`);
           logger.info(`API History removed: ${username} -> ${comicParam}, ${readChaptersCleared} read chapters`);
         } else {
-          console.log(`[HISTORY_API] ✓ History removed: ${comicParam}`);
           logger.info(`API History removed: ${username} -> ${comicParam}`);
         }
         
@@ -538,8 +513,7 @@ const HistoryController = {
       }
       
     } catch (error) {
-      console.error(`[HISTORY_API] removeHistory() - Error: ${error.message}`);
-      logger.error(`API History remove error: ${error.message}`);
+      logger.error(`API History remove error: ${error.message}`, { username, comicParam, error: error.message });
       return serverError(res, 'Failed to remove history entry');
     }
   }

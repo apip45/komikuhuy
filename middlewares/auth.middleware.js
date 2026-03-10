@@ -51,14 +51,14 @@ const { unauthorized } = require('../utils/apiResponse');
  * @param {Function} next - Express next middleware function
  */
 const isAuthenticated = async (req, res, next) => {
-  console.log('[AUTH] Checking authentication status...');
-  console.log(`[AUTH] Session ID: ${req.session?.id || 'none'}`);
-  console.log(`[AUTH] User ID in session: ${req.session?.userId || 'none'}`);
+  logger.debug('[AUTH] Checking authentication status...');
+  logger.debug(`[AUTH] Session ID: ${req.session?.id || 'none'}`);
+  logger.debug(`[AUTH] User ID in session: ${req.session?.userId || 'none'}`);
   
   try {
     // Check if session exists and has user ID
     if (!req.session || !req.session.userId) {
-      console.log('[AUTH] ✗ No session or user ID found');
+      logger.debug('[AUTH] ✗ No session or user ID found');
       logger.warn(`Unauthenticated access attempt to: ${req.path}`);
       
       // Store original URL for redirect after login
@@ -71,7 +71,7 @@ const isAuthenticated = async (req, res, next) => {
     const user = await User.findById(req.session.userId);
     
     if (!user) {
-      console.log('[AUTH] ✗ User not found in database');
+      logger.debug('[AUTH] ✗ User not found in database');
       logger.warn(`Session has invalid user ID: ${req.session.userId}`);
       
       // Clear invalid session
@@ -80,7 +80,7 @@ const isAuthenticated = async (req, res, next) => {
     }
     
     if (!user.isActive) {
-      console.log('[AUTH] ✗ User account is deactivated');
+      logger.debug('[AUTH] ✗ User account is deactivated');
       logger.warn(`Deactivated user attempted access: ${user.username}`);
       
       req.session.destroy();
@@ -90,11 +90,11 @@ const isAuthenticated = async (req, res, next) => {
     // Attach user to request for use in route handlers
     req.user = user;
     
-    console.log(`[AUTH] ✓ User authenticated: ${user.username} (${user.role})`);
+    logger.debug(`[AUTH] ✓ User authenticated: ${user.username} (${user.role})`);
     next();
     
   } catch (error) {
-    console.error('[AUTH] ✗ Authentication check error:', error.message);
+    logger.error('[AUTH] ✗ Authentication check error:', error.message);
     logger.error('Authentication middleware error:', error);
     return res.redirect('/login?error=' + encodeURIComponent('Authentication error'));
   }
@@ -112,12 +112,12 @@ const isAuthenticated = async (req, res, next) => {
  * @param {Function} next - Express next middleware function
  */
 const isAuthenticatedAPI = async (req, res, next) => {
-  console.log('[AUTH-API] Checking authentication status...');
+  logger.debug('[AUTH-API] Checking authentication status...');
   
   try {
     // Check if session exists and has user ID
     if (!req.session || !req.session.userId) {
-      console.log('[AUTH-API] ✗ No session or user ID found');
+      logger.debug('[AUTH-API] ✗ No session or user ID found');
       logger.warn(`API: Unauthenticated access attempt to: ${req.path}`);
       return unauthorized(res, 'Authentication required. Please log in.');
     }
@@ -126,14 +126,14 @@ const isAuthenticatedAPI = async (req, res, next) => {
     const user = await User.findById(req.session.userId);
     
     if (!user) {
-      console.log('[AUTH-API] ✗ User not found in database');
+      logger.debug('[AUTH-API] ✗ User not found in database');
       logger.warn(`API: Session has invalid user ID: ${req.session.userId}`);
       req.session.destroy();
       return unauthorized(res, 'Session expired. Please log in again.');
     }
     
     if (!user.isActive) {
-      console.log('[AUTH-API] ✗ User account is deactivated');
+      logger.debug('[AUTH-API] ✗ User account is deactivated');
       logger.warn(`API: Deactivated user attempted access: ${user.username}`);
       req.session.destroy();
       return unauthorized(res, 'Your account has been deactivated.');
@@ -142,11 +142,11 @@ const isAuthenticatedAPI = async (req, res, next) => {
     // Attach user to request
     req.user = user;
     
-    console.log(`[AUTH-API] ✓ User authenticated: ${user.username}`);
+    logger.debug(`[AUTH-API] ✓ User authenticated: ${user.username}`);
     next();
     
   } catch (error) {
-    console.error('[AUTH-API] ✗ Authentication check error:', error.message);
+    logger.error('[AUTH-API] ✗ Authentication check error:', error.message);
     logger.error('API Authentication middleware error:', error);
     return unauthorized(res, 'Authentication error. Please try again.');
   }
@@ -170,12 +170,12 @@ const attachUser = async (req, res, next) => {
       const user = await User.findById(req.session.userId);
       if (user && user.isActive) {
         req.user = user;
-        console.log(`[AUTH] User attached to request: ${user.username}`);
+        logger.debug(`[AUTH] User attached to request: ${user.username}`);
       }
     }
   } catch (error) {
     // Don't block on errors, just log
-    console.error('[AUTH] Error attaching user:', error.message);
+    logger.error('[AUTH] Error attaching user:', error.message);
   }
   
   // Always continue to next middleware
@@ -194,7 +194,7 @@ const attachUser = async (req, res, next) => {
  */
 const redirectIfAuthenticated = (req, res, next) => {
   if (req.session && req.session.userId) {
-    console.log('[AUTH] User already authenticated, redirecting to home');
+    logger.debug('[AUTH] User already authenticated, redirecting to home');
     return res.redirect('/');
   }
   next();
@@ -214,13 +214,13 @@ const redirectIfAuthenticated = (req, res, next) => {
  * @param {Function} next - Express next middleware function
  */
 const isAdmin = (req, res, next) => {
-  console.log('[AUTH] Checking admin status...');
-  console.log(`[AUTH] User role: ${req.session?.userRole || req.user?.role || 'none'}`);
+  logger.debug('[AUTH] Checking admin status...');
+  logger.debug(`[AUTH] User role: ${req.session?.userRole || req.user?.role || 'none'}`);
   
   const role = req.session?.userRole || req.user?.role;
   
   if (role !== 'admin') {
-    console.log('[AUTH] ✗ User is not admin');
+    logger.debug('[AUTH] ✗ User is not admin');
     logger.warn(`Non-admin access attempt to admin area: ${req.user?.username || 'unknown'}`);
     
     return res.status(403).render('errors/403', {
@@ -229,7 +229,7 @@ const isAdmin = (req, res, next) => {
     });
   }
   
-  console.log('[AUTH] ✓ Admin access granted');
+  logger.debug('[AUTH] ✓ Admin access granted');
   next();
 };
 
@@ -247,12 +247,12 @@ const isAdmin = (req, res, next) => {
  * @param {Function} next - Express next middleware function
  */
 const isAdminAPI = (req, res, next) => {
-  console.log('[AUTH-API] Checking admin status...');
+  logger.debug('[AUTH-API] Checking admin status...');
   
   const role = req.session?.userRole || req.user?.role;
   
   if (role !== 'admin') {
-    console.log('[AUTH-API] ✗ User is not admin');
+    logger.debug('[AUTH-API] ✗ User is not admin');
     logger.warn(`API: Non-admin access attempt: ${req.user?.username || 'unknown'}`);
     
     return res.status(403).json({
@@ -261,7 +261,7 @@ const isAdminAPI = (req, res, next) => {
     });
   }
   
-  console.log('[AUTH-API] ✓ Admin access granted');
+  logger.debug('[AUTH-API] ✓ Admin access granted');
   next();
 };
 

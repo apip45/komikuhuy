@@ -14,7 +14,7 @@
  */
 
 const mongoose = require('mongoose');
-const logger = require('./logger');
+const logger = require('../utils/smartLogger');
 
 /**
  * Connect to MongoDB Atlas
@@ -30,7 +30,7 @@ const connectMongoDB = async () => {
       throw new Error('MONGODB_URI is not defined in environment variables');
     }
 
-    console.log('[MONGODB] Attempting to connect to MongoDB Atlas...');
+    logger.debug('[MONGODB] Attempting to connect to MongoDB Atlas...');
 
     // Mongoose connection options
     const options = {
@@ -44,31 +44,31 @@ const connectMongoDB = async () => {
     // Attempt connection
     await mongoose.connect(mongoUri, options);
 
-    console.log('[MONGODB] ✓ MongoDB Atlas connected successfully');
-    console.log(`[MONGODB] Database: ${options.dbName}`);
-    console.log(`[MONGODB] Connection pool size: ${options.maxPoolSize}`);
+    logger.debug('[MONGODB] ✓ MongoDB Atlas connected successfully');
+    logger.debug(`[MONGODB] Database: ${options.dbName}`);
+    logger.debug(`[MONGODB] Connection pool size: ${options.maxPoolSize}`);
     logger.info('MongoDB Atlas connected successfully');
 
     // Handle connection events
     mongoose.connection.on('error', (err) => {
-      console.error(`[MONGODB] ✗ Connection error: ${err.message}`);
+      logger.error(`[MONGODB] ✗ Connection error: ${err.message}`);
       logger.error(`MongoDB connection error: ${err.message}`);
     });
 
     mongoose.connection.on('disconnected', () => {
-      console.warn('[MONGODB] ⚠ Disconnected. Attempting to reconnect...');
+      logger.warn('[MONGODB] ⚠ Disconnected. Attempting to reconnect...');
       logger.warn('MongoDB disconnected. Attempting to reconnect...');
     });
 
     mongoose.connection.on('reconnected', () => {
-      console.log('[MONGODB] ✓ Reconnected successfully');
+      logger.debug('[MONGODB] ✓ Reconnected successfully');
       logger.info('MongoDB reconnected successfully');
     });
 
     // Graceful shutdown handling
     process.on('SIGINT', async () => {
       await mongoose.connection.close();
-      console.log('[MONGODB] Connection closed due to application termination');
+      logger.debug('[MONGODB] Connection closed due to application termination');
       logger.info('MongoDB connection closed due to application termination');
       process.exit(0);
     });
@@ -76,7 +76,7 @@ const connectMongoDB = async () => {
     return mongoose.connection;
 
   } catch (error) {
-    console.error(`[MONGODB] ✗ Failed to connect: ${error.message}`);
+    logger.error(`[MONGODB] ✗ Failed to connect: ${error.message}`);
     logger.error(`Failed to connect to MongoDB: ${error.message}`);
     throw error;
   }

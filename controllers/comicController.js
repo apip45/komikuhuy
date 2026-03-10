@@ -51,7 +51,7 @@ const ComicController = {
    * @param {Function} next - Express next middleware
    */
   async listComicsPage(req, res, next) {
-    console.log('[COMIC_CTRL] listComicsPage() - Rendering comic list');
+    logger.debug('[COMIC_CTRL] listComicsPage() - Rendering comic list');
     logger.info(`Comic list page requested`);
     
     try {
@@ -64,13 +64,13 @@ const ComicController = {
       const keyword = req.query.search || req.query.q || '';
       const genre = req.query.genre || '';
       
-      console.log(`[COMIC_CTRL] Params: page=${page}, keyword="${keyword}", genre="${genre}"`);
+      logger.debug(`[COMIC_CTRL] Params: page=${page}, keyword="${keyword}", genre="${genre}"`);
       
       // Fetch genres from cache (HOT tier, rarely changes)
       const allGenres = await cacheService.getOrFetch(
         cacheService.genresKey(),
         async () => {
-          console.log('[COMIC_CTRL] Cache MISS: Fetching genres from database');
+          logger.debug('[COMIC_CTRL] Cache MISS: Fetching genres from database');
           return await ComicModel.getAllGenres();
         },
         'hot',
@@ -88,7 +88,7 @@ const ComicController = {
       const cachedData = await cacheService.getOrFetch(
         cacheKey,
         async () => {
-          console.log(`[COMIC_CTRL] Cache MISS: ${cacheKey}`);
+          logger.debug(`[COMIC_CTRL] Cache MISS: ${cacheKey}`);
           logger.info(`Comic list cache MISS - fetching from database`);
           
           // Fetch comics with search and filter
@@ -108,7 +108,7 @@ const ComicController = {
       // Calculate pagination metadata
       const totalPages = Math.ceil(total / limit);
       
-      console.log(`[COMIC_CTRL] Found ${comics.length} comics (total: ${total})`);
+      logger.debug(`[COMIC_CTRL] Found ${comics.length} comics (total: ${total})`);
       logger.info(`Comic list: ${comics.length} of ${total} comics`);
       
       // Get user from request (if logged in)
@@ -136,7 +136,7 @@ const ComicController = {
       });
       
     } catch (error) {
-      console.error(`[COMIC_CTRL] listComicsPage() - Error: ${error.message}`);
+      logger.error(`[COMIC_CTRL] listComicsPage() - Error: ${error.message}`);
       logger.error(`Comic list page error: ${error.message}`);
       next(error);
     }
@@ -161,13 +161,13 @@ const ComicController = {
     const { param } = req.params;
     const { sort = 'desc' } = req.query; // Get sort parameter from query string, default to 'desc'
     
-    console.log(`[COMIC_CTRL] getComicDetailPage() - Comic: ${param}, sort: ${sort}`);
+    logger.debug(`[COMIC_CTRL] getComicDetailPage() - Comic: ${param}, sort: ${sort}`);
     logger.info(`Comic detail page requested: ${param}, sort: ${sort}`);
     
     try {
       // Validate param
       if (!param || typeof param !== 'string') {
-        console.log('[COMIC_CTRL] Invalid param provided');
+        logger.debug('[COMIC_CTRL] Invalid param provided');
         return res.status(400).render('errors/404', {
           title: '404 - Not Found',
           message: 'Invalid comic parameter'
@@ -183,12 +183,12 @@ const ComicController = {
       
       if (!comic) {
         // Cache MISS - fetch comic from database
-        console.log(`[COMIC_CTRL] Cache MISS: ${comicCacheKey}`);
+        logger.debug(`[COMIC_CTRL] Cache MISS: ${comicCacheKey}`);
         comic = await ComicModel.findByParam(param);
         
         // Handle not found
         if (!comic) {
-          console.log(`[COMIC_CTRL] Comic not found: ${param}`);
+          logger.debug(`[COMIC_CTRL] Comic not found: ${param}`);
           logger.warn(`Comic not found: ${param}`);
           return res.status(404).render('errors/404', {
             title: '404 - Komik Tidak Ditemukan',
@@ -198,21 +198,21 @@ const ComicController = {
         
         // Cache comic data (30 min)
         cacheService.set(comicCacheKey, comic, 'warm', 1800);
-        console.log(`[COMIC_CTRL] Cached comic: ${comicCacheKey}`);
+        logger.debug(`[COMIC_CTRL] Cached comic: ${comicCacheKey}`);
       } else {
-        console.log(`[COMIC_CTRL] Cache HIT: ${comicCacheKey}`);
+        logger.debug(`[COMIC_CTRL] Cache HIT: ${comicCacheKey}`);
       }
       
       if (!chapters) {
         // Cache MISS - fetch chapters from database  
-        console.log(`[COMIC_CTRL] Cache MISS: ${chaptersCacheKey}`);
+        logger.debug(`[COMIC_CTRL] Cache MISS: ${chaptersCacheKey}`);
         chapters = await ChapterModel.findByComicId(comic.id, 'asc');
         
         // Cache chapters list (30 min)
         cacheService.set(chaptersCacheKey, chapters, 'warm', 1800);
-        console.log(`[COMIC_CTRL] Cached chapters: ${chaptersCacheKey} (${chapters.length} items)`);
+        logger.debug(`[COMIC_CTRL] Cached chapters: ${chaptersCacheKey} (${chapters.length} items)`);
       } else {
-        console.log(`[COMIC_CTRL] Cache HIT: ${chaptersCacheKey} (${chapters.length} items)`);
+        logger.debug(`[COMIC_CTRL] Cache HIT: ${chaptersCacheKey} (${chapters.length} items)`);
       }
       
       // Extract chapter number from label for proper sorting
@@ -244,7 +244,7 @@ const ComicController = {
         return chNum < minNum ? ch : min;
       }, chapters[0]) : null;
       
-      console.log(`[COMIC_CTRL] Found comic "${comic.title}" with ${chapters.length} chapters`);
+      logger.debug(`[COMIC_CTRL] Found comic "${comic.title}" with ${chapters.length} chapters`);
       logger.info(`Comic detail: "${comic.title}" - ${chapters.length} chapters`);
       
       // Get user from request (if logged in)
@@ -260,9 +260,9 @@ const ComicController = {
             ReadChapter.getReadChapterIds(req.user._id, comic.id),
             Bookmark.isBookmarked(req.user._id, param)
           ]);
-          console.log(`[COMIC_CTRL] User has read ${readChapterIds.length} chapters, bookmarked: ${isBookmarked}`);
+          logger.debug(`[COMIC_CTRL] User has read ${readChapterIds.length} chapters, bookmarked: ${isBookmarked}`);
         } catch (error) {
-          console.error(`[COMIC_CTRL] Failed to fetch read chapters or bookmark status: ${error.message}`);
+          logger.error(`[COMIC_CTRL] Failed to fetch read chapters or bookmark status: ${error.message}`);
           logger.error(`Failed to fetch read chapters or bookmark status: ${error.message}`);
           // Continue without read status (defaults remain: [], false)
         }
@@ -284,7 +284,7 @@ const ComicController = {
       });
       
     } catch (error) {
-      console.error(`[COMIC_CTRL] getComicDetailPage() - Error: ${error.message}`);
+      logger.error(`[COMIC_CTRL] getComicDetailPage() - Error: ${error.message}`);
       logger.error(`Comic detail page error: ${error.message}`);
       next(error);
     }
@@ -319,7 +319,7 @@ const ComicController = {
    * @param {Object} res - Express response object
    */
   async listComicsAPI(req, res) {
-    console.log('[COMIC_CTRL] listComicsAPI() - API request for comic list');
+    logger.debug('[COMIC_CTRL] listComicsAPI() - API request for comic list');
     logger.info(`API: Comic list requested`);
     
     try {
@@ -328,7 +328,7 @@ const ComicController = {
       const limit = Math.min(50, Math.max(1, parseInt(req.query.limit) || 20));
       const offset = (page - 1) * limit;
       
-      console.log(`[COMIC_CTRL] API Pagination: page=${page}, limit=${limit}`);
+      logger.debug(`[COMIC_CTRL] API Pagination: page=${page}, limit=${limit}`);
       
       // Build cache key for simple comic list (no filters)
       const cacheKey = cacheService.comicListKey(page, limit, {});
@@ -337,7 +337,7 @@ const ComicController = {
       const cachedData = await cacheService.getOrFetch(
         cacheKey,
         async () => {
-          console.log(`[COMIC_CTRL] API: Cache MISS: ${cacheKey}`);
+          logger.debug(`[COMIC_CTRL] API: Cache MISS: ${cacheKey}`);
           logger.info(`Comic list API cache MISS`);
           
           // Fetch comics from database
@@ -356,7 +356,7 @@ const ComicController = {
       
       const totalPages = Math.ceil(total / limit);
       
-      console.log(`[COMIC_CTRL] API: Found ${comics.length} comics`);
+      logger.debug(`[COMIC_CTRL] API: Found ${comics.length} comics`);
       logger.info(`API: Comic list - ${comics.length} of ${total} comics`);
       
       // Return JSON response
@@ -373,7 +373,7 @@ const ComicController = {
       });
       
     } catch (error) {
-      console.error(`[COMIC_CTRL] listComicsAPI() - Error: ${error.message}`);
+      logger.error(`[COMIC_CTRL] listComicsAPI() - Error: ${error.message}`);
       logger.error(`API: Comic list error: ${error.message}`);
       return serverError(res, 'Failed to retrieve comics');
     }
@@ -405,13 +405,13 @@ const ComicController = {
   async getComicDetailAPI(req, res) {
     const { param } = req.params;
     
-    console.log(`[COMIC_CTRL] getComicDetailAPI() - Comic: ${param}`);
+    logger.debug(`[COMIC_CTRL] getComicDetailAPI() - Comic: ${param}`);
     logger.info(`API: Comic detail requested: ${param}`);
     
     try {
       // Validate param
       if (!param || typeof param !== 'string') {
-        console.log('[COMIC_CTRL] API: Invalid param');
+        logger.debug('[COMIC_CTRL] API: Invalid param');
         return badRequest(res, 'Invalid comic parameter');
       }
       
@@ -421,7 +421,7 @@ const ComicController = {
       const data = await cacheService.getOrFetch(
         cacheKey,
         async () => {
-          console.log(`[COMIC_CTRL] API: Cache MISS: ${cacheKey}`);
+          logger.debug(`[COMIC_CTRL] API: Cache MISS: ${cacheKey}`);
           
           // Fetch comic from database
           const comic = await ComicModel.findByParam(param);
@@ -441,14 +441,14 @@ const ComicController = {
       
       // Handle not found
       if (!data || !data.comic) {
-        console.log(`[COMIC_CTRL] API: Comic not found: ${param}`);
+        logger.debug(`[COMIC_CTRL] API: Comic not found: ${param}`);
         logger.warn(`API: Comic not found: ${param}`);
         return errorResponse(res, 'Comic not found', null, 404);
       }
       
       const { comic, chapterCount } = data;
       
-      console.log(`[COMIC_CTRL] API: Found comic "${comic.title}"`);
+      logger.debug(`[COMIC_CTRL] API: Found comic "${comic.title}"`);
       logger.info(`API: Comic detail: "${comic.title}"`);
       
       // Return JSON response
@@ -458,7 +458,7 @@ const ComicController = {
       });
       
     } catch (error) {
-      console.error(`[COMIC_CTRL] getComicDetailAPI() - Error: ${error.message}`);
+      logger.error(`[COMIC_CTRL] getComicDetailAPI() - Error: ${error.message}`);
       logger.error(`API: Comic detail error: ${error.message}`);
       return serverError(res, 'Failed to retrieve comic');
     }
@@ -491,13 +491,13 @@ const ComicController = {
   async getChaptersAPI(req, res) {
     const { param } = req.params;
     
-    console.log(`[COMIC_CTRL] getChaptersAPI() - Comic: ${param}`);
+    logger.debug(`[COMIC_CTRL] getChaptersAPI() - Comic: ${param}`);
     logger.info(`API: Chapters requested for: ${param}`);
     
     try {
       // Validate param
       if (!param || typeof param !== 'string') {
-        console.log('[COMIC_CTRL] API: Invalid param');
+        logger.debug('[COMIC_CTRL] API: Invalid param');
         return badRequest(res, 'Invalid comic parameter');
       }
       
@@ -507,7 +507,7 @@ const ComicController = {
       const data = await cacheService.getOrFetch(
         cacheKey,
         async () => {
-          console.log(`[COMIC_CTRL] API: Cache MISS: ${cacheKey}`);
+          logger.debug(`[COMIC_CTRL] API: Cache MISS: ${cacheKey}`);
           
           // Fetch comic first to validate it exists
           const comic = await ComicModel.findByParam(param);
@@ -530,14 +530,14 @@ const ComicController = {
       
       // Handle not found
       if (!data || !data.comic) {
-        console.log(`[COMIC_CTRL] API: Comic not found: ${param}`);
+        logger.debug(`[COMIC_CTRL] API: Comic not found: ${param}`);
         logger.warn(`API: Comic not found: ${param}`);
         return errorResponse(res, 'Comic not found', null, 404);
       }
       
       const { comic, chapters } = data;
       
-      console.log(`[COMIC_CTRL] API: Found ${chapters.length} chapters`);
+      logger.debug(`[COMIC_CTRL] API: Found ${chapters.length} chapters`);
       logger.info(`API: Chapters for "${comic.title}": ${chapters.length}`);
       
       // Return JSON response
@@ -551,7 +551,7 @@ const ComicController = {
       });
       
     } catch (error) {
-      console.error(`[COMIC_CTRL] getChaptersAPI() - Error: ${error.message}`);
+      logger.error(`[COMIC_CTRL] getChaptersAPI() - Error: ${error.message}`);
       logger.error(`API: Chapters error: ${error.message}`);
       return serverError(res, 'Failed to retrieve chapters');
     }
@@ -585,7 +585,7 @@ const ComicController = {
    * @param {Object} res - Express response object
    */
   async searchComicsAPI(req, res) {
-    console.log('[COMIC_CTRL] searchComicsAPI() - API search request');
+    logger.debug('[COMIC_CTRL] searchComicsAPI() - API search request');
     logger.info(`API: Comic search requested`);
     
     try {
@@ -597,7 +597,7 @@ const ComicController = {
       const keyword = req.query.search || req.query.q || '';
       const genre = req.query.genre || '';
       
-      console.log(`[COMIC_CTRL] API Search: keyword="${keyword}", genre="${genre}", page=${page}`);
+      logger.debug(`[COMIC_CTRL] API Search: keyword="${keyword}", genre="${genre}", page=${page}`);
       
       // Build cache key with filters
       const filters = {};
@@ -610,7 +610,7 @@ const ComicController = {
       const cachedData = await cacheService.getOrFetch(
         cacheKey,
         async () => {
-          console.log(`[COMIC_CTRL] API Search: Cache MISS: ${cacheKey}`);
+          logger.debug(`[COMIC_CTRL] API Search: Cache MISS: ${cacheKey}`);
           logger.info(`Comic search cache MISS - keyword: ${keyword}, genre: ${genre}`);
           
           // Search and filter
@@ -629,7 +629,7 @@ const ComicController = {
       
       const totalPages = Math.ceil(total / limit);
       
-      console.log(`[COMIC_CTRL] API Search: Found ${comics.length} of ${total} results`);
+      logger.debug(`[COMIC_CTRL] API Search: Found ${comics.length} of ${total} results`);
       logger.info(`API: Search results - ${comics.length} of ${total} comics`);
       
       // Return JSON response
@@ -650,7 +650,7 @@ const ComicController = {
       });
       
     } catch (error) {
-      console.error(`[COMIC_CTRL] searchComicsAPI() - Error: ${error.message}`);
+      logger.error(`[COMIC_CTRL] searchComicsAPI() - Error: ${error.message}`);
       logger.error(`API: Search error: ${error.message}`);
       return serverError(res, 'Failed to search comics');
     }
@@ -677,7 +677,7 @@ const ComicController = {
    * @param {Object} res - Express response object
    */
   async getGenresAPI(req, res) {
-    console.log('[COMIC_CTRL] getGenresAPI() - API genres request');
+    logger.debug('[COMIC_CTRL] getGenresAPI() - API genres request');
     logger.info(`API: Genres list requested`);
     
     try {
@@ -685,7 +685,7 @@ const ComicController = {
       const genres = await cacheService.getOrFetch(
         cacheService.genresKey(),
         async () => {
-          console.log('[COMIC_CTRL] API: Cache MISS - Fetching genres from database');
+          logger.debug('[COMIC_CTRL] API: Cache MISS - Fetching genres from database');
           logger.info('Genres cache MISS - fetching from database');
           return await ComicModel.getAllGenres();
         },
@@ -693,7 +693,7 @@ const ComicController = {
         86400 // 24 hours - genres are almost static
       );
       
-      console.log(`[COMIC_CTRL] API: Found ${genres.length} unique genres`);
+      logger.debug(`[COMIC_CTRL] API: Found ${genres.length} unique genres`);
       logger.info(`API: ${genres.length} genres retrieved`);
       
       return successResponse(res, 'Genres retrieved', {
@@ -702,7 +702,7 @@ const ComicController = {
       });
       
     } catch (error) {
-      console.error(`[COMIC_CTRL] getGenresAPI() - Error: ${error.message}`);
+      logger.error(`[COMIC_CTRL] getGenresAPI() - Error: ${error.message}`);
       logger.error(`API: Genres error: ${error.message}`);
       return serverError(res, 'Failed to retrieve genres');
     }
@@ -723,7 +723,7 @@ const ComicController = {
    */
   invalidateComicCache(comicParam) {
     const count = cacheService.invalidateComic(comicParam);
-    console.log(`[COMIC_CTRL] Invalidated cache for comic: ${comicParam} (${count} entries)`);
+    logger.debug(`[COMIC_CTRL] Invalidated cache for comic: ${comicParam} (${count} entries)`);
     logger.info(`Cache invalidated: comic ${comicParam}`);
     return count;
   },
@@ -744,7 +744,7 @@ const ComicController = {
     // Clear comic list caches (pagination + search + filters)
     count += cacheService.clearByPattern('comics:list');
     
-    console.log(`[COMIC_CTRL] Invalidated ALL comic caches (${count} entries)`);
+    logger.debug(`[COMIC_CTRL] Invalidated ALL comic caches (${count} entries)`);
     logger.info(`All comic caches invalidated: ${count} entries`);
     return count;
   },
@@ -759,7 +759,7 @@ const ComicController = {
    */
   invalidateComicListCache() {
     const count = cacheService.clearByPattern('comics:list');
-    console.log(`[COMIC_CTRL] Invalidated comic list cache (${count} entries)`);
+    logger.debug(`[COMIC_CTRL] Invalidated comic list cache (${count} entries)`);
     logger.info(`Comic list cache invalidated: ${count} entries`);
     return count;
   },
@@ -774,7 +774,7 @@ const ComicController = {
    */
   invalidateGenresCache() {
     const deleted = cacheService.delete(cacheService.genresKey());
-    console.log(`[COMIC_CTRL] Invalidated genres cache (${deleted} entries)`);
+    logger.debug(`[COMIC_CTRL] Invalidated genres cache (${deleted} entries)`);
     logger.info('Genres cache invalidated');
     return deleted;
   }

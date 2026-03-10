@@ -69,13 +69,13 @@ const ChapterModel = {
       const results = await query(sql, [comicId]);
       const duration = Date.now() - startTime;
       
-      console.log(`[CHAPTER_MODEL] findByComicId() - Found ${results.length} chapters (${duration}ms)`);
+      logger.debug(`[CHAPTER_MODEL] findByComicId() - Found ${results.length} chapters (${duration}ms)`);
       logger.info(`Chapter.findByComicId: ${results.length} chapters in ${duration}ms`);
       
       return results;
       
     } catch (error) {
-      console.error(`[CHAPTER_MODEL] findByComicId() - Error: ${error.message}`);
+      logger.error(`[CHAPTER_MODEL] findByComicId() - Error: ${error.message}`);
       logger.error(`Chapter.findByComicId error: ${error.message}`);
       throw error;
     }
@@ -100,7 +100,7 @@ const ChapterModel = {
   async findByParams(comicParam, chapterParam) {
     const startTime = Date.now();
     
-    console.log(`[CHAPTER_MODEL] findByParams() - Looking for: ${comicParam}/${chapterParam}`);
+    logger.debug(`[CHAPTER_MODEL] findByParams() - Looking for: ${comicParam}/${chapterParam}`);
     logger.debug(`Chapter.findByParams: comic="${comicParam}", chapter="${chapterParam}"`);
     
     try {
@@ -127,19 +127,19 @@ const ChapterModel = {
       const duration = Date.now() - startTime;
       
       if (results.length === 0) {
-        console.log(`[CHAPTER_MODEL] findByParams() - Not found: ${comicParam}/${chapterParam} (${duration}ms)`);
+        logger.debug(`[CHAPTER_MODEL] findByParams() - Not found: ${comicParam}/${chapterParam} (${duration}ms)`);
         logger.warn(`Chapter.findByParams: not found - ${comicParam}/${chapterParam}`);
         return null;
       }
       
       const chapter = results[0];
-      console.log(`[CHAPTER_MODEL] findByParams() - Found: "${chapter.chapter_label}" (${duration}ms)`);
+      logger.debug(`[CHAPTER_MODEL] findByParams() - Found: "${chapter.chapter_label}" (${duration}ms)`);
       logger.info(`Chapter.findByParams: found "${chapter.chapter_label}" in ${duration}ms`);
       
       return chapter;
       
     } catch (error) {
-      console.error(`[CHAPTER_MODEL] findByParams() - Error: ${error.message}`);
+      logger.error(`[CHAPTER_MODEL] findByParams() - Error: ${error.message}`);
       logger.error(`Chapter.findByParams error: ${error.message}`);
       throw error;
     }
@@ -159,7 +159,7 @@ const ChapterModel = {
   async findById(id) {
     const startTime = Date.now();
     
-    console.log(`[CHAPTER_MODEL] findById() - Looking for chapter ID: ${id}`);
+    logger.debug(`[CHAPTER_MODEL] findById() - Looking for chapter ID: ${id}`);
     logger.debug(`Chapter.findById: id=${id}`);
     
     try {
@@ -180,18 +180,18 @@ const ChapterModel = {
       const duration = Date.now() - startTime;
       
       if (results.length === 0) {
-        console.log(`[CHAPTER_MODEL] findById() - Chapter ID ${id} not found (${duration}ms)`);
+        logger.debug(`[CHAPTER_MODEL] findById() - Chapter ID ${id} not found (${duration}ms)`);
         logger.warn(`Chapter.findById: not found - id=${id}`);
         return null;
       }
       
-      console.log(`[CHAPTER_MODEL] findById() - Found chapter ID ${id} (${duration}ms)`);
+      logger.debug(`[CHAPTER_MODEL] findById() - Found chapter ID ${id} (${duration}ms)`);
       logger.info(`Chapter.findById: found id=${id} in ${duration}ms`);
       
       return results[0];
       
     } catch (error) {
-      console.error(`[CHAPTER_MODEL] findById() - Error: ${error.message}`);
+      logger.error(`[CHAPTER_MODEL] findById() - Error: ${error.message}`);
       logger.error(`Chapter.findById error: ${error.message}`);
       throw error;
     }
@@ -210,7 +210,7 @@ const ChapterModel = {
   async getNavigation(comicId, currentChapterId) {
     const startTime = Date.now();
     
-    console.log(`[CHAPTER_MODEL] getNavigation() - Comic: ${comicId}, Current: ${currentChapterId}`);
+    logger.debug(`[CHAPTER_MODEL] getNavigation() - Comic: ${comicId}, Current: ${currentChapterId}`);
     logger.debug(`Chapter.getNavigation: comicId=${comicId}, chapterId=${currentChapterId}`);
     
     try {
@@ -246,7 +246,7 @@ const ChapterModel = {
       const currentIndex = allChapters.findIndex(ch => ch.id === currentChapterId);
       
       if (currentIndex === -1) {
-        console.log(`[CHAPTER_MODEL] Current chapter not found in list`);
+        logger.debug(`[CHAPTER_MODEL] Current chapter not found in list`);
         return { prev: null, next: null };
       }
       
@@ -255,7 +255,7 @@ const ChapterModel = {
       
       const duration = Date.now() - startTime;
       
-      console.log(`[CHAPTER_MODEL] getNavigation() - Prev: ${prev ? prev.param : 'none'}, Next: ${next ? next.param : 'none'} (${duration}ms)`);
+      logger.debug(`[CHAPTER_MODEL] getNavigation() - Prev: ${prev ? prev.param : 'none'}, Next: ${next ? next.param : 'none'} (${duration}ms)`);
       logger.info(`Chapter.getNavigation: prev=${prev?.param || 'none'}, next=${next?.param || 'none'} in ${duration}ms`);
       
       return { prev, next };
@@ -264,7 +264,7 @@ const ChapterModel = {
       return { prev, next };
       
     } catch (error) {
-      console.error(`[CHAPTER_MODEL] getNavigation() - Error: ${error.message}`);
+      logger.error(`[CHAPTER_MODEL] getNavigation() - Error: ${error.message}`);
       logger.error(`Chapter.getNavigation error: ${error.message}`);
       throw error;
     }
@@ -284,7 +284,7 @@ const ChapterModel = {
   async countByComicId(comicId) {
     const startTime = Date.now();
     
-    console.log(`[CHAPTER_MODEL] countByComicId() - Counting chapters for comic ID: ${comicId}`);
+    logger.debug(`[CHAPTER_MODEL] countByComicId() - Counting chapters for comic ID: ${comicId}`);
     logger.debug(`Chapter.countByComicId: comicId=${comicId}`);
     
     try {
@@ -293,13 +293,13 @@ const ChapterModel = {
       const duration = Date.now() - startTime;
       
       const total = results[0].total;
-      console.log(`[CHAPTER_MODEL] countByComicId() - Total: ${total} chapters (${duration}ms)`);
+      logger.debug(`[CHAPTER_MODEL] countByComicId() - Total: ${total} chapters (${duration}ms)`);
       logger.info(`Chapter.countByComicId: ${total} chapters in ${duration}ms`);
       
       return total;
       
     } catch (error) {
-      console.error(`[CHAPTER_MODEL] countByComicId() - Error: ${error.message}`);
+      logger.error(`[CHAPTER_MODEL] countByComicId() - Error: ${error.message}`);
       logger.error(`Chapter.countByComicId error: ${error.message}`);
       throw error;
     }
@@ -319,7 +319,7 @@ const ChapterModel = {
   async getFirstChapter(comicId) {
     const startTime = Date.now();
     
-    console.log(`[CHAPTER_MODEL] getFirstChapter() - Getting first chapter for comic ID: ${comicId}`);
+    logger.debug(`[CHAPTER_MODEL] getFirstChapter() - Getting first chapter for comic ID: ${comicId}`);
     logger.debug(`Chapter.getFirstChapter: comicId=${comicId}`);
     
     try {
@@ -335,18 +335,18 @@ const ChapterModel = {
       const duration = Date.now() - startTime;
       
       if (results.length === 0) {
-        console.log(`[CHAPTER_MODEL] getFirstChapter() - No chapters found (${duration}ms)`);
+        logger.debug(`[CHAPTER_MODEL] getFirstChapter() - No chapters found (${duration}ms)`);
         logger.warn(`Chapter.getFirstChapter: no chapters for comicId=${comicId}`);
         return null;
       }
       
-      console.log(`[CHAPTER_MODEL] getFirstChapter() - Found: ${results[0].param} (${duration}ms)`);
+      logger.debug(`[CHAPTER_MODEL] getFirstChapter() - Found: ${results[0].param} (${duration}ms)`);
       logger.info(`Chapter.getFirstChapter: ${results[0].param} in ${duration}ms`);
       
       return results[0];
       
     } catch (error) {
-      console.error(`[CHAPTER_MODEL] getFirstChapter() - Error: ${error.message}`);
+      logger.error(`[CHAPTER_MODEL] getFirstChapter() - Error: ${error.message}`);
       logger.error(`Chapter.getFirstChapter error: ${error.message}`);
       throw error;
     }

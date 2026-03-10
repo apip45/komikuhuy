@@ -18,6 +18,7 @@
  */
 
 const express = require('express');
+const logger = require('../utils/smartLogger');
 const router = express.Router();
 
 // Controllers
@@ -27,7 +28,7 @@ const HistoryController = require('../controllers/historyController');
 // Authentication middleware
 const { isAuthenticated } = require('../middlewares/auth.middleware');
 
-console.log('[ROUTES] Loading user.routes.js...');
+logger.debug('[ROUTES] Loading user.routes.js...');
 
 // ===========================================
 // BOOKMARK ROUTES
@@ -45,7 +46,7 @@ router.post(
   isAuthenticated,
   BookmarkController.addBookmarkWeb
 );
-console.log('[ROUTES] ✓ POST /bookmarks/:comicParam');
+logger.debug('[ROUTES] ✓ POST /bookmarks/:comicParam');
 
 /**
  * POST /bookmarks/:comicParam/remove
@@ -61,7 +62,7 @@ router.post(
   isAuthenticated,
   BookmarkController.removeBookmarkWeb
 );
-console.log('[ROUTES] ✓ POST /bookmarks/:comicParam/remove');
+logger.debug('[ROUTES] ✓ POST /bookmarks/:comicParam/remove');
 
 // ===========================================
 // USER PAGES ROUTES (/my/*)
@@ -82,7 +83,7 @@ router.get(
   isAuthenticated,
   BookmarkController.listBookmarksPage
 );
-console.log('[ROUTES] ✓ GET /my/bookmarks');
+logger.debug('[ROUTES] ✓ GET /my/bookmarks');
 
 /**
  * GET /my/history
@@ -99,7 +100,7 @@ router.get(
   isAuthenticated,
   HistoryController.listHistoryPage
 );
-console.log('[ROUTES] ✓ GET /my/history');
+logger.debug('[ROUTES] ✓ GET /my/history');
 
 /**
  * POST /my/history/clear
@@ -113,7 +114,7 @@ router.post(
   isAuthenticated,
   HistoryController.clearHistoryWeb
 );
-console.log('[ROUTES] ✓ POST /my/history/clear');
+logger.debug('[ROUTES] ✓ POST /my/history/clear');
 
 /**
  * POST /my/history/:comicParam/remove
@@ -127,7 +128,7 @@ router.post(
   isAuthenticated,
   HistoryController.removeHistoryWeb
 );
-console.log('[ROUTES] ✓ POST /my/history/:comicParam/remove');
+logger.debug('[ROUTES] ✓ POST /my/history/:comicParam/remove');
 
 // ===========================================
 // RESUME READING ROUTE
@@ -150,8 +151,8 @@ router.get(
   isAuthenticated,
   HistoryController.resumeReadingWeb
 );
-console.log('[ROUTES] ✓ GET /resume/:comicParam');
+logger.debug('[ROUTES] ✓ GET /resume/:comicParam');
 
-console.log('[ROUTES] User routes loaded successfully');
+logger.debug('[ROUTES] User routes loaded successfully');
 
 module.exports = router;

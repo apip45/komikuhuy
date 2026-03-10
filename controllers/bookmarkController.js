@@ -24,7 +24,7 @@
  * - Comic existence validated against MySQL
  */
 
-const logger = require('../config/logger');
+const logger = require('../utils/smartLogger');
 const Bookmark = require('../models/mongo/Bookmark');
 const ComicModel = require('../models/mysql/comic.model');
 const { 
@@ -200,35 +200,35 @@ const BookmarkController = {
     const { comicParam } = req.params;
     const userId = req.user._id;
     
-    console.log('[Bookmark API] ===== ADD BOOKMARK REQUEST =====');
-    console.log('[Bookmark API] Comic param:', comicParam);
-    console.log('[Bookmark API] User ID:', userId);
+    logger.debug('[Bookmark API] ===== ADD BOOKMARK REQUEST =====');
+    logger.debug('[Bookmark API] Comic param:', comicParam);
+    logger.debug('[Bookmark API] User ID:', userId);
     
     try {
       // Check if comic exists in MySQL
-      console.log('[Bookmark API] Checking comic in MySQL...');
+      logger.debug('[Bookmark API] Checking comic in MySQL...');
       const comic = await ComicModel.findByParam(comicParam);
-      console.log('[Bookmark API] Comic found:', comic ? comic.title : 'NOT FOUND');
+      logger.debug('[Bookmark API] Comic found:', comic ? comic.title : 'NOT FOUND');
       
       if (!comic) {
         logger.warn(`[Bookmark API] Comic not found: ${comicParam}`);
-        console.log('[Bookmark API] Returning 404 - Comic not found');
+        logger.debug('[Bookmark API] Returning 404 - Comic not found');
         return notFound(res, 'Comic not found');
       }
       
       // Check if already bookmarked
-      console.log('[Bookmark API] Checking if already bookmarked...');
+      logger.debug('[Bookmark API] Checking if already bookmarked...');
       const isBookmarked = await Bookmark.isBookmarked(userId, comicParam);
-      console.log('[Bookmark API] Already bookmarked?', isBookmarked);
+      logger.debug('[Bookmark API] Already bookmarked?', isBookmarked);
       
       if (isBookmarked) {
         logger.info(`[Bookmark API] Already bookmarked: ${comicParam}`);
-        console.log('[Bookmark API] Returning 409 - Already bookmarked');
+        logger.debug('[Bookmark API] Returning 409 - Already bookmarked');
         return conflict(res, 'Already bookmarked');
       }
       
       // Create bookmark
-      console.log('[Bookmark API] Creating bookmark in MongoDB...');
+      logger.debug('[Bookmark API] Creating bookmark in MongoDB...');
       const bookmarkData = {
         userId,
         comicParam: comicParam.toLowerCase(),
@@ -239,10 +239,10 @@ const BookmarkController = {
           genres: Array.isArray(comic.genres) ? comic.genres : []
         }
       };
-      console.log('[Bookmark API] Bookmark data:', JSON.stringify(bookmarkData, null, 2));
+      logger.debug('[Bookmark API] Bookmark data:', JSON.stringify(bookmarkData, null, 2));
       
       const bookmark = await Bookmark.create(bookmarkData);
-      console.log('[Bookmark API] Bookmark created successfully:', bookmark._id);
+      logger.debug('[Bookmark API] Bookmark created successfully:', bookmark._id);
       
       logger.info(`[Bookmark API] Added: ${comicParam} by user ${userId}`);
       
@@ -259,11 +259,11 @@ const BookmarkController = {
       });
       
     } catch (error) {
-      console.error('[Bookmark API] ===== ERROR CAUGHT =====');
-      console.error('[Bookmark API] Error message:', error.message);
-      console.error('[Bookmark API] Error stack:', error.stack);
-      console.error('[Bookmark API] Error name:', error.name);
-      console.error('[Bookmark API] Full error:', error);
+      logger.error('[Bookmark API] ===== ERROR CAUGHT =====');
+      logger.error('[Bookmark API] Error message:', error.message);
+      logger.error('[Bookmark API] Error stack:', error.stack);
+      logger.error('[Bookmark API] Error name:', error.name);
+      logger.error('[Bookmark API] Full error:', error);
       
       logger.error(`[Bookmark API] Error adding: ${error.message}`);
       logger.error(`[Bookmark API] Stack: ${error.stack}`);

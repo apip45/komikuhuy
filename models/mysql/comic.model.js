@@ -248,7 +248,7 @@ const ComicModel = {
   async search(keyword, limit = 20) {
     const startTime = Date.now();
     
-    console.log(`[COMIC_MODEL] search() - Searching for: "${keyword}"`);
+    logger.debug(`[COMIC_MODEL] search() - Searching for: "${keyword}"`);
     logger.debug(`Comic.search: keyword="${keyword}", limit=${limit}`);
     
     try {
@@ -273,7 +273,7 @@ const ComicModel = {
       const results = await query(sql, [`%${keyword}%`, limit]);
       const duration = Date.now() - startTime;
       
-      console.log(`[COMIC_MODEL] search() - Found ${results.length} results for "${keyword}" (${duration}ms)`);
+      logger.debug(`[COMIC_MODEL] search() - Found ${results.length} results for "${keyword}" (${duration}ms)`);
       logger.info(`Comic.search: ${results.length} results for "${keyword}" in ${duration}ms`);
       
       return results.map(comic => ({
@@ -282,7 +282,7 @@ const ComicModel = {
       }));
       
     } catch (error) {
-      console.error(`[COMIC_MODEL] search() - Error: ${error.message}`);
+      logger.error(`[COMIC_MODEL] search() - Error: ${error.message}`);
       logger.error(`Comic.search error: ${error.message}`);
       throw error;
     }
@@ -306,7 +306,7 @@ const ComicModel = {
   async searchAndFilter({ keyword = '', genre = '', limit = 20, offset = 0 } = {}) {
     const startTime = Date.now();
     
-    console.log(`[COMIC_MODEL] searchAndFilter() - keyword: "${keyword}", genre: "${genre}"`);
+    logger.debug(`[COMIC_MODEL] searchAndFilter() - keyword: "${keyword}", genre: "${genre}"`);
     logger.debug(`Comic.searchAndFilter: keyword="${keyword}", genre="${genre}", limit=${limit}`);
     
     try {
@@ -346,7 +346,7 @@ const ComicModel = {
       const results = await query(sql, params);
       const duration = Date.now() - startTime;
       
-      console.log(`[COMIC_MODEL] searchAndFilter() - Found ${results.length} results (${duration}ms)`);
+      logger.debug(`[COMIC_MODEL] searchAndFilter() - Found ${results.length} results (${duration}ms)`);
       logger.info(`Comic.searchAndFilter: ${results.length} results in ${duration}ms`);
       
       return results.map(comic => ({
@@ -355,7 +355,7 @@ const ComicModel = {
       }));
       
     } catch (error) {
-      console.error(`[COMIC_MODEL] searchAndFilter() - Error: ${error.message}`);
+      logger.error(`[COMIC_MODEL] searchAndFilter() - Error: ${error.message}`);
       logger.error(`Comic.searchAndFilter error: ${error.message}`);
       throw error;
     }
@@ -374,7 +374,7 @@ const ComicModel = {
   async countSearchResults({ keyword = '', genre = '' } = {}) {
     const startTime = Date.now();
     
-    console.log(`[COMIC_MODEL] countSearchResults() - keyword: "${keyword}", genre: "${genre}"`);
+    logger.debug(`[COMIC_MODEL] countSearchResults() - keyword: "${keyword}", genre: "${genre}"`);
     logger.debug(`Comic.countSearchResults: keyword="${keyword}", genre="${genre}"`);
     
     try {
@@ -397,13 +397,13 @@ const ComicModel = {
       const duration = Date.now() - startTime;
       
       const total = results[0].total;
-      console.log(`[COMIC_MODEL] countSearchResults() - Total: ${total} (${duration}ms)`);
+      logger.debug(`[COMIC_MODEL] countSearchResults() - Total: ${total} (${duration}ms)`);
       logger.info(`Comic.countSearchResults: ${total} results in ${duration}ms`);
       
       return total;
       
     } catch (error) {
-      console.error(`[COMIC_MODEL] countSearchResults() - Error: ${error.message}`);
+      logger.error(`[COMIC_MODEL] countSearchResults() - Error: ${error.message}`);
       logger.error(`Comic.countSearchResults error: ${error.message}`);
       throw error;
     }
@@ -420,7 +420,7 @@ const ComicModel = {
   async getAllGenres() {
     const startTime = Date.now();
     
-    console.log(`[COMIC_MODEL] getAllGenres() - Fetching unique genres`);
+    logger.debug(`[COMIC_MODEL] getAllGenres() - Fetching unique genres`);
     logger.debug(`Comic.getAllGenres: fetching`);
     
     try {
@@ -438,13 +438,13 @@ const ComicModel = {
       
       const uniqueGenres = Array.from(genreSet).sort();
       
-      console.log(`[COMIC_MODEL] getAllGenres() - Found ${uniqueGenres.length} unique genres (${duration}ms)`);
+      logger.debug(`[COMIC_MODEL] getAllGenres() - Found ${uniqueGenres.length} unique genres (${duration}ms)`);
       logger.info(`Comic.getAllGenres: ${uniqueGenres.length} genres in ${duration}ms`);
       
       return uniqueGenres;
       
     } catch (error) {
-      console.error(`[COMIC_MODEL] getAllGenres() - Error: ${error.message}`);
+      logger.error(`[COMIC_MODEL] getAllGenres() - Error: ${error.message}`);
       logger.error(`Comic.getAllGenres error: ${error.message}`);
       throw error;
     }
@@ -474,7 +474,7 @@ const ComicModel = {
         return JSON.parse(genres);
       } catch (e) {
         // If parsing fails, return empty array
-        console.warn(`[COMIC_MODEL] Failed to parse genres: ${genres}`);
+        logger.warn(`[COMIC_MODEL] Failed to parse genres: ${genres}`);
         return [];
       }
     }

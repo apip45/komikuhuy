@@ -9,7 +9,7 @@
  * Uses role-based access control with session data.
  */
 
-const logger = require('../config/logger');
+const logger = require('../utils/smartLogger');
 
 /**
  * Check if user has admin privileges

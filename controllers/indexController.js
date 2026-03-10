@@ -9,7 +9,7 @@
  * Note: Login/Register are now handled by authController.js
  */
 
-const logger = require('../config/logger');
+const logger = require('../utils/smartLogger');
 const ComicModel = require('../models/mysql/comic.model');
 const statsService = require('../services/statsService');
 const User = require('../models/mongo/User');
@@ -27,7 +27,7 @@ const { cacheService } = require('../services/cacheService');
  */
 const getHomePage = async (req, res, next) => {
   try {
-    console.log('[INDEX] Rendering homepage');
+    logger.debug('[INDEX] Rendering homepage');
     
     // Get user from request if logged in (attached by attachUser middleware)
     const user = req.user ? req.user.getPublicProfile() : null;
@@ -38,7 +38,7 @@ const getHomePage = async (req, res, next) => {
     const homepageData = await cacheService.getOrFetch(
       cacheKey,
       async () => {
-        console.log('[INDEX] Cache MISS: Fetching homepage data from database');
+        logger.debug('[INDEX] Cache MISS: Fetching homepage data from database');
         logger.info('Homepage cache MISS - fetching from database');
         
         // Fetch featured comics and latest updates in parallel
@@ -69,7 +69,7 @@ const getHomePage = async (req, res, next) => {
           logger.warn(`Failed to fetch stats: ${statError.message}`);
         }
         
-        console.log(`[INDEX] Fetched: ${featuredComics.length} featured, ${latestUpdates.length} latest, stats: ${JSON.stringify(stats)}`);
+        logger.debug(`[INDEX] Fetched: ${featuredComics.length} featured, ${latestUpdates.length} latest, stats: ${JSON.stringify(stats)}`);
         
         return {
           featuredComics,
@@ -83,7 +83,7 @@ const getHomePage = async (req, res, next) => {
     
     // Check if we got data from cache
     if (cacheService.get(cacheKey, 'warm')) {
-      console.log('[INDEX] Cache HIT: Using cached homepage data');
+      logger.debug('[INDEX] Cache HIT: Using cached homepage data');
       logger.info('Homepage cache HIT');
     }
     
@@ -114,7 +114,7 @@ const getHomePage = async (req, res, next) => {
  */
 const invalidateHomepageCache = () => {
   const count = cacheService.invalidateHomepage();
-  console.log(`[INDEX] Homepage cache invalidated (${count} entries)`);
+  logger.debug(`[INDEX] Homepage cache invalidated (${count} entries)`);
   logger.info('Homepage cache invalidated');
   return count > 0;
 };

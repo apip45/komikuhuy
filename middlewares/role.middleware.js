@@ -22,7 +22,7 @@
  * router.get('/mod', isAuthenticated, hasRole(['admin', 'moderator']), modController.panel);
  */
 
-const logger = require('../config/logger');
+const logger = require('../utils/smartLogger');
 const { forbidden } = require('../utils/apiResponse');
 
 /**
@@ -41,18 +41,18 @@ const { forbidden } = require('../utils/apiResponse');
  * @param {Function} next - Express next middleware function
  */
 const isAdmin = (req, res, next) => {
-  console.log('[ROLE] Checking admin status...');
+  logger.debug('[ROLE] Checking admin status...');
   
   // Check if user exists on request (should be set by isAuthenticated)
   if (!req.user) {
-    console.log('[ROLE] ✗ No user on request - auth middleware may not have run');
+    logger.debug('[ROLE] ✗ No user on request - auth middleware may not have run');
     logger.error('isAdmin called without user on request');
     return res.redirect('/login?error=' + encodeURIComponent('Please log in'));
   }
   
   // Check user role
   if (req.user.role !== 'admin') {
-    console.log(`[ROLE] ✗ User ${req.user.username} is not an admin (role: ${req.user.role})`);
+    logger.debug(`[ROLE] ✗ User ${req.user.username} is not an admin (role: ${req.user.role})`);
     logger.warn(`Unauthorized admin access attempt by: ${req.user.username} to ${req.path}`);
     
     // Render 403 forbidden page
@@ -62,7 +62,7 @@ const isAdmin = (req, res, next) => {
     });
   }
   
-  console.log(`[ROLE] ✓ Admin access granted: ${req.user.username}`);
+  logger.debug(`[ROLE] ✓ Admin access granted: ${req.user.username}`);
   logger.info(`Admin access: ${req.user.username} accessed ${req.path}`);
   next();
 };
@@ -83,22 +83,22 @@ const isAdmin = (req, res, next) => {
  * @param {Function} next - Express next middleware function
  */
 const isAdminAPI = (req, res, next) => {
-  console.log('[ROLE-API] Checking admin status...');
+  logger.debug('[ROLE-API] Checking admin status...');
   
   // Check if user exists on request
   if (!req.user) {
-    console.log('[ROLE-API] ✗ No user on request');
+    logger.debug('[ROLE-API] ✗ No user on request');
     return forbidden(res, 'Authentication required');
   }
   
   // Check user role
   if (req.user.role !== 'admin') {
-    console.log(`[ROLE-API] ✗ User ${req.user.username} is not an admin`);
+    logger.debug(`[ROLE-API] ✗ User ${req.user.username} is not an admin`);
     logger.warn(`API: Unauthorized admin access attempt by: ${req.user.username} to ${req.path}`);
     return forbidden(res, 'Admin access required');
   }
   
-  console.log(`[ROLE-API] ✓ Admin access granted: ${req.user.username}`);
+  logger.debug(`[ROLE-API] ✓ Admin access granted: ${req.user.username}`);
   logger.info(`API: Admin access: ${req.user.username} accessed ${req.path}`);
   next();
 };
@@ -116,15 +116,15 @@ const isAdminAPI = (req, res, next) => {
  */
 const hasRole = (roles) => {
   return (req, res, next) => {
-    console.log(`[ROLE] Checking if user has role: [${roles.join(', ')}]`);
+    logger.debug(`[ROLE] Checking if user has role: [${roles.join(', ')}]`);
     
     if (!req.user) {
-      console.log('[ROLE] ✗ No user on request');
+      logger.debug('[ROLE] ✗ No user on request');
       return res.redirect('/login?error=' + encodeURIComponent('Please log in'));
     }
     
     if (!roles.includes(req.user.role)) {
-      console.log(`[ROLE] ✗ User ${req.user.username} role ${req.user.role} not in [${roles.join(', ')}]`);
+      logger.debug(`[ROLE] ✗ User ${req.user.username} role ${req.user.role} not in [${roles.join(', ')}]`);
       logger.warn(`Unauthorized access: ${req.user.username} (${req.user.role}) to ${req.path}`);
       
       return res.status(403).render('errors/403', {
@@ -133,7 +133,7 @@ const hasRole = (roles) => {
       });
     }
     
-    console.log(`[ROLE] ✓ Role check passed: ${req.user.username} (${req.user.role})`);
+    logger.debug(`[ROLE] ✓ Role check passed: ${req.user.username} (${req.user.role})`);
     next();
   };
 };
@@ -146,20 +146,20 @@ const hasRole = (roles) => {
  */
 const hasRoleAPI = (roles) => {
   return (req, res, next) => {
-    console.log(`[ROLE-API] Checking if user has role: [${roles.join(', ')}]`);
+    logger.debug(`[ROLE-API] Checking if user has role: [${roles.join(', ')}]`);
     
     if (!req.user) {
-      console.log('[ROLE-API] ✗ No user on request');
+      logger.debug('[ROLE-API] ✗ No user on request');
       return forbidden(res, 'Authentication required');
     }
     
     if (!roles.includes(req.user.role)) {
-      console.log(`[ROLE-API] ✗ User ${req.user.username} role ${req.user.role} not in [${roles.join(', ')}]`);
+      logger.debug(`[ROLE-API] ✗ User ${req.user.username} role ${req.user.role} not in [${roles.join(', ')}]`);
       logger.warn(`API: Unauthorized access: ${req.user.username} (${req.user.role}) to ${req.path}`);
       return forbidden(res, `Required role: ${roles.join(' or ')}`);
     }
     
-    console.log(`[ROLE-API] ✓ Role check passed: ${req.user.username}`);
+    logger.debug(`[ROLE-API] ✓ Role check passed: ${req.user.username}`);
     next();
   };
 };

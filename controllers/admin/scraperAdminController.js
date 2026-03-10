@@ -13,7 +13,7 @@
 const { spawn } = require('child_process');
 const path = require('path');
 const fs = require('fs');
-const logger = require('../../config/logger');
+const logger = require('../../utils/smartLogger');
 const { getMySQLPool } = require('../../config/mysql');
 const statsService = require('../../services/statsService');
 const { cacheService } = require('../../services/cacheService');
@@ -222,12 +222,12 @@ const ScraperAdminController = {
    * POST /admin/scraper/full or POST /api/admin/scraper/full
    */
   async runFullScraper(req, res) {
-    console.log('[SCRAPER_CTRL] =========================================');
-    console.log('[SCRAPER_CTRL] runFullScraper() CALLED');
-    console.log('[SCRAPER_CTRL] Request method:', req.method);
-    console.log('[SCRAPER_CTRL] Request URL:', req.originalUrl);
-    console.log('[SCRAPER_CTRL] Session userId:', req.session?.userId);
-    console.log('[SCRAPER_CTRL] =========================================');
+    logger.debug('[SCRAPER_CTRL] =========================================');
+    logger.debug('[SCRAPER_CTRL] runFullScraper() CALLED');
+    logger.debug('[SCRAPER_CTRL] Request method:', req.method);
+    logger.debug('[SCRAPER_CTRL] Request URL:', req.originalUrl);
+    logger.debug('[SCRAPER_CTRL] Session userId:', req.session?.userId);
+    logger.debug('[SCRAPER_CTRL] =========================================');
     
     try {
       const adminId = req.session.userId;
@@ -397,12 +397,12 @@ const ScraperAdminController = {
    * POST /admin/scraper/latest or POST /api/admin/scraper/latest
    */
   async runLatestScraper(req, res) {
-    console.log('[SCRAPER_CTRL] =========================================');
-    console.log('[SCRAPER_CTRL] runLatestScraper() CALLED');
-    console.log('[SCRAPER_CTRL] Request method:', req.method);
-    console.log('[SCRAPER_CTRL] Request URL:', req.originalUrl);
-    console.log('[SCRAPER_CTRL] Session userId:', req.session?.userId);
-    console.log('[SCRAPER_CTRL] =========================================');
+    logger.debug('[SCRAPER_CTRL] =========================================');
+    logger.debug('[SCRAPER_CTRL] runLatestScraper() CALLED');
+    logger.debug('[SCRAPER_CTRL] Request method:', req.method);
+    logger.debug('[SCRAPER_CTRL] Request URL:', req.originalUrl);
+    logger.debug('[SCRAPER_CTRL] Session userId:', req.session?.userId);
+    logger.debug('[SCRAPER_CTRL] =========================================');
     
     try {
       const adminId = req.session.userId;
@@ -555,9 +555,9 @@ const ScraperAdminController = {
    * POST /admin/scraper/fix-chapters or POST /api/admin/scraper/fix-chapters
    */
   async runFixChapters(req, res) {
-    console.log('[SCRAPER_CTRL] =========================================');
-    console.log('[SCRAPER_CTRL] runFixChapters() CALLED');
-    console.log('[SCRAPER_CTRL] =========================================');
+    logger.debug('[SCRAPER_CTRL] =========================================');
+    logger.debug('[SCRAPER_CTRL] runFixChapters() CALLED');
+    logger.debug('[SCRAPER_CTRL] =========================================');
     
     try {
       const adminId = req.session.userId;
@@ -689,11 +689,11 @@ const ScraperAdminController = {
    * POST /api/admin/scraper/single
    */
   async runSingleScraper(req, res) {
-    console.log('[SCRAPER_CTRL] =========================================');
-    console.log('[SCRAPER_CTRL] runSingleScraper() CALLED');
-    console.log('[SCRAPER_CTRL] Request method:', req.method);
-    console.log('[SCRAPER_CTRL] Request URL:', req.originalUrl);
-    console.log('[SCRAPER_CTRL] =========================================');
+    logger.debug('[SCRAPER_CTRL] =========================================');
+    logger.debug('[SCRAPER_CTRL] runSingleScraper() CALLED');
+    logger.debug('[SCRAPER_CTRL] Request method:', req.method);
+    logger.debug('[SCRAPER_CTRL] Request URL:', req.originalUrl);
+    logger.debug('[SCRAPER_CTRL] =========================================');
     
     try {
       const adminId = req.session.userId;
@@ -843,12 +843,12 @@ const ScraperAdminController = {
    * POST /admin/scraper/:type/stop
    */
   async stopScraper(req, res) {
-    console.log('[SCRAPER_CTRL] =========================================');
-    console.log('[SCRAPER_CTRL] stopScraper() CALLED');
-    console.log('[SCRAPER_CTRL] Request method:', req.method);
-    console.log('[SCRAPER_CTRL] Request URL:', req.originalUrl);
-    console.log('[SCRAPER_CTRL] Type param:', req.params?.type);
-    console.log('[SCRAPER_CTRL] =========================================');
+    logger.debug('[SCRAPER_CTRL] =========================================');
+    logger.debug('[SCRAPER_CTRL] stopScraper() CALLED');
+    logger.debug('[SCRAPER_CTRL] Request method:', req.method);
+    logger.debug('[SCRAPER_CTRL] Request URL:', req.originalUrl);
+    logger.debug('[SCRAPER_CTRL] Type param:', req.params?.type);
+    logger.debug('[SCRAPER_CTRL] =========================================');
     
     try {
       const { type } = req.params;
@@ -904,11 +904,11 @@ const ScraperAdminController = {
    * POST /admin/scraper/stop
    */
   async stopAnyScraper(req, res) {
-    console.log('[SCRAPER_CTRL] =========================================');
-    console.log('[SCRAPER_CTRL] stopAnyScraper() CALLED');
-    console.log('[SCRAPER_CTRL] Request method:', req.method);
-    console.log('[SCRAPER_CTRL] Request URL:', req.originalUrl);
-    console.log('[SCRAPER_CTRL] =========================================');
+    logger.debug('[SCRAPER_CTRL] =========================================');
+    logger.debug('[SCRAPER_CTRL] stopAnyScraper() CALLED');
+    logger.debug('[SCRAPER_CTRL] Request method:', req.method);
+    logger.debug('[SCRAPER_CTRL] Request URL:', req.originalUrl);
+    logger.debug('[SCRAPER_CTRL] =========================================');
     
     try {
       const adminId = req.session.userId;

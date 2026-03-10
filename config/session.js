@@ -14,14 +14,14 @@
 
 const session = require('express-session');
 const MongoStore = require('connect-mongo');
-const logger = require('./logger');
+const logger = require('../utils/smartLogger');
 
 /**
  * Create and configure session middleware
  * @returns {Function} Express session middleware
  */
 const createSessionMiddleware = () => {
-  console.log('[SESSION] Configuring session middleware...');
+  logger.info('[SESSION] Configuring session middleware...');
 
   // Validate required environment variables
   if (!process.env.SESSION_SECRET) {
@@ -35,7 +35,7 @@ const createSessionMiddleware = () => {
   // Determine if running in production
   const isProduction = process.env.NODE_ENV === 'production';
 
-  console.log(`[SESSION] Environment: ${isProduction ? 'production' : 'development'}`);
+  logger.info(`[SESSION] Environment: ${isProduction ? 'production' : 'development'}`);
 
   // Session configuration options
   const sessionConfig = {
@@ -90,12 +90,12 @@ const createSessionMiddleware = () => {
     sessionConfig.proxy = true;
   }
 
-  console.log('[SESSION] ✓ Session middleware configured successfully');
-  console.log(`[SESSION] Cookie httpOnly: ${sessionConfig.cookie.httpOnly}`);
-  console.log(`[SESSION] Cookie sameSite: ${sessionConfig.cookie.sameSite}`);
-  console.log(`[SESSION] Cookie secure: ${sessionConfig.cookie.secure}`);
-  console.log(`[SESSION] Cookie maxAge: ${sessionConfig.cookie.maxAge}ms (${sessionConfig.cookie.maxAge / 1000 / 60 / 60} hours)`);
-  console.log('[SESSION] Session store: MongoDB (connect-mongo)');
+  logger.info('[SESSION] ✓ Session middleware configured successfully');
+  logger.info(`[SESSION] Cookie httpOnly: ${sessionConfig.cookie.httpOnly}`);
+  logger.info(`[SESSION] Cookie sameSite: ${sessionConfig.cookie.sameSite}`);
+  logger.info(`[SESSION] Cookie secure: ${sessionConfig.cookie.secure}`);
+  logger.info(`[SESSION] Cookie maxAge: ${sessionConfig.cookie.maxAge}ms (${sessionConfig.cookie.maxAge / 1000 / 60 / 60} hours)`);
+  logger.info('[SESSION] Session store: MongoDB (connect-mongo)');
   
   logger.info('Session middleware configured successfully');
 

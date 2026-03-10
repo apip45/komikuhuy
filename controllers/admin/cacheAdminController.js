@@ -12,7 +12,7 @@
 
 const { cacheService } = require('../../services/cacheService');
 const { cacheManager } = require('../../config/cache');
-const logger = require('../../config/logger');
+const logger = require('../../utils/smartLogger');
 
 const CacheAdminController = {
 

@@ -13,7 +13,7 @@
  */
 
 const mysql = require('mysql2/promise');
-const logger = require('./logger');
+const logger = require('../utils/smartLogger');
 
 // MySQL connection pool instance
 let pool = null;
@@ -32,11 +32,11 @@ const createMySQLPool = async () => {
       }
     }
 
-    console.log('[MYSQL] Creating connection pool...');
-    console.log(`[MYSQL] Host: ${process.env.MYSQL_HOST}`);
-    console.log(`[MYSQL] Port: ${process.env.MYSQL_PORT || 3306}`);
-    console.log(`[MYSQL] Database: ${process.env.MYSQL_DATABASE}`);
-    console.log(`[MYSQL] User: ${process.env.MYSQL_USER}`);
+    logger.info('[MYSQL] Creating connection pool...');
+    logger.info(`[MYSQL] Host: ${process.env.MYSQL_HOST}`);
+    logger.info(`[MYSQL] Port: ${process.env.MYSQL_PORT || 3306}`);
+    logger.info(`[MYSQL] Database: ${process.env.MYSQL_DATABASE}`);
+    logger.info(`[MYSQL] User: ${process.env.MYSQL_USER}`);
 
     // Create connection pool
     pool = mysql.createPool({
@@ -54,20 +54,20 @@ const createMySQLPool = async () => {
       keepAliveInitialDelay: 0
     });
 
-    console.log('[MYSQL] Pool created. Testing connection...');
+    logger.info('[MYSQL] Pool created. Testing connection...');
 
     // Test the connection
     const connection = await pool.getConnection();
-    console.log('[MYSQL] ✓ Connection test successful');
-    console.log('[MYSQL] ✓ MySQL connected successfully');
-    console.log(`[MYSQL] Connection pool size: 10`);
+    logger.info('[MYSQL] ✓ Connection test successful');
+    logger.info('[MYSQL] ✓ MySQL connected successfully');
+    logger.info(`[MYSQL] Connection pool size: 10`);
     logger.info('MySQL connected successfully');
     connection.release();
 
     return pool;
 
   } catch (error) {
-    console.error(`[MYSQL] ✗ Failed to connect: ${error.message}`);
+    logger.error(`[MYSQL] ✗ Failed to connect: ${error.message}`);
     logger.error(`Failed to connect to MySQL: ${error.message}`);
     throw error;
   }

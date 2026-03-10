@@ -25,6 +25,7 @@
 
 const mongoose = require('mongoose');
 const bcrypt = require('bcrypt');
+const logger = require('../../utils/smartLogger');
 
 // ===========================================
 // Constants for password hashing
@@ -283,7 +284,7 @@ userSchema.pre('save', async function(next) {
   }
 
   try {
-    console.log('[USER MODEL] Hashing password for user:', this.username || this.email);
+    logger.debug('[USER MODEL] Hashing password for user:', this.username || this.email);
     
     // Generate salt and hash password
     // bcrypt.hash() combines salt generation and hashing in one step
@@ -292,10 +293,10 @@ userSchema.pre('save', async function(next) {
     // Replace plain text password with hashed version
     this.password = hashedPassword;
     
-    console.log('[USER MODEL] ✓ Password hashed successfully');
+    logger.debug('[USER MODEL] ✓ Password hashed successfully');
     next();
   } catch (error) {
-    console.error('[USER MODEL] ✗ Error hashing password:', error.message);
+    logger.error('[USER MODEL] ✗ Error hashing password:', error.message);
     next(error);
   }
 });
@@ -325,16 +326,16 @@ userSchema.pre('save', async function(next) {
  */
 userSchema.methods.comparePassword = async function(candidatePassword) {
   try {
-    console.log('[USER MODEL] Comparing password for user:', this.username || this._id);
+    logger.debug('[USER MODEL] Comparing password for user:', this.username || this._id);
     
     // bcrypt.compare() is timing-safe to prevent timing attacks
     // It takes the same amount of time regardless of where the comparison fails
     const isMatch = await bcrypt.compare(candidatePassword, this.password);
     
-    console.log(`[USER MODEL] Password comparison result: ${isMatch ? 'Match' : 'No match'}`);
+    logger.debug(`[USER MODEL] Password comparison result: ${isMatch ? 'Match' : 'No match'}`);
     return isMatch;
   } catch (error) {
-    console.error('[USER MODEL] ✗ Error comparing password:', error.message);
+    logger.error('[USER MODEL] ✗ Error comparing password:', error.message);
     throw error;
   }
 };

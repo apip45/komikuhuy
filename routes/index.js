@@ -11,6 +11,7 @@
 
 const express = require('express');
 const router = express.Router();
+const logger = require('../utils/smartLogger');
 
 // Import controllers
 const indexController = require('../controllers/indexController');
@@ -18,7 +19,7 @@ const indexController = require('../controllers/indexController');
 // Import middleware
 const { attachUser } = require('../middlewares');
 
-console.log('[ROUTES] Registering index routes...');
+logger.debug('[ROUTES] Registering index routes...');
 
 // ===========================================
 // Route Definitions
@@ -30,8 +31,8 @@ console.log('[ROUTES] Registering index routes...');
  * Uses attachUser to optionally get user data for display
  */
 router.get('/', attachUser, indexController.getHomePage);
-console.log('[ROUTES] Registered: GET /');
+logger.debug('[ROUTES] Registered: GET /');
 
-console.log('[ROUTES] Index routes registration complete');
+logger.debug('[ROUTES] Index routes registration complete');
 
 module.exports = router;

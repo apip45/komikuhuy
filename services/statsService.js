@@ -9,7 +9,7 @@
 
 const { getMySQLPool } = require('../config/mysql');
 const statsCache = require('../utils/statsCache');
-const logger = require('../config/logger');
+const logger = require('../utils/smartLogger');
 
 class StatsService {
   constructor() {

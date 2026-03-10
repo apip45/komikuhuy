@@ -11,7 +11,7 @@
  */
 
 const User = require('../../models/mongo/User');
-const logger = require('../../config/logger');
+const logger = require('../../utils/smartLogger');
 const crypto = require('crypto');
 
 /**

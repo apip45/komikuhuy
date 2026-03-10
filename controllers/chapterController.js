@@ -21,7 +21,7 @@
  * - Server error: 500 Internal Server Error
  */
 
-const logger = require('../config/logger');
+const logger = require('../utils/smartLogger');
 const ComicModel = require('../models/mysql/comic.model');
 const ChapterModel = require('../models/mysql/chapter.model');
 const ImageModel = require('../models/mysql/image.model');
@@ -64,13 +64,13 @@ const ChapterController = {
   async readChapterPage(req, res, next) {
     const { param, chapterParam } = req.params;
     
-    console.log(`[CHAPTER_CTRL] readChapterPage() - ${param}/${chapterParam}`);
+    logger.debug(`[CHAPTER_CTRL] readChapterPage() - ${param}/${chapterParam}`);
     logger.info(`Chapter reader requested: ${param}/${chapterParam}`);
     
     try {
       // Validate parameters
       if (!param || !chapterParam) {
-        console.log('[CHAPTER_CTRL] Missing required parameters');
+        logger.debug('[CHAPTER_CTRL] Missing required parameters');
         return res.status(400).render('errors/404', {
           title: '400 - Bad Request',
           message: 'Missing comic or chapter parameter'
@@ -85,7 +85,7 @@ const ChapterController = {
       
       if (cachedData) {
         // Cache HIT - use cached data
-        console.log(`[CHAPTER_CTRL] Cache HIT for ${param}/${chapterParam}`);
+        logger.debug(`[CHAPTER_CTRL] Cache HIT for ${param}/${chapterParam}`);
         logger.info(`Cache HIT: ${param}/${chapterParam}`);
         
         chapter = cachedData.chapter;
@@ -93,7 +93,7 @@ const ChapterController = {
         navigation = cachedData.navigation;
       } else {
         // Cache MISS - fetch from database
-        console.log(`[CHAPTER_CTRL] Cache MISS for ${param}/${chapterParam}`);
+        logger.debug(`[CHAPTER_CTRL] Cache MISS for ${param}/${chapterParam}`);
         logger.info(`Cache MISS: ${param}/${chapterParam}`);
         
         // Fetch chapter with comic info using JOIN
@@ -101,7 +101,7 @@ const ChapterController = {
       
       // Handle chapter not found
       if (!chapter) {
-        console.log(`[CHAPTER_CTRL] Chapter not found: ${param}/${chapterParam}`);
+        logger.debug(`[CHAPTER_CTRL] Chapter not found: ${param}/${chapterParam}`);
         logger.warn(`Chapter not found: ${param}/${chapterParam}`);
         return res.status(404).render('errors/404', {
           title: '404 - Chapter Tidak Ditemukan',
@@ -115,7 +115,7 @@ const ChapterController = {
         // Fetch navigation (prev/next chapter)
         navigation = await ChapterModel.getNavigation(chapter.komik_id, chapter.id);
         
-        console.log(`[CHAPTER_CTRL] Found ${images.length} images for "${chapter.chapter_label}"`);
+        logger.debug(`[CHAPTER_CTRL] Found ${images.length} images for "${chapter.chapter_label}"`);
         logger.info(`Chapter reader: "${chapter.chapter_label}" - ${images.length} pages`);
         
         // Cache the data
@@ -123,7 +123,7 @@ const ChapterController = {
         // Use 30 min TTL for new chapters (might be updated)
         const ttl = 86400; // 24 hours for all chapters
         cacheService.set(cacheKey, { chapter, images, navigation }, 'cold', ttl);
-        console.log(`[CHAPTER_CTRL] Cached chapter data with ${ttl}s TTL`);
+        logger.debug(`[CHAPTER_CTRL] Cached chapter data with ${ttl}s TTL`);
         
         // Prefetch adjacent chapters in background (non-blocking)
         ChapterController.prefetchAdjacentChapters(param, navigation);
@@ -136,7 +136,7 @@ const ChapterController = {
       // This runs asynchronously - we don't wait for it to complete
       // to avoid slowing down page load
       if (req.user) {
-        console.log(`[CHAPTER_CTRL] User "${req.user.username}" reading ${param}/${chapterParam}`);
+        logger.debug(`[CHAPTER_CTRL] User "${req.user.username}" reading ${param}/${chapterParam}`);
         logger.info(`User "${req.user.username}" reading: ${param}/${chapterParam}`);
         
         // Save reading progress in background (don't await)
@@ -154,19 +154,19 @@ const ChapterController = {
           images.length
         ).catch(err => {
           // Log error but don't fail the request
-          console.error(`[CHAPTER_CTRL] Failed to save reading history: ${err.message}`);
+          logger.error(`[CHAPTER_CTRL] Failed to save reading history: ${err.message}`);
           logger.error(`Failed to save reading history: ${err.message}`);
         });
 
         // Mark chapter as read in background (don't await)
         ReadChapter.markAsRead(req.user._id, chapter.id, chapter.komik_id)
           .then(() => {
-            console.log(`[CHAPTER_CTRL] Marked chapter ${chapter.id} as read for user ${req.user.username}`);
+            logger.debug(`[CHAPTER_CTRL] Marked chapter ${chapter.id} as read for user ${req.user.username}`);
             logger.info(`Chapter ${chapter.id} marked as read for user ${req.user._id}`);
           })
           .catch(err => {
             // Log error but don't fail the request
-            console.error(`[CHAPTER_CTRL] Failed to mark chapter as read: ${err.message}`);
+            logger.error(`[CHAPTER_CTRL] Failed to mark chapter as read: ${err.message}`);
             logger.error(`Failed to mark chapter as read: ${err.message}`);
           });
       }
@@ -204,7 +204,7 @@ const ChapterController = {
       });
       
     } catch (error) {
-      console.error(`[CHAPTER_CTRL] readChapterPage() - Error: ${error.message}`);
+      logger.error(`[CHAPTER_CTRL] readChapterPage() - Error: ${error.message}`);
       logger.error(`Chapter reader error: ${error.message}`);
       next(error);
     }
@@ -245,13 +245,13 @@ const ChapterController = {
   async readChapterAPI(req, res) {
     const { param, chapterParam } = req.params;
     
-    console.log(`[CHAPTER_CTRL] readChapterAPI() - ${param}/${chapterParam}`);
+    logger.debug(`[CHAPTER_CTRL] readChapterAPI() - ${param}/${chapterParam}`);
     logger.info(`API: Chapter requested: ${param}/${chapterParam}`);
     
     try {
       // Validate parameters
       if (!param || !chapterParam) {
-        console.log('[CHAPTER_CTRL] API: Missing parameters');
+        logger.debug('[CHAPTER_CTRL] API: Missing parameters');
         return badRequest(res, 'Missing comic or chapter parameter');
       }
       
@@ -262,7 +262,7 @@ const ChapterController = {
         cacheKey,
         async () => {
           // Cache MISS - fetch from database
-          console.log(`[CHAPTER_CTRL] API: Cache MISS for ${param}/${chapterParam}`);
+          logger.debug(`[CHAPTER_CTRL] API: Cache MISS for ${param}/${chapterParam}`);
           
           const chapter = await ChapterModel.findByParams(param, chapterParam);
       
@@ -277,7 +277,7 @@ const ChapterController = {
             ChapterModel.getNavigation(chapter.komik_id, chapter.id)
           ]);
           
-          console.log(`[CHAPTER_CTRL] API: Found ${images.length} images`);
+          logger.debug(`[CHAPTER_CTRL] API: Found ${images.length} images`);
           logger.info(`API: Chapter "${chapter.chapter_label}" - ${images.length} pages`);
           
           // Prefetch adjacent chapters
@@ -291,7 +291,7 @@ const ChapterController = {
       
       // Handle not found
       if (!data || !data.chapter) {
-        console.log(`[CHAPTER_CTRL] API: Chapter not found: ${param}/${chapterParam}`);
+        logger.debug(`[CHAPTER_CTRL] API: Chapter not found: ${param}/${chapterParam}`);
         logger.warn(`API: Chapter not found: ${param}/${chapterParam}`);
         return errorResponse(res, 'Chapter not found', null, 404);
       }
@@ -330,7 +330,7 @@ const ChapterController = {
       });
       
     } catch (error) {
-      console.error(`[CHAPTER_CTRL] readChapterAPI() - Error: ${error.message}`);
+      logger.error(`[CHAPTER_CTRL] readChapterAPI() - Error: ${error.message}`);
       logger.error(`API: Chapter error: ${error.message}`);
       return serverError(res, 'Failed to retrieve chapter');
     }
@@ -350,7 +350,7 @@ const ChapterController = {
   async getImagesAPI(req, res) {
     const { param, chapterParam } = req.params;
     
-    console.log(`[CHAPTER_CTRL] getImagesAPI() - ${param}/${chapterParam}`);
+    logger.debug(`[CHAPTER_CTRL] getImagesAPI() - ${param}/${chapterParam}`);
     logger.info(`API: Images requested: ${param}/${chapterParam}`);
     
     try {
@@ -369,7 +369,7 @@ const ChapterController = {
         // Use cached images
         images = cachedData.images;
         chapter = cachedData.chapter;
-        console.log(`[CHAPTER_CTRL] API: Using cached images (${images.length})`);
+        logger.debug(`[CHAPTER_CTRL] API: Using cached images (${images.length})`);
       } else {
         // Fetch chapter to get ID
         chapter = await ChapterModel.findByParams(param, chapterParam);
@@ -382,7 +382,7 @@ const ChapterController = {
         images = await ImageModel.findByChapterId(chapter.id);
       }
       
-      console.log(`[CHAPTER_CTRL] API: Found ${images.length} images`);
+      logger.debug(`[CHAPTER_CTRL] API: Found ${images.length} images`);
       logger.info(`API: Images for ${chapterParam}: ${images.length}`);
       
       return successResponse(res, 'Images retrieved successfully', {
@@ -395,7 +395,7 @@ const ChapterController = {
       });
       
     } catch (error) {
-      console.error(`[CHAPTER_CTRL] getImagesAPI() - Error: ${error.message}`);
+      logger.error(`[CHAPTER_CTRL] getImagesAPI() - Error: ${error.message}`);
       logger.error(`API: Images error: ${error.message}`);
       return serverError(res, 'Failed to retrieve images');
     }
@@ -435,7 +435,7 @@ const ChapterController = {
             continue;
           }
           
-          console.log(`[CHAPTER_CTRL] Prefetching: ${comicParam}/${chapterParam}`);
+          logger.debug(`[CHAPTER_CTRL] Prefetching: ${comicParam}/${chapterParam}`);
           
           // Fetch and cache
           const chapter = await ChapterModel.findByParams(comicParam, chapterParam);
@@ -447,12 +447,12 @@ const ChapterController = {
           ]);
           
           cacheService.set(cacheKey, { chapter, images, navigation: nav }, 'cold', 86400);
-          console.log(`[CHAPTER_CTRL] Prefetched: ${comicParam}/${chapterParam} (${images.length} images)`);
+          logger.debug(`[CHAPTER_CTRL] Prefetched: ${comicParam}/${chapterParam} (${images.length} images)`);
           logger.info(`Prefetched chapter: ${comicParam}/${chapterParam}`);
         }
       } catch (error) {
         // Silent fail - prefetching is not critical
-        console.error(`[CHAPTER_CTRL] Prefetch error: ${error.message}`);
+        logger.error(`[CHAPTER_CTRL] Prefetch error: ${error.message}`);
         logger.error(`Prefetch error: ${error.message}`);
       }
     });
@@ -468,7 +468,7 @@ const ChapterController = {
    */
   invalidateChapterCache(comicParam, chapterParam) {
     const count = cacheService.invalidateChapter(comicParam, chapterParam);
-    console.log(`[CHAPTER_CTRL] Invalidated cache for ${comicParam}/${chapterParam} (${count} entries)`);
+    logger.debug(`[CHAPTER_CTRL] Invalidated cache for ${comicParam}/${chapterParam} (${count} entries)`);
     logger.info(`Cache invalidated: ${comicParam}/${chapterParam}`);
     return count;
   }

@@ -17,7 +17,7 @@
  * Database Architecture:
  * - MongoDB: Users, sessions, bookmarks, reading history
  * - MySQL: Comics (komik), chapters, images (pages)
- */
+*/
 
 // ===========================================
 // Load Environment Variables
@@ -25,12 +25,14 @@
 // Must be loaded first before any other imports
 require('dotenv').config();
 
-console.log('========================================');
-console.log('   AF-KOMIK V2 - Server Starting...    ');
-console.log('========================================');
-console.log('[ENV] Environment variables loaded');
-console.log(`[ENV] NODE_ENV: ${process.env.NODE_ENV || 'development'}`);
-console.log(`[ENV] PORT: ${process.env.PORT || 3000}`);
+const logger = require('./utils/smartLogger');
+
+logger.info('========================================');
+logger.info('   AF-KOMIK V2 - Server Starting...    ');
+logger.info('========================================');
+logger.info('[ENV] Environment variables loaded');
+logger.info(`[ENV] NODE_ENV: ${process.env.NODE_ENV || 'development'}`);
+logger.info(`[ENV] PORT: ${process.env.PORT || 3000}`);
 
 // ===========================================
 // Module Imports
@@ -39,15 +41,14 @@ const express = require('express');
 const path = require('path');
 const expressLayouts = require('express-ejs-layouts');
 
-console.log('[APP] Express module loaded');
+logger.info('[APP] Express module loaded');
 
 // Import configuration modules
-const logger = require('./config/logger');
 const { connectMongoDB } = require('./config/mongo');
 const { createMySQLPool, closeMySQLPool } = require('./config/mysql');
 const { createSessionMiddleware } = require('./config/session');
 
-console.log('[APP] Configuration modules loaded');
+logger.info('[APP] Configuration modules loaded');
 
 // Import routes
 const indexRoutes = require('./routes/index');
@@ -62,14 +63,14 @@ const adminRoutes = require('./routes/admin.routes');
 const adminApiRoutes = require('./routes/api/admin.api.routes');
 const healthApiRoutes = require('./routes/api/health.api.routes');
 
-console.log('[APP] Route modules loaded');
+logger.info('[APP] Route modules loaded');
 
 // ===========================================
 // Create Express Application
 // ===========================================
 const app = express();
 
-console.log('[APP] Express application created');
+logger.info('[APP] Express application created');
 
 // ===========================================
 // View Engine Configuration
@@ -85,8 +86,8 @@ app.set('layout', 'layouts/main');
 app.set('layout extractScripts', true);
 app.set('layout extractStyles', true);
 
-console.log('[APP] View engine configured: EJS with express-ejs-layouts');
-console.log(`[APP] Views directory: ${path.join(__dirname, 'views')}`);
+logger.info('[APP] View engine configured: EJS with express-ejs-layouts');
+logger.info(`[APP] Views directory: ${path.join(__dirname, 'views')}`);
 
 // ===========================================
 // Middleware Configuration
@@ -95,27 +96,27 @@ console.log(`[APP] Views directory: ${path.join(__dirname, 'views')}`);
 // Parse JSON request bodies
 // Limit set to 10mb to handle larger payloads if needed
 app.use(express.json({ limit: '10mb' }));
-console.log('[MIDDLEWARE] JSON body parser configured (limit: 10mb)');
+logger.info('[MIDDLEWARE] JSON body parser configured (limit: 10mb)');
 
 // Parse URL-encoded request bodies
 // Extended: true allows for rich objects and arrays
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
-console.log('[MIDDLEWARE] URL-encoded body parser configured (limit: 10mb)');
+logger.info('[MIDDLEWARE] URL-encoded body parser configured (limit: 10mb)');
 
 // Serve static files from public directory
 // Files in /public are accessible via root URL (e.g., /css/style.css)
 app.use(express.static(path.join(__dirname, 'public')));
-console.log(`[MIDDLEWARE] Static files served from: ${path.join(__dirname, 'public')}`);
+logger.info(`[MIDDLEWARE] Static files served from: ${path.join(__dirname, 'public')}`);
 
 // Request logging middleware
 // Logs every incoming request with method and path
 app.use((req, res, next) => {
   const timestamp = new Date().toISOString();
-  console.log(`[REQUEST] ${timestamp} - ${req.method} ${req.path}`);
+  logger.info(`[REQUEST] ${timestamp} - ${req.method} ${req.path}`);
   logger.info(`${req.method} ${req.path}`);
   next();
 });
-console.log('[MIDDLEWARE] Request logging middleware configured');
+logger.info('[MIDDLEWARE] Request logging middleware configured');
 
 // ===========================================
 // Application Initialization
@@ -133,18 +134,18 @@ console.log('[MIDDLEWARE] Request logging middleware configured');
  */
 const initializeApp = async () => {
   try {
-    console.log('\n[INIT] Starting application initialization...\n');
+    logger.info('\n[INIT] Starting application initialization...\n');
 
     // ===========================================
     // Database Connections
     // ===========================================
     
     // Connect to MongoDB (for users, sessions, bookmarks, history)
-    console.log('[INIT] Step 1: Connecting to MongoDB...');
+    logger.info('[INIT] Step 1: Connecting to MongoDB...');
     await connectMongoDB();
 
     // Connect to MySQL (for comics, chapters, pages)
-    console.log('\n[INIT] Step 2: Connecting to MySQL...');
+    logger.info('\n[INIT] Step 2: Connecting to MySQL...');
     await createMySQLPool();
 
     // ===========================================
@@ -152,66 +153,66 @@ const initializeApp = async () => {
     // ===========================================
     // Session middleware must be set up after MongoDB connection
     // because sessions are stored in MongoDB
-    console.log('\n[INIT] Step 3: Setting up session middleware...');
+    logger.info('\n[INIT] Step 3: Setting up session middleware...');
     app.use(createSessionMiddleware());
 
     // ===========================================
     // Routes Configuration
     // ===========================================
-    console.log('\n[INIT] Step 4: Registering routes...');
+    logger.info('\n[INIT] Step 4: Registering routes...');
     
     // Web routes
     app.use('/', indexRoutes);
-    console.log('[ROUTES] ✓ Index routes registered at /');
+    logger.info('[ROUTES] ✓ Index routes registered at /');
     
     app.use('/', authRoutes);
-    console.log('[ROUTES] ✓ Auth routes registered at /');
+    logger.info('[ROUTES] ✓ Auth routes registered at /');
     
     // Comic web routes
     app.use('/comics', comicRoutes);
-    console.log('[ROUTES] ✓ Comic routes registered at /comics');
+    logger.info('[ROUTES] ✓ Comic routes registered at /comics');
     
     // User web routes (bookmarks, history, resume)
     app.use('/', userRoutes);
-    console.log('[ROUTES] ✓ User routes registered at / (bookmarks, history, resume)');
+    logger.info('[ROUTES] ✓ User routes registered at / (bookmarks, history, resume)');
     
     // API routes
     app.use('/api/auth', authApiRoutes);
-    console.log('[ROUTES] ✓ Auth API routes registered at /api/auth');
+    logger.info('[ROUTES] ✓ Auth API routes registered at /api/auth');
     
     app.use('/api/health', healthApiRoutes);
-    console.log('[ROUTES] ✓ Health API routes registered at /api/health');
+    logger.info('[ROUTES] ✓ Health API routes registered at /api/health');
     
     app.use('/api/comics', comicApiRoutes);
-    console.log('[ROUTES] ✓ Comic API routes registered at /api/comics');
+    logger.info('[ROUTES] ✓ Comic API routes registered at /api/comics');
     
     // User API routes (bookmarks, history, resume)
     app.use('/api', userApiRoutes);
-    console.log('[ROUTES] ✓ User API routes registered at /api (bookmarks, history, resume)');
+    logger.info('[ROUTES] ✓ User API routes registered at /api (bookmarks, history, resume)');
     
     // Read chapter API routes
     app.use('/api/read-chapters', readChapterApiRoutes);
-    console.log('[ROUTES] ✓ Read chapter API routes registered at /api/read-chapters');
+    logger.info('[ROUTES] ✓ Read chapter API routes registered at /api/read-chapters');
 
     // Admin routes (requires authentication + admin role)
     app.use('/admin', adminRoutes);
-    console.log('[ROUTES] ✓ Admin routes registered at /admin');
+    logger.info('[ROUTES] ✓ Admin routes registered at /admin');
     
     app.use('/api/admin', adminApiRoutes);
-    console.log('[ROUTES] ✓ Admin API routes registered at /api/admin');
+    logger.info('[ROUTES] ✓ Admin API routes registered at /api/admin');
 
     // ===========================================
     // 404 Handler
     // ===========================================
     // This catches all requests that don't match any route
     app.use((req, res) => {
-      console.log(`[404] Page not found: ${req.method} ${req.path}`);
+      logger.info(`[404] Page not found: ${req.method} ${req.path}`);
       logger.warn(`404 - Page not found: ${req.method} ${req.path}`);
       res.status(404).render('errors/404', {
         title: 'Page Not Found'
       });
     });
-    console.log('[ROUTES] ✓ 404 handler registered');
+    logger.info('[ROUTES] ✓ 404 handler registered');
 
     // ===========================================
     // Global Error Handler
@@ -220,8 +221,8 @@ const initializeApp = async () => {
     // Must be defined last after all other middleware and routes
     app.use((err, req, res, next) => {
       // Log the error with full details
-      console.error(`[ERROR] ${err.message}`);
-      console.error(`[ERROR] Stack: ${err.stack}`);
+      logger.error(`[ERROR] ${err.message}`);
+      logger.error(`[ERROR] Stack: ${err.stack}`);
       logger.error(`Error: ${err.message}`, { stack: err.stack });
 
       // Determine error status code
@@ -235,7 +236,7 @@ const initializeApp = async () => {
         message: isDevelopment ? err.message : 'An unexpected error occurred'
       });
     });
-    console.log('[ROUTES] ✓ Global error handler registered');
+    logger.info('[ROUTES] ✓ Global error handler registered');
 
     // ===========================================
     // Start Server
@@ -243,13 +244,13 @@ const initializeApp = async () => {
     const PORT = process.env.PORT || 3000;
 
     app.listen(PORT, () => {
-      console.log('\n========================================');
-      console.log('   AF-KOMIK V2 - Server Started!       ');
-      console.log('========================================');
-      console.log(`[SERVER] ✓ Server running on port ${PORT}`);
-      console.log(`[SERVER] ✓ Environment: ${process.env.NODE_ENV || 'development'}`);
-      console.log(`[SERVER] ✓ URL: http://localhost:${PORT}`);
-      console.log('========================================\n');
+      logger.info('\n========================================');
+      logger.info('   AF-KOMIK V2 - Server Started!       ');
+      logger.info('========================================');
+      logger.info(`[SERVER] ✓ Server running on port ${PORT}`);
+      logger.info(`[SERVER] ✓ Environment: ${process.env.NODE_ENV || 'development'}`);
+      logger.info(`[SERVER] ✓ URL: http://localhost:${PORT}`);
+      logger.info('========================================\n');
       
       logger.info(`🚀 AF-Komik V2 server running on port ${PORT}`);
       logger.info(`📖 Environment: ${process.env.NODE_ENV || 'development'}`);
@@ -263,11 +264,11 @@ const initializeApp = async () => {
     });
 
   } catch (error) {
-    console.error('\n========================================');
-    console.error('   AF-KOMIK V2 - Initialization Failed  ');
-    console.error('========================================');
-    console.error(`[ERROR] ${error.message}`);
-    console.error(`[ERROR] Stack: ${error.stack}`);
+    logger.error('\n========================================');
+    logger.error('   AF-KOMIK V2 - Initialization Failed  ');
+    logger.error('========================================');
+    logger.error(`[ERROR] ${error.message}`);
+    logger.error(`[ERROR] Stack: ${error.stack}`);
     logger.error(`Failed to initialize application: ${error.message}`);
     process.exit(1);
   }
@@ -284,19 +285,19 @@ const initializeApp = async () => {
  * @param {string} signal - The signal received (SIGTERM or SIGINT)
  */
 const gracefulShutdown = async (signal) => {
-  console.log(`\n[SHUTDOWN] ${signal} received. Starting graceful shutdown...`);
+  logger.info(`\n[SHUTDOWN] ${signal} received. Starting graceful shutdown...`);
   logger.info(`${signal} received. Starting graceful shutdown...`);
 
   try {
     // Close MySQL connection pool
-    console.log('[SHUTDOWN] Closing MySQL connection pool...');
+    logger.info('[SHUTDOWN] Closing MySQL connection pool...');
     await closeMySQLPool();
 
-    console.log('[SHUTDOWN] ✓ Graceful shutdown completed');
+    logger.info('[SHUTDOWN] ✓ Graceful shutdown completed');
     logger.info('Graceful shutdown completed');
     process.exit(0);
   } catch (error) {
-    console.error(`[SHUTDOWN] ✗ Error during shutdown: ${error.message}`);
+    logger.error(`[SHUTDOWN] ✗ Error during shutdown: ${error.message}`);
     logger.error(`Error during shutdown: ${error.message}`);
     process.exit(1);
   }
@@ -308,26 +309,26 @@ process.on('SIGINT', () => gracefulShutdown('SIGINT'));
 
 // Handle unhandled promise rejections
 process.on('unhandledRejection', (reason, promise) => {
-  console.error('[ERROR] Unhandled Promise Rejection');
-  console.error('[ERROR] Reason:', reason);
+  logger.error('[ERROR] Unhandled Promise Rejection');
+  logger.error('[ERROR] Reason:', reason);
   logger.error('Unhandled Rejection at:', promise, 'reason:', reason);
 });
 
 // Handle uncaught exceptions
 process.on('uncaughtException', (error) => {
-  console.error('[ERROR] Uncaught Exception');
-  console.error(`[ERROR] ${error.message}`);
-  console.error(`[ERROR] Stack: ${error.stack}`);
+  logger.error('[ERROR] Uncaught Exception');
+  logger.error(`[ERROR] ${error.message}`);
+  logger.error(`[ERROR] Stack: ${error.stack}`);
   logger.error(`Uncaught Exception: ${error.message}`, { stack: error.stack });
   process.exit(1);
 });
 
-console.log('[APP] Event handlers registered (SIGTERM, SIGINT, uncaughtException, unhandledRejection)');
+logger.info('[APP] Event handlers registered (SIGTERM, SIGINT, uncaughtException, unhandledRejection)');
 
 // ===========================================
 // Start Application
 // ===========================================
-console.log('\n[APP] Starting application initialization...\n');
+logger.info('\n[APP] Starting application initialization...\n');
 initializeApp();
 
 // Export app for testing purposes

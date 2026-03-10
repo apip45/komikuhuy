@@ -20,6 +20,7 @@
 
 const express = require('express');
 const router = express.Router();
+const logger = require('../utils/smartLogger');
 
 // Import controllers
 const ComicController = require('../controllers/comicController');
@@ -28,7 +29,7 @@ const ChapterController = require('../controllers/chapterController');
 // Import middleware (for optional user attachment)
 const { attachUser } = require('../middlewares');
 
-console.log('[ROUTES] Registering comic web routes...');
+logger.debug('[ROUTES] Registering comic web routes...');
 
 // ===========================================
 // Comic List Route
@@ -47,7 +48,7 @@ console.log('[ROUTES] Registering comic web routes...');
  * Renders: pages/comics.ejs
  */
 router.get('/', attachUser, ComicController.listComicsPage);
-console.log('[ROUTES] Registered: GET /comics');
+logger.debug('[ROUTES] Registered: GET /comics');
 
 // ===========================================
 // Comic Detail Route
@@ -66,7 +67,7 @@ console.log('[ROUTES] Registered: GET /comics');
  * Error: 404 if comic not found
  */
 router.get('/:param', attachUser, ComicController.getComicDetailPage);
-console.log('[ROUTES] Registered: GET /comics/:param');
+logger.debug('[ROUTES] Registered: GET /comics/:param');
 
 // ===========================================
 // Chapter Reader Route
@@ -86,8 +87,8 @@ console.log('[ROUTES] Registered: GET /comics/:param');
  * Error: 404 if comic or chapter not found
  */
 router.get('/:param/:chapterParam', attachUser, ChapterController.readChapterPage);
-console.log('[ROUTES] Registered: GET /comics/:param/:chapterParam');
+logger.debug('[ROUTES] Registered: GET /comics/:param/:chapterParam');
 
-console.log('[ROUTES] Comic web routes registration complete');
+logger.debug('[ROUTES] Comic web routes registration complete');
 
 module.exports = router;

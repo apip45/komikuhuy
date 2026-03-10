@@ -29,7 +29,7 @@
  */
 
 const User = require('../models/mongo/User');
-const logger = require('../config/logger');
+const logger = require('../utils/smartLogger');
 const { 
   successResponse, 
   errorResponse, 
@@ -51,11 +51,11 @@ const {
  * @access Public
  */
 const getLoginPage = (req, res) => {
-  console.log('[AUTH] Rendering login page');
+  logger.debug('[AUTH] Rendering login page');
   
   // If already logged in, redirect to home or intended destination
   if (req.session && req.session.userId) {
-    console.log('[AUTH] User already logged in, redirecting to home');
+    logger.debug('[AUTH] User already logged in, redirecting to home');
     return res.redirect('/');
   }
   
@@ -77,11 +77,11 @@ const getLoginPage = (req, res) => {
  * @access Public
  */
 const getRegisterPage = (req, res) => {
-  console.log('[AUTH] Rendering registration page');
+  logger.debug('[AUTH] Rendering registration page');
   
   // If already logged in, redirect to home
   if (req.session && req.session.userId) {
-    console.log('[AUTH] User already logged in, redirecting to home');
+    logger.debug('[AUTH] User already logged in, redirecting to home');
     return res.redirect('/');
   }
   
@@ -108,7 +108,7 @@ const getRegisterPage = (req, res) => {
  * 5. Redirect to home page
  */
 const registerWeb = async (req, res) => {
-  console.log('[AUTH] Processing web registration...');
+  logger.debug('[AUTH] Processing web registration...');
   
   try {
     const { username, email, password, confirmPassword } = req.body;
@@ -119,19 +119,19 @@ const registerWeb = async (req, res) => {
     
     // Check required fields
     if (!username || !email || !password || !confirmPassword) {
-      console.log('[AUTH] ✗ Registration failed: Missing required fields');
+      logger.debug('[AUTH] ✗ Registration failed: Missing required fields');
       return res.redirect('/register?error=' + encodeURIComponent('All fields are required'));
     }
     
     // Check password confirmation
     if (password !== confirmPassword) {
-      console.log('[AUTH] ✗ Registration failed: Passwords do not match');
+      logger.debug('[AUTH] ✗ Registration failed: Passwords do not match');
       return res.redirect('/register?error=' + encodeURIComponent('Passwords do not match'));
     }
     
     // Check password length
     if (password.length < 8) {
-      console.log('[AUTH] ✗ Registration failed: Password too short');
+      logger.debug('[AUTH] ✗ Registration failed: Password too short');
       return res.redirect('/register?error=' + encodeURIComponent('Password must be at least 8 characters'));
     }
     
@@ -142,7 +142,7 @@ const registerWeb = async (req, res) => {
     // Check if email already exists
     const emailExists = await User.emailExists(email);
     if (emailExists) {
-      console.log('[AUTH] ✗ Registration failed: Email already exists');
+      logger.debug('[AUTH] ✗ Registration failed: Email already exists');
       logger.warn(`Registration attempt with existing email: ${email}`);
       return res.redirect('/register?error=' + encodeURIComponent('Email is already registered'));
     }
@@ -150,7 +150,7 @@ const registerWeb = async (req, res) => {
     // Check if username already exists
     const usernameExists = await User.usernameExists(username);
     if (usernameExists) {
-      console.log('[AUTH] ✗ Registration failed: Username already exists');
+      logger.debug('[AUTH] ✗ Registration failed: Username already exists');
       logger.warn(`Registration attempt with existing username: ${username}`);
       return res.redirect('/register?error=' + encodeURIComponent('Username is already taken'));
     }
@@ -159,7 +159,7 @@ const registerWeb = async (req, res) => {
     // Create New User
     // ===========================================
     
-    console.log(`[AUTH] Creating new user: ${username}`);
+    logger.debug(`[AUTH] Creating new user: ${username}`);
     
     const newUser = await User.create({
       username: username.trim(),
@@ -172,7 +172,7 @@ const registerWeb = async (req, res) => {
       }
     });
     
-    console.log(`[AUTH] ✓ User created successfully: ${newUser._id}`);
+    logger.debug(`[AUTH] ✓ User created successfully: ${newUser._id}`);
     logger.info(`New user registered: ${username} (${email})`);
     
     // ===========================================
@@ -183,7 +183,7 @@ const registerWeb = async (req, res) => {
     req.session.userRole = newUser.role;
     req.session.username = newUser.username;
     
-    console.log(`[AUTH] ✓ Session created for new user: ${newUser._id}`);
+    logger.debug(`[AUTH] ✓ Session created for new user: ${newUser._id}`);
     logger.info(`Session created for user: ${username}`);
     
     // Update last login
@@ -193,7 +193,7 @@ const registerWeb = async (req, res) => {
     res.redirect('/?success=' + encodeURIComponent('Welcome to AF-Komik!'));
     
   } catch (error) {
-    console.error('[AUTH] ✗ Registration error:', error.message);
+    logger.error('[AUTH] ✗ Registration error:', error.message);
     logger.error('Registration error:', error);
     
     // Handle mongoose validation errors
@@ -225,7 +225,7 @@ const registerWeb = async (req, res) => {
  * 5. Redirect to intended destination or home
  */
 const loginWeb = async (req, res) => {
-  console.log('[AUTH] Processing web login...');
+  logger.debug('[AUTH] Processing web login...');
   
   try {
     const { email, password, remember } = req.body;
@@ -235,7 +235,7 @@ const loginWeb = async (req, res) => {
     // ===========================================
     
     if (!email || !password) {
-      console.log('[AUTH] ✗ Login failed: Missing credentials');
+      logger.debug('[AUTH] ✗ Login failed: Missing credentials');
       return res.redirect('/login?error=' + encodeURIComponent('Email and password are required'));
     }
     
@@ -244,18 +244,18 @@ const loginWeb = async (req, res) => {
     // ===========================================
     
     // Find user by email or username (email field accepts both)
-    console.log(`[AUTH] Looking up user: ${email}`);
+    logger.debug(`[AUTH] Looking up user: ${email}`);
     const user = await User.findByCredentials(email);
     
     if (!user) {
-      console.log('[AUTH] ✗ Login failed: User not found');
+      logger.debug('[AUTH] ✗ Login failed: User not found');
       logger.warn(`Failed login attempt - user not found: ${email}`);
       return res.redirect('/login?error=' + encodeURIComponent('Invalid email or password'));
     }
     
     // Check if account is active
     if (!user.isActive) {
-      console.log('[AUTH] ✗ Login failed: Account deactivated');
+      logger.debug('[AUTH] ✗ Login failed: Account deactivated');
       logger.warn(`Login attempt on deactivated account: ${email}`);
       return res.redirect('/login?error=' + encodeURIComponent('Your account has been deactivated'));
     }
@@ -264,11 +264,11 @@ const loginWeb = async (req, res) => {
     // Verify Password
     // ===========================================
     
-    console.log('[AUTH] Verifying password...');
+    logger.debug('[AUTH] Verifying password...');
     const isPasswordValid = await user.comparePassword(password);
     
     if (!isPasswordValid) {
-      console.log('[AUTH] ✗ Login failed: Invalid password');
+      logger.debug('[AUTH] ✗ Login failed: Invalid password');
       logger.warn(`Failed login attempt - wrong password: ${email}`);
       return res.redirect('/login?error=' + encodeURIComponent('Invalid email or password'));
     }
@@ -277,7 +277,7 @@ const loginWeb = async (req, res) => {
     // Create Session
     // ===========================================
     
-    console.log(`[AUTH] ✓ Password verified for user: ${user.username}`);
+    logger.debug(`[AUTH] ✓ Password verified for user: ${user.username}`);
     
     // Store user data in session
     req.session.userId = user._id;
@@ -288,10 +288,10 @@ const loginWeb = async (req, res) => {
     if (remember) {
       // Extend session to 30 days
       req.session.cookie.maxAge = 30 * 24 * 60 * 60 * 1000; // 30 days
-      console.log('[AUTH] Remember me enabled - session extended to 30 days');
+      logger.debug('[AUTH] Remember me enabled - session extended to 30 days');
     }
     
-    console.log(`[AUTH] ✓ Session created: ${user._id}`);
+    logger.debug(`[AUTH] ✓ Session created: ${user._id}`);
     logger.info(`User logged in: ${user.username} (${user.email})`);
     
     // Update last login timestamp
@@ -305,11 +305,11 @@ const loginWeb = async (req, res) => {
     const returnTo = req.session.returnTo || '/';
     delete req.session.returnTo; // Clean up
     
-    console.log(`[AUTH] Redirecting to: ${returnTo}`);
+    logger.debug(`[AUTH] Redirecting to: ${returnTo}`);
     res.redirect(returnTo);
     
   } catch (error) {
-    console.error('[AUTH] ✗ Login error:', error.message);
+    logger.error('[AUTH] ✗ Login error:', error.message);
     logger.error('Login error:', error);
     res.redirect('/login?error=' + encodeURIComponent('Login failed. Please try again.'));
   }
@@ -331,17 +331,17 @@ const logoutWeb = (req, res) => {
   const username = req.session.username || 'Unknown';
   const userId = req.session.userId;
   
-  console.log(`[AUTH] Processing logout for user: ${username}`);
+  logger.debug(`[AUTH] Processing logout for user: ${username}`);
   
   // Destroy the session
   req.session.destroy((err) => {
     if (err) {
-      console.error('[AUTH] ✗ Error destroying session:', err.message);
+      logger.error('[AUTH] ✗ Error destroying session:', err.message);
       logger.error('Logout error:', err);
       return res.redirect('/?error=' + encodeURIComponent('Logout failed'));
     }
     
-    console.log(`[AUTH] ✓ Session destroyed for user: ${username} (${userId})`);
+    logger.debug(`[AUTH] ✓ Session destroyed for user: ${username} (${userId})`);
     logger.info(`User logged out: ${username}`);
     
     // Clear the session cookie
@@ -359,14 +359,14 @@ const logoutWeb = (req, res) => {
  * @access Private (requires authentication)
  */
 const getProfilePage = async (req, res) => {
-  console.log('[AUTH] Rendering profile page');
+  logger.debug('[AUTH] Rendering profile page');
   
   try {
     // Get user data from database
     const user = await User.findById(req.session.userId);
     
     if (!user) {
-      console.log('[AUTH] ✗ User not found for profile');
+      logger.debug('[AUTH] ✗ User not found for profile');
       return res.redirect('/login?error=' + encodeURIComponent('Please log in again'));
     }
     
@@ -376,7 +376,7 @@ const getProfilePage = async (req, res) => {
     });
     
   } catch (error) {
-    console.error('[AUTH] ✗ Error loading profile:', error.message);
+    logger.error('[AUTH] ✗ Error loading profile:', error.message);
     logger.error('Profile page error:', error);
     res.redirect('/?error=' + encodeURIComponent('Error loading profile'));
   }
@@ -394,7 +394,7 @@ const getProfilePage = async (req, res) => {
  * @returns {Object} JSON response with user data
  */
 const registerAPI = async (req, res) => {
-  console.log('[AUTH-API] Processing API registration...');
+  logger.debug('[AUTH-API] Processing API registration...');
   
   try {
     const { username, email, password } = req.body;
@@ -404,7 +404,7 @@ const registerAPI = async (req, res) => {
     // ===========================================
     
     if (!username || !email || !password) {
-      console.log('[AUTH-API] ✗ Registration failed: Missing fields');
+      logger.debug('[AUTH-API] ✗ Registration failed: Missing fields');
       return badRequest(res, 'All fields are required', {
         username: !username ? 'Username is required' : null,
         email: !email ? 'Email is required' : null,
@@ -413,7 +413,7 @@ const registerAPI = async (req, res) => {
     }
     
     if (password.length < 8) {
-      console.log('[AUTH-API] ✗ Registration failed: Password too short');
+      logger.debug('[AUTH-API] ✗ Registration failed: Password too short');
       return badRequest(res, 'Password must be at least 8 characters');
     }
     
@@ -423,13 +423,13 @@ const registerAPI = async (req, res) => {
     
     const emailExists = await User.emailExists(email);
     if (emailExists) {
-      console.log('[AUTH-API] ✗ Registration failed: Email exists');
+      logger.debug('[AUTH-API] ✗ Registration failed: Email exists');
       return conflict(res, 'Email is already registered', { email: 'Email is already registered' });
     }
     
     const usernameExists = await User.usernameExists(username);
     if (usernameExists) {
-      console.log('[AUTH-API] ✗ Registration failed: Username exists');
+      logger.debug('[AUTH-API] ✗ Registration failed: Username exists');
       return conflict(res, 'Username is already taken', { username: 'Username is already taken' });
     }
     
@@ -448,7 +448,7 @@ const registerAPI = async (req, res) => {
       }
     });
     
-    console.log(`[AUTH-API] ✓ User created: ${newUser._id}`);
+    logger.debug(`[AUTH-API] ✓ User created: ${newUser._id}`);
     logger.info(`API: New user registered: ${username} (${email})`);
     
     // ===========================================
@@ -461,14 +461,14 @@ const registerAPI = async (req, res) => {
     
     await newUser.updateLastLogin();
     
-    console.log(`[AUTH-API] ✓ Session created for: ${newUser.username}`);
+    logger.debug(`[AUTH-API] ✓ Session created for: ${newUser.username}`);
     
     return created(res, 'User registered successfully', {
       user: newUser.getPublicProfile()
     });
     
   } catch (error) {
-    console.error('[AUTH-API] ✗ Registration error:', error.message);
+    logger.error('[AUTH-API] ✗ Registration error:', error.message);
     logger.error('API Registration error:', error);
     
     if (error.name === 'ValidationError') {
@@ -495,7 +495,7 @@ const registerAPI = async (req, res) => {
  * @returns {Object} JSON response with user data
  */
 const loginAPI = async (req, res) => {
-  console.log('[AUTH-API] Processing API login...');
+  logger.debug('[AUTH-API] Processing API login...');
   
   try {
     const { email, password } = req.body;
@@ -505,7 +505,7 @@ const loginAPI = async (req, res) => {
     // ===========================================
     
     if (!email || !password) {
-      console.log('[AUTH-API] ✗ Login failed: Missing credentials');
+      logger.debug('[AUTH-API] ✗ Login failed: Missing credentials');
       return badRequest(res, 'Email and password are required');
     }
     
@@ -516,20 +516,20 @@ const loginAPI = async (req, res) => {
     const user = await User.findByCredentials(email);
     
     if (!user) {
-      console.log('[AUTH-API] ✗ Login failed: User not found');
+      logger.debug('[AUTH-API] ✗ Login failed: User not found');
       logger.warn(`API: Failed login - user not found: ${email}`);
       return unauthorized(res, 'Invalid email or password');
     }
     
     if (!user.isActive) {
-      console.log('[AUTH-API] ✗ Login failed: Account deactivated');
+      logger.debug('[AUTH-API] ✗ Login failed: Account deactivated');
       return unauthorized(res, 'Your account has been deactivated');
     }
     
     const isPasswordValid = await user.comparePassword(password);
     
     if (!isPasswordValid) {
-      console.log('[AUTH-API] ✗ Login failed: Invalid password');
+      logger.debug('[AUTH-API] ✗ Login failed: Invalid password');
       logger.warn(`API: Failed login - wrong password: ${email}`);
       return unauthorized(res, 'Invalid email or password');
     }
@@ -544,7 +544,7 @@ const loginAPI = async (req, res) => {
     
     await user.updateLastLogin();
     
-    console.log(`[AUTH-API] ✓ Login successful: ${user.username}`);
+    logger.debug(`[AUTH-API] ✓ Login successful: ${user.username}`);
     logger.info(`API: User logged in: ${user.username}`);
     
     return successResponse(res, 200, 'Login successful', {
@@ -552,7 +552,7 @@ const loginAPI = async (req, res) => {
     });
     
   } catch (error) {
-    console.error('[AUTH-API] ✗ Login error:', error.message);
+    logger.error('[AUTH-API] ✗ Login error:', error.message);
     logger.error('API Login error:', error);
     return serverError(res, 'Login failed');
   }
@@ -568,16 +568,16 @@ const loginAPI = async (req, res) => {
 const logoutAPI = (req, res) => {
   const username = req.session.username || 'Unknown';
   
-  console.log(`[AUTH-API] Processing API logout for: ${username}`);
+  logger.debug(`[AUTH-API] Processing API logout for: ${username}`);
   
   req.session.destroy((err) => {
     if (err) {
-      console.error('[AUTH-API] ✗ Logout error:', err.message);
+      logger.error('[AUTH-API] ✗ Logout error:', err.message);
       logger.error('API Logout error:', err);
       return serverError(res, 'Logout failed');
     }
     
-    console.log(`[AUTH-API] ✓ Logout successful: ${username}`);
+    logger.debug(`[AUTH-API] ✓ Logout successful: ${username}`);
     logger.info(`API: User logged out: ${username}`);
     
     res.clearCookie('connect.sid');
@@ -594,24 +594,24 @@ const logoutAPI = (req, res) => {
  * @returns {Object} JSON response with user data
  */
 const getCurrentUser = async (req, res) => {
-  console.log('[AUTH-API] Getting current user...');
+  logger.debug('[AUTH-API] Getting current user...');
   
   try {
     const user = await User.findById(req.session.userId);
     
     if (!user) {
-      console.log('[AUTH-API] ✗ User not found');
+      logger.debug('[AUTH-API] ✗ User not found');
       return unauthorized(res, 'User not found');
     }
     
-    console.log(`[AUTH-API] ✓ Current user: ${user.username}`);
+    logger.debug(`[AUTH-API] ✓ Current user: ${user.username}`);
     
     return successResponse(res, 200, 'User retrieved successfully', {
       user: user.getPublicProfile()
     });
     
   } catch (error) {
-    console.error('[AUTH-API] ✗ Get user error:', error.message);
+    logger.error('[AUTH-API] ✗ Get user error:', error.message);
     logger.error('API Get user error:', error);
     return serverError(res, 'Failed to get user data');
   }
@@ -625,7 +625,7 @@ const getCurrentUser = async (req, res) => {
  * @returns {Object} JSON response with updated user data
  */
 const updateProfile = async (req, res) => {
-  console.log('[AUTH-API] Processing profile update...');
+  logger.debug('[AUTH-API] Processing profile update...');
   
   try {
     const { username, email, displayName } = req.body;
@@ -634,13 +634,13 @@ const updateProfile = async (req, res) => {
     const user = await User.findById(req.session.userId);
     
     if (!user) {
-      console.log('[AUTH-API] ✗ User not found');
+      logger.debug('[AUTH-API] ✗ User not found');
       return unauthorized(res, 'User not found');
     }
     
     // Validate input
     if (!username && !email && displayName === undefined) {
-      console.log('[AUTH-API] ✗ No update fields provided');
+      logger.debug('[AUTH-API] ✗ No update fields provided');
       return badRequest(res, 'At least one field must be provided for update');
     }
     
@@ -653,7 +653,7 @@ const updateProfile = async (req, res) => {
         req.session.username = username;
       }
       
-      console.log(`[AUTH-API] ✓ Profile updated for: ${user.username}`);
+      logger.debug(`[AUTH-API] ✓ Profile updated for: ${user.username}`);
       logger.info(`Profile updated: ${user.username}`);
       
       return successResponse(res, 200, 'Profile updated successfully', {
@@ -662,12 +662,12 @@ const updateProfile = async (req, res) => {
       
     } catch (error) {
       if (error.code === 'USERNAME_TAKEN') {
-        console.log('[AUTH-API] ✗ Username already taken');
+        logger.debug('[AUTH-API] ✗ Username already taken');
         return conflict(res, 'Username is already taken', { username: 'Username is already taken' });
       }
       
       if (error.code === 'EMAIL_TAKEN') {
-        console.log('[AUTH-API] ✗ Email already registered');
+        logger.debug('[AUTH-API] ✗ Email already registered');
         return conflict(res, 'Email is already registered', { email: 'Email is already registered' });
       }
       
@@ -675,7 +675,7 @@ const updateProfile = async (req, res) => {
     }
     
   } catch (error) {
-    console.error('[AUTH-API] ✗ Profile update error:', error.message);
+    logger.error('[AUTH-API] ✗ Profile update error:', error.message);
     logger.error('API Profile update error:', error);
     
     if (error.name === 'ValidationError') {
@@ -698,14 +698,14 @@ const updateProfile = async (req, res) => {
  * @returns {Object} JSON response
  */
 const changePassword = async (req, res) => {
-  console.log('[AUTH-API] Processing password change...');
+  logger.debug('[AUTH-API] Processing password change...');
   
   try {
     const { currentPassword, newPassword, confirmPassword } = req.body;
     
     // Validate input
     if (!currentPassword || !newPassword || !confirmPassword) {
-      console.log('[AUTH-API] ✗ Missing password fields');
+      logger.debug('[AUTH-API] ✗ Missing password fields');
       return badRequest(res, 'All password fields are required', {
         currentPassword: !currentPassword ? 'Current password is required' : null,
         newPassword: !newPassword ? 'New password is required' : null,
@@ -715,13 +715,13 @@ const changePassword = async (req, res) => {
     
     // Validate new password length
     if (newPassword.length < 8) {
-      console.log('[AUTH-API] ✗ New password too short');
+      logger.debug('[AUTH-API] ✗ New password too short');
       return badRequest(res, 'New password must be at least 8 characters');
     }
     
     // Validate password confirmation
     if (newPassword !== confirmPassword) {
-      console.log('[AUTH-API] ✗ Passwords do not match');
+      logger.debug('[AUTH-API] ✗ Passwords do not match');
       return badRequest(res, 'New passwords do not match', {
         confirmPassword: 'Passwords do not match'
       });
@@ -731,7 +731,7 @@ const changePassword = async (req, res) => {
     const user = await User.findById(req.session.userId);
     
     if (!user) {
-      console.log('[AUTH-API] ✗ User not found');
+      logger.debug('[AUTH-API] ✗ User not found');
       return unauthorized(res, 'User not found');
     }
     
@@ -739,14 +739,14 @@ const changePassword = async (req, res) => {
     try {
       await user.changePassword(currentPassword, newPassword);
       
-      console.log(`[AUTH-API] ✓ Password changed for: ${user.username}`);
+      logger.debug(`[AUTH-API] ✓ Password changed for: ${user.username}`);
       logger.info(`Password changed: ${user.username}`);
       
       return successResponse(res, 200, 'Password changed successfully', null);
       
     } catch (error) {
       if (error.code === 'INVALID_PASSWORD') {
-        console.log('[AUTH-API] ✗ Current password incorrect');
+        logger.debug('[AUTH-API] ✗ Current password incorrect');
         return badRequest(res, 'Current password is incorrect', {
           currentPassword: 'Current password is incorrect'
         });
@@ -755,7 +755,7 @@ const changePassword = async (req, res) => {
     }
     
   } catch (error) {
-    console.error('[AUTH-API] ✗ Password change error:', error.message);
+    logger.error('[AUTH-API] ✗ Password change error:', error.message);
     logger.error('API Password change error:', error);
     return serverError(res, 'Failed to change password');
   }
@@ -769,7 +769,7 @@ const changePassword = async (req, res) => {
  * @returns {Object} JSON response with user statistics
  */
 const getUserStats = async (req, res) => {
-  console.log('[AUTH-API] Fetching user statistics...');
+  logger.debug('[AUTH-API] Fetching user statistics...');
   
   try {
     const userId = req.session.userId;
@@ -788,7 +788,7 @@ const getUserStats = async (req, res) => {
       ReadChapter.countDocuments({ userId })
     ]);
     
-    console.log(`[AUTH-API] ✓ Stats fetched for user ${userId}`);
+    logger.debug(`[AUTH-API] ✓ Stats fetched for user ${userId}`);
     
     return successResponse(res, 200, 'Statistics retrieved successfully', {
       stats: {
@@ -799,7 +799,7 @@ const getUserStats = async (req, res) => {
     });
     
   } catch (error) {
-    console.error('[AUTH-API] ✗ Get stats error:', error.message);
+    logger.error('[AUTH-API] ✗ Get stats error:', error.message);
     logger.error('API Get stats error:', error);
     return serverError(res, 'Failed to get statistics');
   }

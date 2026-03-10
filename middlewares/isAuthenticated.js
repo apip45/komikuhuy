@@ -9,7 +9,7 @@
  * Uses session-based authentication with MongoDB session store.
  */
 
-const logger = require('../config/logger');
+const logger = require('../utils/smartLogger');
 
 /**
  * Check if user is authenticated

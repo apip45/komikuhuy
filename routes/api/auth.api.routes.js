@@ -23,6 +23,7 @@
  */
 
 const express = require('express');
+const logger = require('../../utils/smartLogger');
 const router = express.Router();
 
 // Import controller
@@ -31,7 +32,7 @@ const authController = require('../../controllers/authController');
 // Import middleware
 const { isAuthenticatedAPI } = require('../../middlewares');
 
-console.log('[ROUTES] Registering auth API routes...');
+logger.debug('[ROUTES] Registering auth API routes...');
 
 // ===========================================
 // Public API Routes
@@ -64,7 +65,7 @@ console.log('[ROUTES] Registering auth API routes...');
  * - 500: Server error
  */
 router.post('/register', authController.registerAPI);
-console.log('[ROUTES] Registered: POST /api/auth/register');
+logger.debug('[ROUTES] Registered: POST /api/auth/register');
 
 /**
  * POST /api/auth/login
@@ -93,7 +94,7 @@ console.log('[ROUTES] Registered: POST /api/auth/register');
  * - 500: Server error
  */
 router.post('/login', authController.loginAPI);
-console.log('[ROUTES] Registered: POST /api/auth/login');
+logger.debug('[ROUTES] Registered: POST /api/auth/login');
 
 // ===========================================
 // Protected API Routes
@@ -120,7 +121,7 @@ console.log('[ROUTES] Registered: POST /api/auth/login');
  * - 500: Server error
  */
 router.post('/logout', isAuthenticatedAPI, authController.logoutAPI);
-console.log('[ROUTES] Registered: POST /api/auth/logout');
+logger.debug('[ROUTES] Registered: POST /api/auth/logout');
 
 /**
  * GET /api/auth/me
@@ -144,7 +145,7 @@ console.log('[ROUTES] Registered: POST /api/auth/logout');
  * - 500: Server error
  */
 router.get('/me', isAuthenticatedAPI, authController.getCurrentUser);
-console.log('[ROUTES] Registered: GET /api/auth/me');
+logger.debug('[ROUTES] Registered: GET /api/auth/me');
 
 /**
  * PUT /api/auth/profile
@@ -177,7 +178,7 @@ console.log('[ROUTES] Registered: GET /api/auth/me');
  * - 500: Server error
  */
 router.put('/profile', isAuthenticatedAPI, authController.updateProfile);
-console.log('[ROUTES] Registered: PUT /api/auth/profile');
+logger.debug('[ROUTES] Registered: PUT /api/auth/profile');
 
 /**
  * PUT /api/auth/password
@@ -207,7 +208,7 @@ console.log('[ROUTES] Registered: PUT /api/auth/profile');
  * - 500: Server error
  */
 router.put('/password', isAuthenticatedAPI, authController.changePassword);
-console.log('[ROUTES] Registered: PUT /api/auth/password');
+logger.debug('[ROUTES] Registered: PUT /api/auth/password');
 
 /**
  * GET /api/auth/stats
@@ -235,8 +236,8 @@ console.log('[ROUTES] Registered: PUT /api/auth/password');
  * - 500: Server error
  */
 router.get('/stats', isAuthenticatedAPI, authController.getUserStats);
-console.log('[ROUTES] Registered: GET /api/auth/stats');
+logger.debug('[ROUTES] Registered: GET /api/auth/stats');
 
-console.log('[ROUTES] Auth API routes registration complete');
+logger.debug('[ROUTES] Auth API routes registration complete');
 
 module.exports = router;

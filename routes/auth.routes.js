@@ -17,6 +17,7 @@
 
 const express = require('express');
 const router = express.Router();
+const logger = require('../utils/smartLogger');
 
 // Import controller
 const authController = require('../controllers/authController');
@@ -27,7 +28,7 @@ const {
   redirectIfAuthenticated 
 } = require('../middlewares');
 
-console.log('[ROUTES] Registering auth web routes...');
+logger.debug('[ROUTES] Registering auth web routes...');
 
 // ===========================================
 // Public Routes (no authentication required)
@@ -40,7 +41,7 @@ console.log('[ROUTES] Registering auth web routes...');
  * Redirects to home if already logged in.
  */
 router.get('/login', redirectIfAuthenticated, authController.getLoginPage);
-console.log('[ROUTES] Registered: GET /login');
+logger.debug('[ROUTES] Registered: GET /login');
 
 /**
  * POST /login
@@ -50,7 +51,7 @@ console.log('[ROUTES] Registered: GET /login');
  * Redirects to home or original destination.
  */
 router.post('/login', authController.loginWeb);
-console.log('[ROUTES] Registered: POST /login');
+logger.debug('[ROUTES] Registered: POST /login');
 
 /**
  * GET /register
@@ -59,7 +60,7 @@ console.log('[ROUTES] Registered: POST /login');
  * Redirects to home if already logged in.
  */
 router.get('/register', redirectIfAuthenticated, authController.getRegisterPage);
-console.log('[ROUTES] Registered: GET /register');
+logger.debug('[ROUTES] Registered: GET /register');
 
 /**
  * POST /register
@@ -69,7 +70,7 @@ console.log('[ROUTES] Registered: GET /register');
  * Redirects to home on success.
  */
 router.post('/register', authController.registerWeb);
-console.log('[ROUTES] Registered: POST /register');
+logger.debug('[ROUTES] Registered: POST /register');
 
 // ===========================================
 // Protected Routes (authentication required)
@@ -83,7 +84,7 @@ console.log('[ROUTES] Registered: POST /register');
  * Redirects to login page.
  */
 router.post('/logout', authController.logoutWeb);
-console.log('[ROUTES] Registered: POST /logout');
+logger.debug('[ROUTES] Registered: POST /logout');
 
 /**
  * GET /profile
@@ -92,8 +93,8 @@ console.log('[ROUTES] Registered: POST /logout');
  * Requires authentication.
  */
 router.get('/profile', isAuthenticated, authController.getProfilePage);
-console.log('[ROUTES] Registered: GET /profile');
+logger.debug('[ROUTES] Registered: GET /profile');
 
-console.log('[ROUTES] Auth web routes registration complete');
+logger.debug('[ROUTES] Auth web routes registration complete');
 
 module.exports = router;
