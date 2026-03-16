@@ -83,7 +83,7 @@
         <!-- Reset Button (show if filtered) -->
         <% if (search.keyword || search.genre) { %>
         <a 
-          href="/comics" 
+          href="/comics?page=1&limit=<%= pagination.limit %>" 
           class="px-6 py-3 bg-dark-300 text-gray-300 rounded-lg font-semibold hover:bg-dark-200 hover:text-white transition-all flex items-center justify-center gap-2 md:w-auto border border-dark-100"
         >
           <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -197,7 +197,7 @@
         <!-- Previous Button -->
         <% if (pagination.hasPrev) { %>
         <a 
-          href="/comics?page=<%= pagination.current - 1 %>&limit=<%= pagination.limit %>" 
+          href="/comics?page=<%= pagination.current - 1 %>&limit=<%= pagination.limit %><% if (search.keyword) { %>&search=<%= search.keyword %><% } %><% if (search.genre) { %>&genre=<%= search.genre %><% } %>" 
           class="px-4 py-2 bg-dark-400 border border-dark-100 rounded-lg text-gray-400 hover:text-white hover:border-neon-600 transition-colors">
           <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path>
@@ -223,7 +223,7 @@
           %>
           
           <% if (startPage > 1) { %>
-          <a href="/comics?page=1&limit=<%= pagination.limit %>" class="px-3 py-2 rounded-lg text-gray-400 hover:text-white hover:bg-dark-300 transition-colors">1</a>
+          <a href="/comics?page=1&limit=<%= pagination.limit %><% if (search.keyword) { %>&search=<%= search.keyword %><% } %><% if (search.genre) { %>&genre=<%= search.genre %><% } %>" class="px-3 py-2 rounded-lg text-gray-400 hover:text-white hover:bg-dark-300 transition-colors">1</a>
           <% if (startPage > 2) { %>
           <span class="px-2 text-gray-600">...</span>
           <% } %>
@@ -235,7 +235,7 @@
             <%= i %>
           </span>
           <% } else { %>
-          <a href="/comics?page=<%= i %>&limit=<%= pagination.limit %>" class="px-3 py-2 rounded-lg text-gray-400 hover:text-white hover:bg-dark-300 transition-colors">
+          <a href="/comics?page=<%= i %>&limit=<%= pagination.limit %><% if (search.keyword) { %>&search=<%= search.keyword %><% } %><% if (search.genre) { %>&genre=<%= search.genre %><% } %>" class="px-3 py-2 rounded-lg text-gray-400 hover:text-white hover:bg-dark-300 transition-colors">
             <%= i %>
           </a>
           <% } %>
@@ -245,14 +245,14 @@
           <% if (endPage < pagination.total - 1) { %>
           <span class="px-2 text-gray-600">...</span>
           <% } %>
-          <a href="/comics?page=<%= pagination.total %>&limit=<%= pagination.limit %>" class="px-3 py-2 rounded-lg text-gray-400 hover:text-white hover:bg-dark-300 transition-colors"><%= pagination.total %></a>
+          <a href="/comics?page=<%= pagination.total %>&limit=<%= pagination.limit %><% if (search.keyword) { %>&search=<%= search.keyword %><% } %><% if (search.genre) { %>&genre=<%= search.genre %><% } %>" class="px-3 py-2 rounded-lg text-gray-400 hover:text-white hover:bg-dark-300 transition-colors"><%= pagination.total %></a>
           <% } %>
         </div>
         
         <!-- Next Button -->
         <% if (pagination.hasNext) { %>
         <a 
-          href="/comics?page=<%= pagination.current + 1 %>&limit=<%= pagination.limit %>" 
+          href="/comics?page=<%= pagination.current + 1 %>&limit=<%= pagination.limit %><% if (search.keyword) { %>&search=<%= search.keyword %><% } %><% if (search.genre) { %>&genre=<%= search.genre %><% } %>" 
           class="px-4 py-2 bg-dark-400 border border-dark-100 rounded-lg text-gray-400 hover:text-white hover:border-neon-600 transition-colors">
           <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path>
